@@ -78,14 +78,17 @@ def create_job_file(args):
     # open file
     f = open(os.path.join(args.working_dir, "bjobs_file.txt"), "w")
 
+    # open folder for log files
+    os.system("mkdir {}/log_files/".format(args.working_dir))
+
     # write the LSF system parameters
     f.write("#BSUB -q {}\n".format(args.q))
 
     f.write("#BSUB -J {}\n".format(args.J))
 
-    f.write("#BSUB -oo {}_%J.out\n".format(args.J))
+    f.write("#BSUB -oo log_files/{}_%J.out\n".format(args.J))
 
-    f.write("#BSUB -eo {}_%J.err\n".format(args.J))
+    f.write("#BSUB -eo log_files/{}_%J.err\n".format(args.J))
 
     f.write('#BSUB -R "rusage[mem={}] span[hosts={}]"\n'.format(args.rusage, args.hosts))
 
@@ -111,7 +114,7 @@ def create_job_file(args):
     )
 
     f.write("# make dirs\n")
-    f.write("mkdir filtered_bam_files/ bam_statistics/ /scRarevar_output/ log_files/ statistics_ouputs\n\n")
+    f.write("mkdir filtered_bam_files/ bam_statistics/ scRarevar_output/ statistics_ouputs/\n\n")
 
     f.write("# filter bam file by filter list\n")
     f.write("python /home/labs/bioservices/shared/rarevar/code/scripts/filter_bam.py {bam} {filter_list}"
@@ -171,4 +174,4 @@ if __name__ == '__main__':
 
     create_job_file(args)
 
-    # os.system("bsub < {}/bjobs_file.txt".format(args.working_dir))
+    os.system("bsub < {}/bjobs_file.txt".format(args.working_dir))
