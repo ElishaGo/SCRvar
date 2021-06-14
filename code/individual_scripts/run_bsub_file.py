@@ -135,6 +135,16 @@ def create_job_file(args):
     f.write("# remove sam file\n")
     f.write("rm filtered_bam_files/{fname}_htseq_gene.sam\n\n".format(fname=args.fname))
 
+    f.write("# get statistics on bam file")
+    f.write("mkdir filtered_bam_files/bam_statistics")
+    f.write("samtools flagstat -@ 10 filtered_bam_files/{fname}_htseq_gene_header.sam > bam_statistics/flagstat_htseq.tsv".format(fname=args.fname))
+
+    f.write("# keep only gene sites from htseq output")
+    f.write('grep -v "__" filtered_bam_files/{fname}_htseq_gene_header.sam | '
+            'samtools view -@ 10 -Sb - > filtered_bam_files/{fname}_htseq_gene_header.bam;'
+            'samtools index filtered_bam_files/{fname}_htseq_gene_header.bam'.format(fname=args.fname))
+    f.write("rm filtered_bam_files/{fname}_htseq_gene_header.sam".format(fname=args.fname))
+
     f.write("# Run scrarevar program\n")
     f.write("python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/scrnavariants.py"
               " filtered_bam_files/{fname}_htseq_gene_header.bam {genome_ref} scRarevar_output/ --log-file /log_files/log_{fname}.txt "
