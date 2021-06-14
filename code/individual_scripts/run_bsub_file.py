@@ -111,7 +111,7 @@ def create_job_file(args):
     f.write("mkdir filtered_bam_files/ bam_statistics/ scRarevar_output/ statistics_ouputs/\n\n")
 
     f.write("# filter bam file by filter list\n")
-    f.write("python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scripts/filter_bam.py {bam} {filter_list}"
+    f.write("python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/individual_scripts/filter_bam.py {bam} {filter_list}"
               " --output_folder filtered_bam_files/ --name_suffix {fname} --threads {n}\n\n".format(bam=args.bam_file,
                                                                                                  filter_list=args.filter_list_bam,
                                                                                                  fname=args.fname,
