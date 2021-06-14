@@ -39,7 +39,7 @@ def parse_arguments(arguments=None):
 
     parser.add_argument('--n', type=int, default=1, help='Number of cores to use')
 
-    parser.add_argument('--cwd', type=str, help='Set working directory')
+    # parser.add_argument('--cwd', type=str, help='Set working directory')
 
     parser.add_argument('--filter_list_bam', type=str,
                         help='List of cell barcodes to use in format as in  the bam file')
@@ -93,9 +93,17 @@ def create_job_file(args):
 
     f.write("#BSUB -cwd {}\n".format(args.working_dir))
 
+    # write the parameters used in the job
+    f.write("\n### Parameters used in this job: \n%s" % '\n'.join(
+        ['# %s: %s' % (key, value) for key, value in vars(args).items() if key not in ['q', 'J', 'rusage', 'hosts', 'n']]))
+    # logger.debug('Running with parameters:\n%s' % '\n'.join(
+    #     ['%s: %s' % (key, value) for key, value in vars(args).items() if key != 'filtered_barcodes_list'])
+    #              )
+
 
     # write the commands to execute
-    f.write("\n")
+    f.write("\n\n\n")
+    f.write("### Run the commands:\n")
     f.write("# load conda environment and modules\n")
     f.write(
         ". /home/labs/bioservices/services/miniconda2/etc/profile.d/conda.sh;conda activate rarevar;module load "
@@ -163,4 +171,4 @@ if __name__ == '__main__':
 
     create_job_file(args)
 
-    # os.system("bsub < {}bjobs_file.txt".format(args.working_dir))
+    # os.system("bsub < {}/bjobs_file.txt".format(args.working_dir))
