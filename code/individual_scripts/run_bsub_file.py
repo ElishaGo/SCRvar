@@ -91,7 +91,7 @@ def create_job_file(args):
 
     f.write("#BSUB -n {}\n".format(args.n))
 
-    f.write("#BSUB -cwd {}\n".format(args.args.working_dir))
+    f.write("#BSUB -cwd {}\n".format(args.working_dir))
 
 
     # write the commands to execute
@@ -132,25 +132,25 @@ def create_job_file(args):
     f.write("# remove sam file\n")
     f.write("rm {fname}_htseq_gene.sam\n\n".format(fname=args.fname))
 
-    f.write("Run scrarevar program\n")
+    f.write("# Run scrarevar program\n")
     f.write("python /home/labs/bioservices/shared/rarevar/code/scRNAvariants/scripts/scrnavariants.py"
               " {fname}_htseq_gene_header.bam {genome_ref} /scRarevar_output/ --log-file /log_files/log_{fname}.txt "
               "--threads {n}\n\n".format(fname=args.fname, genome_ref=args.genome_ref, n=args.n))
 
-    f.write('Run statistics analysis program\n')
+    f.write('# Run statistics analysis program\n')
     f.write("python /home/labs/bioservices/shared/rarevar/code/scRNAvariants/scripts/make_statistics.py "
             "scRarevar_output/raw_stats.tsv "
             "scRarevar_output/raw_unmutated_stats.tsv "
             "--output_folder statistics_ouput/ "
             "--log-file scRarevar_log_file/log_statistics_{fname}.txt\n\n".format(fname=args.fname))
 
-    f.write('Find intersections with SNP and edit databases\n')
+    f.write('# Find intersections with SNP and edit databases\n')
     f.write('python /home/labs/bioservices/shared/rarevar/code/scRNAvariants/scripts/visul/make_venn.py '
             'statistics_ouput/ {edit_rep_bed} {edit_nonrep_bed} {snp_vcf}\n\n'.format(edit_rep_bed=args.edit_rep_bed,
                                                                                    edit_nonrep_bed=args.edit_nonrep_bed,
                                                                                    snp_vcf=args.snp_vcf))
 
-    f.write('Find intersections with SNP and edit databases\n')
+    f.write('# Find intersections with SNP and edit databases\n')
     f.write('python /home/labs/bioservices/shared/rarevar/code/scripts/filter_snp.py '
             'statistics_ouput/aggregated_intersect.tsv '
             '{snp_clf}'.format(snp_clf=args.snp_clf_weights))
