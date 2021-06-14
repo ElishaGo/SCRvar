@@ -99,53 +99,45 @@ def create_job_file(args):
     # write the parameters used in the job
     f.write("\n### Parameters used in this job: \n%s" % '\n'.join(
         ['# %s: %s' % (key, value) for key, value in vars(args).items() if key not in ['q', 'J', 'rusage', 'hosts', 'n']]))
-    # logger.debug('Running with parameters:\n%s' % '\n'.join(
-    #     ['%s: %s' % (key, value) for key, value in vars(args).items() if key != 'filtered_barcodes_list'])
-    #              )
-
 
     # write the commands to execute
     f.write("\n\n\n")
     f.write("### Run the commands:\n")
     f.write("# load conda environment and modules\n")
-    f.write(
-        ". /home/labs/bioservices/services/miniconda2/etc/profile.d/conda.sh;conda activate rarevar;module load "
-        "samtools;module load bamtools;module load bedtools\n\n"
-    )
+    f.write(". /home/labs/bioservices/services/miniconda2/etc/profile.d/conda.sh;conda activate rarevar;module load "
+        "samtools;module load bamtools;module load bedtools\n\n")
 
     f.write("# make dirs\n")
     f.write("mkdir filtered_bam_files/ bam_statistics/ scRarevar_output/ statistics_ouputs/\n\n")
 
     f.write("# filter bam file by filter list\n")
     f.write("python /home/labs/bioservices/shared/rarevar/code/scripts/filter_bam.py {bam} {filter_list}"
-              " --output_folder ./filtered_bam_files --name_suffix {fname} --threads {n}\n\n".format(bam=args.bam_file,
+              " --output_folder filtered_bam_files/ --name_suffix {fname} --threads {n}\n\n".format(bam=args.bam_file,
                                                                                                  filter_list=args.filter_list_bam,
                                                                                                  fname=args.fname,
                                                                                                  n=args.n))
     f.write("# add chr to chromosome names in bam files\n")
-    f.write(
-        "samtools view -H {fname}_CBfiltered.bam | sed  -e '/SN:chr/!s/SN:\([0-9XY]*\)/SN:chr&/' -e "
-        "'/SN:chrM/!s/SN:MT/SN:chrM&/' | samtools reheader - {fname}_CBfiltered.bam > {fname}_CBfiltered_chr.bam;"
-        "samtools index {fname}_CBfiltered_chr.bam\n\n".format(
-            fname=args.fname))
+    f.write("samtools view -H filtered_bam_files/{fname}_CBfiltered.bam | sed  -e '/SN:chr/!s/SN:\([0-9XY]*\)/SN:chr&/' -e "
+        "'/SN:chrM/!s/SN:MT/SN:chrM&/' | samtools reheader - filtered_bam_files/{fname}_CBfiltered.bam > filtered_bam_files/{fname}_CBfiltered_chr.bam;"
+        "samtools index filtered_bam_files/{fname}_CBfiltered_chr.bam\n\n".format(fname=args.fname))
 
     f.write("# remove old bam files\n")
-    f.write("rm {fname}_CBfiltered.bam {fname}_CBfiltered.bam.bai\n\n".format(fname=args.fname))
+    f.write("rm filtered_bam_files/{fname}_CBfiltered.bam filtered_bam_files/{fname}_CBfiltered.bam.bai\n\n".format(fname=args.fname))
 
     f.write("# run ht-seq to filter non gene cites from bam\n")
-    f.write("htseq-count -f bam -i gene_name -t gene -m union -s yes -o {fname}_htseq_gene.sam "
-              "{fname}_CBfiltered_chr.bam {gtf} 3>&1 > {fname}_stranded_counts.txt\n\n".format(fname=args.fname,
+    f.write("htseq-count -f bam -i gene_name -t gene -m union -s yes -o filtered_bam_files/{fname}_htseq_gene.sam "
+              "filtered_bam_files/{fname}_CBfiltered_chr.bam {gtf} 3>&1 > filtered_bam_files/{fname}_stranded_counts.txt\n\n".format(fname=args.fname,
                                                                                            gtf=args.annotation_gtf))
     f.write("# add header to the bam file\n")
-    f.write("samtools view -H {fname}_CBfiltered_chr.bam | "
-              "cat - {fname}_htseq_gene.sam > {fname}_htseq_gene_header.sam\n\n".format(fname=args.fname))
+    f.write("samtools view -H filtered_bam_files/{fname}_CBfiltered_chr.bam | "
+              "cat - filtered_bam_files/{fname}_htseq_gene.sam > filtered_bam_files/{fname}_htseq_gene_header.sam\n\n".format(fname=args.fname))
 
     f.write("# remove sam file\n")
-    f.write("rm {fname}_htseq_gene.sam\n\n".format(fname=args.fname))
+    f.write("rm filtered_bam_files/{fname}_htseq_gene.sam\n\n".format(fname=args.fname))
 
     f.write("# Run scrarevar program\n")
     f.write("python /home/labs/bioservices/shared/rarevar/code/scRNAvariants/scripts/scrnavariants.py"
-              " {fname}_htseq_gene_header.bam {genome_ref} /scRarevar_output/ --log-file /log_files/log_{fname}.txt "
+              " filtered_bam_files/{fname}_htseq_gene_header.bam {genome_ref} scRarevar_output/ --log-file /log_files/log_{fname}.txt "
               "--threads {n}\n\n".format(fname=args.fname, genome_ref=args.genome_ref, n=args.n))
 
     f.write('# Run statistics analysis program\n')
