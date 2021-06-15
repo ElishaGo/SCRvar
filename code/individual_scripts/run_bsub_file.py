@@ -116,16 +116,16 @@ def create_job_file(args):
                                                                                                  filter_list=args.filter_list_bam,
                                                                                                  fname=args.fname,
                                                                                                  n=args.n))
-    # f.write("# remove old bam files\n")
-    # f.write("rm {name}_SAM_header;rm {filter_list}\n\n")
+    f.write("# remove old bam files\n")
+    f.write("rm {fname}_SAM_header;rm {filter_list}\n\n".format(fname=args.fname))
 
     f.write("# add chr to chromosome names in bam files\n")
     f.write("samtools view -H filtered_bam_files/{fname}_CBfiltered.bam | sed  -e '/SN:chr/!s/SN:\([0-9XY]*\)/SN:chr&/' -e "
         "'/SN:chrM/!s/SN:MT/SN:chrM&/' | samtools reheader - filtered_bam_files/{fname}_CBfiltered.bam > filtered_bam_files/{fname}_CBfiltered_chr.bam;"
         "samtools index filtered_bam_files/{fname}_CBfiltered_chr.bam\n\n".format(fname=args.fname))
 
-    # f.write("# remove old bam files\n")
-    # f.write("rm filtered_bam_files/{fname}_CBfiltered.bam filtered_bam_files/{fname}_CBfiltered.bam.bai\n\n".format(fname=args.fname))
+    f.write("# remove old bam files\n")
+    f.write("rm filtered_bam_files/{fname}_CBfiltered.bam filtered_bam_files/{fname}_CBfiltered.bam.bai\n\n".format(fname=args.fname))
 
     f.write("# run ht-seq to filter non gene cites from bam\n")
     f.write("htseq-count -f bam -i gene_name -t gene -m union -s yes -o filtered_bam_files/{fname}_htseq_gene.sam "
@@ -135,8 +135,8 @@ def create_job_file(args):
     f.write("samtools view -H filtered_bam_files/{fname}_CBfiltered_chr.bam | "
               "cat - filtered_bam_files/{fname}_htseq_gene.sam > filtered_bam_files/{fname}_htseq_gene_header.sam\n\n".format(fname=args.fname))
 
-    # f.write("# remove sam file\n")
-    # f.write("rm filtered_bam_files/{fname}_htseq_gene.sam\n\n".format(fname=args.fname))
+    f.write("# remove sam file\n")
+    f.write("rm filtered_bam_files/{fname}_htseq_gene.sam\n\n".format(fname=args.fname))
 
     f.write("# get statistics on bam file\n")
     f.write("mkdir filtered_bam_files/bam_statistics\n")
@@ -145,8 +145,9 @@ def create_job_file(args):
     f.write("# keep only gene sites from htseq output\n")
     f.write('grep -v "__" filtered_bam_files/{fname}_htseq_gene_header.sam | '
             'samtools view -@ {n} -Sb - > filtered_bam_files/{fname}_htseq_gene_header.bam;'
+            'samtools sort -@ {n} filtered_bam_files/{fname}_htseq_gene_header.bam -o filtered_bam_files/{fname}_htseq_gene_header.bam;'
             'samtools index filtered_bam_files/{fname}_htseq_gene_header.bam\n\n'.format(fname=args.fname, n=args.n))
-    # f.write("rm filtered_bam_files/{fname}_htseq_gene_header.sam\n\n".format(fname=args.fname))
+    f.write("rm filtered_bam_files/{fname}_htseq_gene_header.sam\n\n".format(fname=args.fname))
 
     f.write("# Run scrarevar program\n")
     f.write("python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/scrnavariants.py"

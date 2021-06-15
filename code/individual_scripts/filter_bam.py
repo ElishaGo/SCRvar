@@ -62,8 +62,8 @@ def filter_bam(args, filter_list):
 
     os.system("samtools view -H {bam_file} > {out}/{name}_SAM_header; samtools view -@ {threads} {bam_file} |"
               " LC_ALL=C grep -F -f {filter_list} | cat {out}/{name}_SAM_header - | "
-              "samtools view -@ {threads} -b - > {out}/{name}_CBfiltered.bam;"
-              "samtools index {out}/{name}_CBfiltered.bam".format(bam_file=bam_file,filter_list=filter_list,
+              "samtools view -@ {threads} -b - > {out}/{name}_CBfiltered.bam;samtools index {out}/{name}_CBfiltered.bam;"
+              "".format(bam_file=bam_file,filter_list=filter_list,
                                                              out=out_folder, name=suffix, threads=threads))
 
 def open_bam(input_bam, available_threads=1):
