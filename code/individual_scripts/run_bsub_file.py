@@ -164,7 +164,7 @@ def create_job_file(args):
                                                                                    snp_vcf=args.snp_vcf))
 
     f.write('# Find intersections with SNP and edit databases\n')
-    f.write('python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scripts/filter_snp.py '
+    f.write('python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/filter_snp.py '
             'statistics_ouput/aggregated_intersect.tsv '
             '{snp_clf}'.format(snp_clf=args.snp_clf_weights))
     
