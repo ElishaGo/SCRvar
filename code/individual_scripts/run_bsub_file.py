@@ -137,12 +137,12 @@ def create_job_file(args):
 
     f.write("# get statistics on bam file\n")
     f.write("mkdir filtered_bam_files/bam_statistics\n")
-    f.write("samtools flagstat -@ 10 filtered_bam_files/{fname}_htseq_gene_header.sam > bam_statistics/flagstat_htseq.tsv\n\n".format(fname=args.fname))
+    f.write("samtools flagstat -@ {n} filtered_bam_files/{fname}_htseq_gene_header.sam > bam_statistics/flagstat_htseq.tsv\n\n".format(fname=args.fname, n=args.n))
 
     f.write("# keep only gene sites from htseq output\n")
     f.write('grep -v "__" filtered_bam_files/{fname}_htseq_gene_header.sam | '
-            'samtools view -@ 10 -Sb - > filtered_bam_files/{fname}_htseq_gene_header.bam;'
-            'samtools index filtered_bam_files/{fname}_htseq_gene_header.bam\n\n'.format(fname=args.fname))
+            'samtools view -@ {n} -Sb - > filtered_bam_files/{fname}_htseq_gene_header.bam;'
+            'samtools index filtered_bam_files/{fname}_htseq_gene_header.bam\n\n'.format(fname=args.fname, n=args.n))
     f.write("rm filtered_bam_files/{fname}_htseq_gene_header.sam\n\n".format(fname=args.fname))
 
     f.write("# Run scrarevar program\n")
@@ -158,7 +158,7 @@ def create_job_file(args):
             "--log-file scRarevar_log_file/log_statistics_{fname}.txt\n\n".format(fname=args.fname))
 
     f.write('# Find intersections with SNP and edit databases\n')
-    f.write('python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/visul/make_venn.py '
+    f.write('python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/make_venn.py '
             'statistics_ouput/ {edit_rep_bed} {edit_nonrep_bed} {snp_vcf}\n\n'.format(edit_rep_bed=args.edit_rep_bed,
                                                                                    edit_nonrep_bed=args.edit_nonrep_bed,
                                                                                    snp_vcf=args.snp_vcf))

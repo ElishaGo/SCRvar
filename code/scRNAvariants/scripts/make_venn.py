@@ -28,7 +28,7 @@ def parse_arguments(arguments=None):
     return parser.parse_args(arguments)
 
 
-def make_venn_diagram(df, subset_list, labels, column_name,input_dir):
+def plot_venn_diagram(df, subset_list, labels, column_name, input_dir):
     fig, axs = plt.subplots(2, figsize=(10, 8), gridspec_kw={'height_ratios': [3, 1]})
     fig.suptitle('Intersection - {} and {} {}'.format(labels[0], labels[2], labels[1]),
                  fontsize=18, bbox={"facecolor": "orange", "alpha": 0.5})
@@ -56,7 +56,7 @@ def make_venn_diagram(df, subset_list, labels, column_name,input_dir):
     plt.savefig(os.path.join(input_dir, 'venn_diagram_{}.png'.format(labels[0])), facecolor='white')
 
 
-def run_venn(df,df_filtered, column_name, db_total_count, labels,input_dir):
+def run_venn(df, df_filtered, column_name, db_total_count, labels,input_dir):
     df_pos_count = df.shape[0]
     filtered_df_intrsct = len(df.index & df_filtered.index)
     filtered_count = df_filtered.shape[0] - filtered_df_intrsct
@@ -66,52 +66,61 @@ def run_venn(df,df_filtered, column_name, db_total_count, labels,input_dir):
     intersection_list = [db_total_count, df_pos_count, db_df_intrsct,
                          filtered_count, db_filtered_intrsct, filtered_df_intrsct,
                          db_filtered_df_intrsct]
-    make_venn_diagram(df, intersection_list, labels, column_name,input_dir)
+    plot_venn_diagram(df, intersection_list, labels, column_name, input_dir)
 
 
-def make_diagrams(args,pathes):
+def count_intersection(df_agg_intrsct, df_filtered, args):
+    """function to get information on intersections of tables with databases"""
+    # count instances in databases
+    snp_total_count = os.popen("grep -v '#' {} | wc -l".format(args.snp_db_path)).read()  # count lines without headers
+    edit_rep_total_count = os.popen("cat {} | wc -l".format(args.rep_db_path)).read()
+    edit_nonrep_total_count = os.popen("cat {} | wc -l".format(args.non_rep_db_path)).read()
+
+    # convert to int
+    snp_total_count, edit_rep_total_count, edit_nonrep_total_count = \
+        int(snp_total_count), int(edit_rep_total_count), int(edit_nonrep_total_count)
+
+    # make Venn diagrams for snp, editing rep and editing non_rep intersections
+    run_venn(df_agg_intrsct, df_filtered, 'is_snp', snp_total_count, ['SNP', 'Aggregated data', 'Filtered data'],
+             args.input_dir)
+    run_venn(df_agg_intrsct, df_filtered, 'is_editing_rep', edit_rep_total_count,
+             ['Edit_rep', 'Aggregated data', 'Filtered data'], args.input_dir)
+    run_venn(df_agg_intrsct, df_filtered, 'is_editing_non_rep', edit_nonrep_total_count,
+             ['Edit_non_rep', 'Aggregated data', 'Filtered data'], args.input_dir)
+
+
+def get_df(pathes):
+    """function to load the df and filter it"""
     def get_filtered(df_agg, min_mutation_cb_to_filter, min_mutation_umis, min_total_umis):
         """function to return filtered aggregated table"""
+        # first condition to filter by
         cond_1 = (df_agg['count of mutated cell barcodes'] >= min_mutation_cb_to_filter)
 
-        mutation_umi_counts = df_agg['total umi counts 1 cells'] + \
-                              df_agg['total umi counts 2 cells'] + \
-                              df_agg['total umi counts 3 cells'] + \
-                              df_agg['total umi counts 4+ cells']
+        # second condition to filter by
+        mutation_umi_counts = df_agg['total mutation umi count']
         total_umi_count = mutation_umi_counts + \
                           df_agg['unmutated multi reads'] + \
                           df_agg['unmutated single reads']
-        cood_2 = ((mutation_umi_counts >= min_mutation_umis) & (total_umi_count >= min_total_umis))
+        cond_2 = ((mutation_umi_counts >= min_mutation_umis) & (total_umi_count >= min_total_umis))
 
-        df_agg_filt = df_agg[cond_1 & cood_2]
-        return  df_agg_filt
+        # filter the aggregated df
+        df_agg_filt = df_agg[cond_1 & cond_2]
+        return df_agg_filt
 
-    # extract pathes
-    df_intersection = pathes[3]
-    input_dir = args.input_dir
-    snp_db_path = args.snp_db_path
-    rep_db_path = args.rep_db_path
-    non_rep_db_path = args.non_rep_db_path
-    
-    # count lines in databases files
-    snp_total_count = os.popen("grep -v '#' {} | wc -l".format(snp_db_path)).read()  # count lines without headers
-    edit_rep_total_count = os.popen("cat {} | wc -l".format(rep_db_path)).read()
-    edit_nonrep_total_count = os.popen("cat {} | wc -l".format(non_rep_db_path)).read()
-    snp_total_count = int(snp_total_count)
-    edit_rep_total_count = int(edit_rep_total_count)
-    edit_nonrep_total_count = int(edit_nonrep_total_count)
+    # extract paths
+    df_intersection_path = pathes[3]
 
     # load and change the df with intersections notations to be binary (1 - if any overlap with db occured)
-    df_agg_intrsct = pd.read_csv(df_intersection, sep='\t')
+    df_agg_intrsct = pd.read_csv(df_intersection_path, sep='\t')
     df_agg_intrsct.loc[df_agg_intrsct['is_snp'] > 0, 'is_snp'] = 1
     df_agg_intrsct.loc[df_agg_intrsct['is_editing_rep'] > 0, 'is_editing_rep'] = 1
     df_agg_intrsct.loc[df_agg_intrsct['is_editing_non_rep'] > 0, 'is_editing_non_rep'] = 1
-    df_filtered = get_filtered(df_agg_intrsct, 5,10, 20)
+    df_agg_intrsct.to_csv(df_intersection_path, sep='\t', index=False)
 
-    # make Venn diagrams for snp, editing rep and editing non_rep intersections
-    run_venn(df_agg_intrsct,df_filtered, 'is_snp', snp_total_count, ['SNP', 'Aggregated data', 'Filtered data'],input_dir)
-    run_venn(df_agg_intrsct,df_filtered, 'is_editing_rep', edit_rep_total_count, ['Edit_rep', 'Aggregated data', 'Filtered data'],input_dir)
-    run_venn(df_agg_intrsct,df_filtered, 'is_editing_non_rep', edit_nonrep_total_count,['Edit_non_rep', 'Aggregated data', 'Filtered data'],input_dir)
+    # get filtered df
+    df_filtered = get_filtered(df_agg_intrsct, 5, 10, 20)
+
+    return df_agg_intrsct, df_filtered
 
 
 def find_intersections(args, pathes):
@@ -156,7 +165,19 @@ def make_pathes(input_dir):
 if __name__ == '__main__':
     # parse arguments
     args = parse_arguments()
+
+    # get paths to files we use
     pathes = make_pathes(args.input_dir)
+
+    # find intersection between df and databases
     find_intersections(args, pathes)
-    make_diagrams(args, pathes)
+
+    # get the df with intersections, before and after filtering
+    df_agg_intersect, df_filtered = get_df(pathes)
+
+    # make Venn diagrams of the intersections
+    count_intersection(df_agg_intersect, df_filtered, args)
+
+
+
     print("Fininshed Venn diagrams")
