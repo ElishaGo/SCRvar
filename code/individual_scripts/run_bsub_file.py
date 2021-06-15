@@ -117,7 +117,8 @@ def create_job_file(args):
                                                                                                  fname=args.fname,
                                                                                                  n=args.n))
     f.write("# remove old bam files\n")
-    f.write("rm {fname}_SAM_header;rm {filter_list}\n\n".format(fname=args.fname))
+    f.write("rm {fname}_SAM_header\n\n".format(fname=args.fname))
+    # ;rm {filter_list}
 
     f.write("# add chr to chromosome names in bam files\n")
     f.write("samtools view -H filtered_bam_files/{fname}_CBfiltered.bam | sed  -e '/SN:chr/!s/SN:\([0-9XY]*\)/SN:chr&/' -e "
