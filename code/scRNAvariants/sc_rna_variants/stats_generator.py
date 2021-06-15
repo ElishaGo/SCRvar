@@ -77,18 +77,22 @@ def print_frequencies(df_merged, df_merged_agg, output_folder):
 def filter_by_cb_count(df, df_agg, min_mutation_cb_to_filter,min_mutation_umis, min_total_umis):
     """filtering function for aggregated tables and open table by the same positions from aggregated filtered table."""
 
+    # first condition to filter by
+    cond_1 = (df_agg['count of mutated cell barcodes'] >= min_mutation_cb_to_filter)
+
+    # second condition to filter by
     mutation_umi_counts = df_agg['total mutation umi count']
     total_umi_count = mutation_umi_counts + \
                       df_agg['unmutated multi reads'] +\
                       df_agg['unmutated single reads']
-
-    cond_1 = (df_agg['count of mutated cell barcodes'] >= min_mutation_cb_to_filter)
     cond_2 = ((mutation_umi_counts >= min_mutation_umis) & (total_umi_count >= min_total_umis))
+
+    # filter the aggregated df
     df_agg_filt = df_agg[cond_1 & cond_2]
 
     # filter the open table by the position which were filtered in the aggregated df
     filter_idx = df_agg_filt['position'].values
-    df_filt = df[df['position'].isin(filter_idx)]
+    df_filt = df[df['position'].isin(filter_idx)]  # TODO: check if you can use directly the filter idx without 'isin'
     return df_filt, df_agg_filt
 
 
