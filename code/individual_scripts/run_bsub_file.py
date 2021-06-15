@@ -152,7 +152,7 @@ def create_job_file(args):
 
     f.write("# Run scrarevar program\n")
     f.write("python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/scrnavariants.py"
-              " filtered_bam_files/{fname}_htseq_gene_header.bam {genome_ref} scRarevar_output/ --log-file /log_files/log_{fname}.txt "
+              " filtered_bam_files/{fname}_htseq_gene_header.bam {genome_ref} scRarevar_output/ --log-file log_files/log_{fname}.txt "
               "--threads {n}\n\n".format(fname=args.fname, genome_ref=args.genome_ref, n=args.n))
 
     f.write('# Run statistics analysis program\n')
