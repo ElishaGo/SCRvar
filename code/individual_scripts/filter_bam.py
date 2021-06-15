@@ -60,7 +60,11 @@ def filter_bam(args, filter_list):
     
 #     os.system("export name={suffix};export BAM_FILE={bam_file};export FILTER_FILE={filter_list}; samtools view -H $BAM_FILE > {out}/SAM_header_$name; samtools view -@ {threads} $BAM_FILE | LC_ALL=C grep -F -f $FILTER_FILE | cat {out}/SAM_header_$name - | samtools view -@ {threads} -b - > {out}/CBfiltered_$name.bam;samtools index {out}/CBfiltered_$name.bam;rm SAM_header_$name;rm $FILTER_FILE".format(bam_file=bam_file, filter_list=filter_list, out= out_folder,suffix=suffix, threads = threads))
 
-    os.system("samtools view -H {bam_file} > {out}/{name}_SAM_header; samtools view -@ {threads} {bam_file} | LC_ALL=C grep -F -f {filter_list} | cat {out}/{name}_SAM_header - | samtools view -@ {threads} -b - > {out}/{name}_CBfiltered.bam;samtools index {out}/{name}_CBfiltered.bam;rm {name}_SAM_header;rm {filter_list}".format(bam_file=bam_file, filter_list=filter_list, out= out_folder,name=suffix, threads = threads))
+    os.system("samtools view -H {bam_file} > {out}/{name}_SAM_header; samtools view -@ {threads} {bam_file} |"
+              " LC_ALL=C grep -F -f {filter_list} | cat {out}/{name}_SAM_header - | "
+              "samtools view -@ {threads} -b - > {out}/{name}_CBfiltered.bam;"
+              "samtools index {out}/{name}_CBfiltered.bam".format(bam_file=bam_file,filter_list=filter_list,
+                                                             out=out_folder, name=suffix, threads=threads))
 
 def open_bam(input_bam, available_threads=1):
     """
