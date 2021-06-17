@@ -160,7 +160,7 @@ def create_job_file(args):
             "scRarevar_output/raw_stats.tsv "
             "scRarevar_output/raw_unmutated_stats.tsv "
             "--output_folder statistics_ouputs/ "
-            "--log-file scRarevar_log_file/log_statistics_{fname}.txt\n\n".format(fname=args.fname))
+            "--log-file log_files/log_statistics_{fname}.txt\n\n".format(fname=args.fname))
 
     f.write('# Find intersections with SNP and edit databases\n')
     f.write('python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/make_venn.py '
