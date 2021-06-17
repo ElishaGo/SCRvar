@@ -159,18 +159,18 @@ def create_job_file(args):
     f.write("python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/make_statistics.py "
             "scRarevar_output/raw_stats.tsv "
             "scRarevar_output/raw_unmutated_stats.tsv "
-            "--output_folder statistics_ouput/ "
+            "--output_folder statistics_ouputs/ "
             "--log-file scRarevar_log_file/log_statistics_{fname}.txt\n\n".format(fname=args.fname))
 
     f.write('# Find intersections with SNP and edit databases\n')
-    f.write('python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/make_venn.py'
-            'statistics_ouput/ {edit_rep_bed} {edit_nonrep_bed} {snp_vcf}\n\n'.format(edit_rep_bed=args.edit_rep_bed,
+    f.write('python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/make_venn.py '
+            'statistics_ouputs/ {edit_rep_bed} {edit_nonrep_bed} {snp_vcf}\n\n'.format(edit_rep_bed=args.edit_rep_bed,
                                                                                    edit_nonrep_bed=args.edit_nonrep_bed,
                                                                                    snp_vcf=args.snp_vcf))
 
     f.write('# Find intersections with SNP and edit databases\n')
     f.write('python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/filter_snp.py '
-            'statistics_ouput/aggregated_intersect.tsv '
+            'statistics_ouputs/aggregated_intersect.tsv '
             '{snp_clf}'.format(snp_clf=args.snp_clf_weights))
     
     f.close()
