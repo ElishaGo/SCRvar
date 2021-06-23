@@ -100,16 +100,19 @@ def create_job_file(args):
     f.write("\n### Parameters used in this job: \n%s" % '\n'.join(
         ['# %s: %s' % (key, value) for key, value in vars(args).items() if key not in ['q', 'J', 'rusage', 'hosts', 'n']]))
 
-    # write the commands to execute
+    ### write the commands to execute
+    # load modules
     f.write("\n\n\n")
     f.write("### Run the commands:\n")
     f.write("# load conda environment and modules\n")
     f.write(". /home/labs/bioservices/services/miniconda2/etc/profile.d/conda.sh;conda activate rarevar;module load "
         "samtools;module load bamtools;module load bedtools\n\n")
 
+    # create directories
     f.write("# make dirs\n")
     f.write("mkdir filtered_bam_files/ bam_statistics/ scRarevar_output/ statistics_ouputs/\n\n")
 
+    # filter bam file process
     f.write("# filter bam file by filter list\n")
     f.write("python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/individual_scripts/filter_bam.py {bam} {filter_list}"
               " --output_folder filtered_bam_files/ --name_suffix {fname} --threads {n}\n\n".format(bam=args.bam_file,
@@ -150,6 +153,8 @@ def create_job_file(args):
             'samtools index filtered_bam_files/{fname}_htseq_gene_header.bam\n\n'.format(fname=args.fname, n=args.n))
     f.write("rm filtered_bam_files/{fname}_htseq_gene_header.sam\n\n".format(fname=args.fname))
 
+
+    # run scRNAvar program
     f.write("# Run scrarevar program\n")
     f.write("python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/scrnavariants.py"
               " filtered_bam_files/{fname}_htseq_gene_header.bam {genome_ref} scRarevar_output/ --log-file log_files/log_{fname}.txt "

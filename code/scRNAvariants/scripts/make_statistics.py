@@ -17,7 +17,6 @@ def parse_arguments(arguments=None):
     """argument parsing wrapper function
     helper functions and classes are found in sc_rna_variants.utils
 
-    # TODO add 'type' to arguments.
     # TODO explain more the 'epilog
     """
     parser = argparse.ArgumentParser(

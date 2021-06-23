@@ -109,6 +109,7 @@ def get_stat_plots(df_merged_open, df_merged_agg, args):
     statistic_plots.plot_cb_occurences_hist(df_merged_open, df_merged_filtered, args.output_folder)
     statistic_plots.plot_umi_per_reference_base(df_merged_open, df_merged_filtered, args.output_folder)
     statistic_plots.plot_heatmap_mutation_per_base(df_merged_open, df_merged_filtered, args.output_folder)
+
     # plot data grouped by position
     statistic_plots.plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, args.output_folder)
     statistic_plots.plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, args.output_folder)
@@ -207,8 +208,8 @@ def merge_dfs(df_mutated, df_unmutated):
     # check if missing values where added in merged file. If so, transform to 0
     na_before_merge = df_mutated.isna().sum().sum() + df_unmutated.isna().sum().sum()
     if (df_m.isna().sum().sum()) != na_before_merge:
-        print("Missing values where found after merging mutated and unmutated files, probably becaues there are no "
-              "matching positions for all the mutations. The missing values are transformed to 0")
+        logger.debug('Missing values where found after merging mutated and unmutated files, probably becaues there '
+                     'are no matching positions for all the mutations. The missing values are transformed to 0')
         df_m.fillna(0, inplace=True)
     return df_m
 
@@ -217,6 +218,7 @@ def agg_unmutated(df):
     """
     Checks if there is a need to aggregate the unmutated dataframe on the base position.
     If so, the basic aggregation function is sum.
+    TODO: explain when this can happen
     """
     #check if aggregation is needed
     if df.duplicated('position', keep = False).sum() > 0:
@@ -229,43 +231,50 @@ def agg_unmutated(df):
 def add_position(df):
     """
     Add one column with the position notation.
+    TODO:
+     -change function name
+     -change function to be in one line without calling pnadas eac time
+     - add documentation including final format string
     """
     # concat 3 first columns into one column of position
-    df['position'] = df.Chromosome.str.cat(df['start'].astype(str), sep=':')
+    df['position'] = df.chromosome.str.cat(df['start'].astype(str), sep=':')
     df['position'] = df.position.str.cat(df['end'].astype(str), sep='-')
     df['position'] = df.position.str.cat(df['strand'].astype(str), sep = ',')
-    return df
 
 
 def load_mutated(path):
     """
     Load and preprocess the data of unmutated cells from raw_stats_unmutated.tsv.
+    TODO: Change renames in source funtions
     """
     df = pd.read_csv(path, sep='\t')
     df.rename(columns={'same multi': 'same multi reads',
                          'transition multi': 'transition multi reads', 'reverse multi': 'reverse multi reads',
                          'transvertion multi': 'transvertion multi reads', 'same single': 'same single reads',
                          'transition single': 'transition single reads','reverse single': 'reverse single reads',
-                         'transvertion single': 'transvertion single reads'}, inplace = True)
-    df = add_position(df)  # add column of full coordination
+                         'transvertion single': 'transvertion single reads'}, inplace=True)
+
+    add_position(df)  # add column of full coordinates
     mutation_cols = ['same multi reads','transition multi reads', 'reverse multi reads', 'transvertion multi reads',
                      'same single reads', 'transition single reads', 'reverse single reads','transvertion single reads']
-    # mutation_cols = df.columns[df.columns.str.startswith(('R->'))]  #old 9.6.21
     df['total umi count'] = df[mutation_cols].sum(axis=1)
+    df.sort_values(by=['position'], inplace=True)
     return df
 
 
 def load_unmutated(path):
     """
     Load and preprocess the data of unmutated cells from raw_stats_unmutated.tsv.
+    TODO: Change renames in source funtions
     """
     df = pd.read_csv(path, sep='\t')
     df.rename(
         columns={'chromosome': 'Chromosome', 'direction': 'strand', 'unique cells': 'count of unmutated cell barcodes',
                  'multiples': 'unmutated multi reads', 'singles': 'unmutated single reads'}, inplace=True)
     df['total unmutated umi count'] = df['unmutated multi reads'] + df['unmutated single reads']
-    df = add_position(df)  # add column of full coordination
+    add_position(df)  # add column of full coordination
     df = agg_unmutated(df)
+    df.sort_values(by=['position'], inplace=True)
     return df
 
 
@@ -290,10 +299,9 @@ def make_output_folder(string):
 
 
 def run(args):
+    # TODO : turn make_output_folder to argument type
     # make output directory
     make_output_folder(args.output_folder)
-    # initialize pandarallel for parallel pandas apply
-    pandarallel.initialize(nb_workers=int(args.threads))
 
     #load the mutated and unmutated data frames
     logger.info("Loading and preprocessing the data frames")
@@ -318,6 +326,8 @@ def run(args):
 
     # add two columns with counts of UMIs to table
     logger.info("started to count UMIs in aggregated file")
+    # initialize pandarallel for parallel pandas apply. used in the following function
+    pandarallel.initialize(nb_workers=args.threads)
     df_merged_agg = add_counts_of_umis(df_merged_agg)
 
     # reorder and save the aggregated file
