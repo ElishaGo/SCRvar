@@ -631,31 +631,21 @@ def variants_finder(filtered_bam, arguments):
     output_tsv = pathlib.Path(arguments.output_folder) / 'raw_stats.tsv'
     output_unmutated_tsv = pathlib.Path(arguments.output_folder) / 'raw_unmutated_stats.tsv'
     
-    # TODO: update header line
     header_line = '\t'.join([
-        "Chromosome", "start", "end", "cell barcode",
+        "chromosome", "start", "end", "cell barcode",
         "percent of non ref", "strand", "reference base",
         "same multi", "transition multi", "reverse multi", "transvertion multi",
         "same single", "transition single", "reverse single", "transvertion single",
         "mixed reads"]) + '\n'
-    # header_line = '\t'.join([
-    #         "Chromosome", "start", "end", "cell barcode",
-    #         "percent of non ref", "strand", "reference base",
-    #         "R->A multi", "R->C multi", "R->G multi", "R->T multi",
-    #         "R->A single", "R->C single", "R->G single", "R->T single",
-    #         "mixed reads"]) + '\n'
-    
+
     header_line_unmutated = '\t'.join([
         "chromosome", "start", "end", "unique cells", "direction", "multiples", "singles"
         ]) + '\n'
-    # chromosome, start, end, unique cells, direction, multiples, singles
     
     with open(output_tsv, 'w') as outfile, open(output_unmutated_tsv, 'w') as outfile_unmutated:
         outfile.write(header_line)
         outfile_unmutated.write(header_line_unmutated)
-        
-        
-        
+
         for fpath in temporary_tsvs_paths:
             with open(fpath) as infile, open(fpath+'2') as infile2:
                 outfile.write(infile.read())
@@ -665,8 +655,7 @@ def variants_finder(filtered_bam, arguments):
                 outfile_unmutated.write(infile2.read())
                 infile2.close()
                 os.remove(fpath+'2')
-                
-        
+
     logger.debug("finished merging and cleanup of tsv files")
     
     return
