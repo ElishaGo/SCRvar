@@ -237,7 +237,7 @@ def add_position(df):
      - add documentation including final format string
     """
     # concat 3 first columns into one column of position
-    df['position'] = df.chromosome.str.cat(df['start'].astype(str), sep=':')
+    df['position'] = df.Chromosome.str.cat(df['start'].astype(str), sep=':')  #change to chromoseme
     df['position'] = df.position.str.cat(df['end'].astype(str), sep='-')
     df['position'] = df.position.str.cat(df['strand'].astype(str), sep = ',')
 
