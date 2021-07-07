@@ -39,7 +39,6 @@ def add_counts_of_umis(df):
         """helper function to calculate the fraction of mutated UMIs from UMIs in mutated cells,
         and fraction of mutated UMIs from all UMIs including not mutated cells
         # TODO: check if it faster to use explicit column names instead of 'startswith'"""
-
         mutation_umi_count = line[
             ~line.index.str.startswith(('same', 'unmutated', 'reference'))].sum()
         # mutation_umi_count = line[  #old version 6.9.21
@@ -48,6 +47,7 @@ def add_counts_of_umis(df):
         all_umi_count = line[cols_all_umi_counts].sum()
         percent_of_non_ref_total = round(mutation_umi_count / all_umi_count * 100, ndigits=2)
         percent_of_non_ref_mutated = round(mutation_umi_count / umi_count_no_unmutated * 100, ndigits=2)
+        logger.info("inside parallel function. all umi counts are: {}".format(all_umi_count))
         return percent_of_non_ref_mutated, percent_of_non_ref_total
 
     all_umi_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
