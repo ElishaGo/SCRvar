@@ -19,11 +19,12 @@ def order_and_save_agg(df, out_folder):
             'same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
             'same single reads', 'transition single reads', 'reverse single reads', 'transvertion single reads',
             'mixed reads', 'total mutation umi count', 'unmutated single reads',
-            'unmutated multi reads', 'aggregated cell barcodes', 'total umi counts 1 cells',
-            'median percent of non ref umi 1 cells',
-            'total umi counts 2 cells', 'median percent of non ref umi 2 cells'
-            , 'total umi counts 3 cells', 'median percent of non ref umi 3 cells'
-            , 'total umi counts 4+ cells', 'median percent of non ref umi 4+ cells']
+            'unmutated multi reads', 'aggregated cell barcodes', 'bin of 1 mut per cell -\n #cell with mut',
+            'bin of 1 mut per cell -\n #median % non ref umis per barcode',
+            'bin of 2 mut per cell -\n #cell with mut', 'bin of 2 mut per cell -\n #median % non ref umis per barcode'
+            , 'bin of 3 mut per cell -\n #cell with mut', 'bin of 3 mut per cell -\n #median % non ref umis per barcode'
+            , 'bin of 4+ mut per cell -\n #cell with mut', 'bin of 4+ mut per cell -\n #median % non ref umis per barcode']
+
     df = df[cols]
     # sort and save df
     df.sort_values(by=['chromosome', 'start'], inplace=True)
