@@ -17,6 +17,11 @@ def parse_arguments(arguments=None):
     # optional arguments
     parser.add_argument('--output_folder', default=os.path.join(os.getcwd()),
                         help='Path to the output directory')
+
+    parser.add_argument('--filter_known_snp', dest='filter_known_snp', action='store_true')
+    parser.add_argument('--no-filter_known_snp', dest='filter_known_snp', action='store_false')
+    parser.set_defaults(filter_known_snp=True)
+
     return parser.parse_args(arguments)
 
 
@@ -46,6 +51,7 @@ def get_filtered(df, min_mutation_cb_to_filter,min_mutation_umis, min_total_umis
     cond_2 = ((mutation_umi_counts >= min_mutation_umis) & (total_umi_count >= min_total_umis))
     return df[cond_1 & cond_2]
 
+
 def make_venn(num_pred_pos_snp, num_known_snp_in_table, num_overlaps_clf_db, args):
     venn2(subsets=(num_pred_pos_snp - num_overlaps_clf_db,
                    num_known_snp_in_table - num_overlaps_clf_db,
@@ -57,11 +63,11 @@ def make_venn(num_pred_pos_snp, num_known_snp_in_table, num_overlaps_clf_db, arg
 if __name__ == '__main__':
     args = parse_arguments()  # parse argument
     df = pd.read_csv(args.input_file, sep= '\t')  # get dataset
-    snp_clf = load(args.model)  # load the saved model
+    snp_clf = load(args.model)  # load the saved classification model
 
-    # get filtered table
-    df = get_filtered(df=df,min_mutation_cb_to_filter=5,min_mutation_umis=10, min_total_umis=20)
-    df_numeric_test =preprocess(df)  # preprocess the dataframe
+    # filter the table
+    df = get_filtered(df=df, min_mutation_cb_to_filter=5, min_mutation_umis=10, min_total_umis=20)
+    df_numeric_test = preprocess(df)  # preprocess the dataframe
     y_pred = snp_clf.predict(df_numeric_test)  # make prediction on data to find snp
 
     # add prediction to table
@@ -80,9 +86,12 @@ if __name__ == '__main__':
     print("number of new assumed SNP by the model:", num_new_snp)
     print("number of rows in table without any SNP:", num_no_snp)
 
-
     # make venn diagram
     make_venn(num_pred_pos_snp, num_known_snp_in_table, num_overlaps_clf_db, args)
 
     # save the table
-    df.to_csv(os.path.join(args.output_folder,'df_with_predicted_snp.tsv'), sep='\t',index=False)
+    if args.filter_known_snp:
+        df = df[df['is_snp'] != 1]
+        df.to_csv(os.path.join(args.output_folder,'df_with_predicted_snp_excluding_known.tsv'), sep='\t',index=False)
+    else:
+        df.to_csv(os.path.join(args.output_folder, 'df_with_predicted_snp.tsv'), sep='\t', index=False)
