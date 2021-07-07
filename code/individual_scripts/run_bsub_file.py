@@ -160,18 +160,18 @@ def create_job_file(args):
     #           " filtered_bam_files/{fname}_htseq_gene_header.bam {genome_ref} scRarevar_output/ --log-file log_files/log_scRNA_rarvar_{fname}.txt "
     #           "--threads {n}\n\n".format(fname=args.fname, genome_ref=args.genome_ref, n=args.n))
 
-    f.write('# Run statistics analysis program\n')
-    f.write("python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/make_statistics.py "
-            "scRarevar_output/raw_stats.tsv "
-            "scRarevar_output/raw_unmutated_stats.tsv "
-            "--output_folder statistics_ouputs/ "
-            "--log-file log_files/log_statistics_{fname}.txt --threads {n}\n\n".format(fname=args.fname, n=args.n))
-
-    f.write('# Find intersections with SNP and edit databases\n')
-    f.write('python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/make_venn.py '
-            'statistics_ouputs/ {edit_rep_bed} {edit_nonrep_bed} {snp_vcf}\n\n'.format(edit_rep_bed=args.edit_rep_bed,
-                                                                                   edit_nonrep_bed=args.edit_nonrep_bed,
-                                                                                   snp_vcf=args.snp_vcf))
+    # f.write('# Run statistics analysis program\n')
+    # f.write("python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/make_statistics.py "
+    #         "scRarevar_output/raw_stats.tsv "
+    #         "scRarevar_output/raw_unmutated_stats.tsv "
+    #         "--output_folder statistics_ouputs/ "
+    #         "--log-file log_files/log_statistics_{fname}.txt --threads {n}\n\n".format(fname=args.fname, n=args.n))
+    #
+    # f.write('# Find intersections with SNP and edit databases\n')
+    # f.write('python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/make_venn.py '
+    #         'statistics_ouputs/ {edit_rep_bed} {edit_nonrep_bed} {snp_vcf}\n\n'.format(edit_rep_bed=args.edit_rep_bed,
+    #                                                                                edit_nonrep_bed=args.edit_nonrep_bed,
+    #                                                                                snp_vcf=args.snp_vcf))
 
     f.write('# Find intersections with SNP and edit databases\n')
     f.write('python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/filter_snp.py '
