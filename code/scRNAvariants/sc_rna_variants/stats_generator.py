@@ -19,11 +19,11 @@ def order_and_save_agg(df, out_folder):
             'same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
             'same single reads', 'transition single reads', 'reverse single reads', 'transvertion single reads',
             'mixed reads', 'total mutation umi count', 'unmutated single reads',
-            'unmutated multi reads', 'aggregated cell barcodes', 'bin of 1 mut per cell -\n #cell with mut',
-            'bin of 1 mut per cell -\n #median % non ref umis per barcode',
-            'bin of 2 mut per cell -\n #cell with mut', 'bin of 2 mut per cell -\n #median % non ref umis per barcode'
-            , 'bin of 3 mut per cell -\n #cell with mut', 'bin of 3 mut per cell -\n #median % non ref umis per barcode'
-            , 'bin of 4+ mut per cell -\n #cell with mut', 'bin of 4+ mut per cell -\n #median % non ref umis per barcode']
+            'unmutated multi reads', 'aggregated cell barcodes', 'bin of 1 mut per cell - #cell with mut',
+            'bin of 1 mut per cell - #median % non ref umis per barcode',
+            'bin of 2 mut per cell - #cell with mut', 'bin of 2 mut per cell - #median % non ref umis per barcode'
+            , 'bin of 3 mut per cell - #cell with mut', 'bin of 3 mut per cell - #median % non ref umis per barcode'
+            , 'bin of 4+ mut per cell - #cell with mut', 'bin of 4+ mut per cell - #median % non ref umis per barcode']
 
     df = df[cols]
     # sort and save df
@@ -141,8 +141,8 @@ def agg_dfs(df):
 
         # return df with two columns: count of UMIs and median fraction
         return pd.DataFrame([num_cells, fraction_mut_umi_median],
-                            index=['bin of {} mut per cell -\n #cell with mut'.format(num_of_umis),
-                                   'bin of {} mut per cell -\n #median % non ref umis per barcode'.format(num_of_umis)]).T
+                            index=['bin of {} mut per cell - #cell with mut'.format(num_of_umis),
+                                   'bin of {} mut per cell - #median % non ref umis per barcode'.format(num_of_umis)]).T
 
                             # index = ['total umi counts {} cells'.format(num_of_umis),
                             #          'median percent of non ref umi {} cells'.format(num_of_umis)]).T
