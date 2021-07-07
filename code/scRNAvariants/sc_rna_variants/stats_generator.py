@@ -119,8 +119,6 @@ def agg_dfs(df):
     """
     Aggregate the mutated dataframe on the positions.
     In addition, add count of cells in each position.
-    TODO:
-    # check if we can fasten aggregation by replacing the 'first' with some other function
     """
     def get_umis_stats(num_of_umis):
         """Helper function to calculate statistics of the cells withing each position.
@@ -132,22 +130,23 @@ def agg_dfs(df):
             filtered_by_umi_count = df[df['total umi count'] == num_of_umis]
 
         # get number of unique cell barcodes within position and with the specific number of UMIs.
-        # If we assume that there are not more than one occurence of a CB within a position, you can change the function
-        # to 'count' which is faster
-        # num_cells = filtered_by_umi_count.groupby('position')['cell barcode'].nunique()
         num_cells = filtered_by_umi_count.groupby('position')['cell barcode'].count()
 
         # calculate the median of the value of fraction of mutated UMIs within position and specific number of UMIs
         if num_of_umis == 1:  # when there is 1 mutated UMI the fraction will always be 100
-            fraction_mut_umi_median = pd.Series(np.full(shape=(len(num_cells),),fill_value=100),index=num_cells.index)
+            fraction_mut_umi_median = pd.Series(np.full(shape=(len(num_cells),), fill_value=100), index=num_cells.index)
         else:
             fraction_mut_umi_median = filtered_by_umi_count.groupby('position')['percent of non ref'].median()
 
         # return df with two columns: count of UMIs and median fraction
         return pd.DataFrame([num_cells, fraction_mut_umi_median],
-                            index=['total umi counts {} cells'.format(num_of_umis),
-                                   'median percent of non ref umi {} cells'.format(num_of_umis)]).T
+                            index=['bin of {} mut per cell -\n #cell with mut'.format(num_of_umis),
+                                   'bin of {} mut per cell -\n #median % non ref umis per barcode'.format(num_of_umis)]).T
 
+                            # index = ['total umi counts {} cells'.format(num_of_umis),
+                            #          'median percent of non ref umi {} cells'.format(num_of_umis)]).T
+
+    # TODO: check if we can fasten aggregation by replacing the 'first' with some other function
     df_grouped = df.groupby('position')
     df_agg = df_grouped.agg(
         {'chromosome': 'first', 'start': 'first', 'end': 'first', 'strand': 'first', 'reference base': 'first',
