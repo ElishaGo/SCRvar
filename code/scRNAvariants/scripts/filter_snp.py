@@ -22,7 +22,7 @@ def parse_arguments(arguments=None):
 
 def preprocess(df):
     # preprocess data
-    df_numeric_test = df.drop(['#Chromosome', 'start', 'end', 'reference base', 'position',
+    df_numeric_test = df.drop(['#chromosome', 'start', 'end', 'reference base', 'position',
                                     'strand', 'aggregated cell barcodes', 'is_snp', 'is_editing_rep',
                                     'is_editing_non_rep'], axis=1)
     # optianal columns to drop. may change in future
