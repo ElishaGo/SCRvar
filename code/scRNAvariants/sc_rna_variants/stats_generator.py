@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def order_and_save_agg(df, out_folder):
     # reorder columns
-    cols = ['Chromosome', 'start', 'end', 'position', 'percent of non ref total umis', 'strand',
+    cols = ['chromosome', 'start', 'end', 'position', 'percent of non ref total umis', 'strand',
             'count of unmutated cell barcodes', 'count of mutated cell barcodes',
             'percent of non ref mutated umis', 'reference base',
             'same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
@@ -26,7 +26,7 @@ def order_and_save_agg(df, out_folder):
             , 'total umi counts 4+ cells', 'median percent of non ref umi 4+ cells']
     df = df[cols]
     # sort and save df
-    df.sort_values(by=['Chromosome', 'start'], inplace=True)
+    df.sort_values(by=['chromosome', 'start'], inplace=True)
     save_file(df, out_folder, "aggregated_tsv.tsv")
     # df.to_csv(os.path.join(out_folder, "aggregated_tsv.tsv"), index=False, sep='\t')
 
@@ -119,8 +119,6 @@ def agg_dfs(df):
     """
     Aggregate the mutated dataframe on the positions.
     In addition, add count of cells in each position.
-    TODO:
-    # check if we can fasten aggregation by replacing the 'first' with some other function
     """
     def get_umis_stats(num_of_umis):
         """Helper function to calculate statistics of the cells withing each position.
@@ -132,25 +130,26 @@ def agg_dfs(df):
             filtered_by_umi_count = df[df['total umi count'] == num_of_umis]
 
         # get number of unique cell barcodes within position and with the specific number of UMIs.
-        # If we assume that there are not more than one occurence of a CB within a position, you can change the function
-        # to 'count' which is faster
-        # num_cells = filtered_by_umi_count.groupby('position')['cell barcode'].nunique()
         num_cells = filtered_by_umi_count.groupby('position')['cell barcode'].count()
 
         # calculate the median of the value of fraction of mutated UMIs within position and specific number of UMIs
         if num_of_umis == 1:  # when there is 1 mutated UMI the fraction will always be 100
-            fraction_mut_umi_median = pd.Series(np.full(shape=(len(num_cells),),fill_value=100),index=num_cells.index)
+            fraction_mut_umi_median = pd.Series(np.full(shape=(len(num_cells),), fill_value=100), index=num_cells.index)
         else:
             fraction_mut_umi_median = filtered_by_umi_count.groupby('position')['percent of non ref'].median()
 
         # return df with two columns: count of UMIs and median fraction
         return pd.DataFrame([num_cells, fraction_mut_umi_median],
-                            index=['total umi counts {} cells'.format(num_of_umis),
-                                   'median percent of non ref umi {} cells'.format(num_of_umis)]).T
+                            index=['bin of {} mut per cell -\n #cell with mut'.format(num_of_umis),
+                                   'bin of {} mut per cell -\n #median % non ref umis per barcode'.format(num_of_umis)]).T
 
+                            # index = ['total umi counts {} cells'.format(num_of_umis),
+                            #          'median percent of non ref umi {} cells'.format(num_of_umis)]).T
+
+    # TODO: check if we can fasten aggregation by replacing the 'first' with some other function
     df_grouped = df.groupby('position')
     df_agg = df_grouped.agg(
-        {'Chromosome': 'first', 'start': 'first', 'end': 'first', 'strand': 'first', 'reference base': 'first',
+        {'chromosome': 'first', 'start': 'first', 'end': 'first', 'strand': 'first', 'reference base': 'first',
          'same multi reads': 'sum', 'transition multi reads': 'sum', 'reverse multi reads': 'sum', 'transvertion multi reads': 'sum',
          'same single reads': 'sum', 'transition single reads': 'sum', 'reverse single reads': 'sum', 'transvertion single reads': 'sum',
          'mixed reads': 'sum', 'total umi count': 'sum', 'cell barcode': lambda x: ','.join(x),
@@ -237,7 +236,7 @@ def add_position(df):
      - add documentation including final format string
     """
     # concat 3 first columns into one column of position
-    df['position'] = df.Chromosome.str.cat(df['start'].astype(str), sep=':')  #change to chromoseme
+    df['position'] = df.chromosome.str.cat(df['start'].astype(str), sep=':')  #change to chromoseme
     df['position'] = df.position.str.cat(df['end'].astype(str), sep='-')
     df['position'] = df.position.str.cat(df['strand'].astype(str), sep = ',')
 
@@ -269,7 +268,7 @@ def load_unmutated(path):
     """
     df = pd.read_csv(path, sep='\t')
     df.rename(
-        columns={'chromosome': 'Chromosome', 'direction': 'strand', 'unique cells': 'count of unmutated cell barcodes',
+        columns={'direction': 'strand', 'unique cells': 'count of unmutated cell barcodes',
                  'multiples': 'unmutated multi reads', 'singles': 'unmutated single reads'}, inplace=True)
     df['total unmutated umi count'] = df['unmutated multi reads'] + df['unmutated single reads']
     add_position(df)  # add column of full coordination
