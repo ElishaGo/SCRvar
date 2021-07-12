@@ -288,20 +288,8 @@ def save_file(df, output_folder, name):
     df.to_csv(os.path.join(output_folder, name), index=False, sep='\t')
 
 
-def make_output_folder(string):
-    """Makes sure the string represents an existing file in the OS.
-    If not, create a folder"""
-    if not os.path.isdir(string):
-        print("\n Creating a new output folder in:")
-        print(os.path.abspath(string))
-        os.mkdir(string)
-    return string
-
-
 def run(args):
-    # TODO : turn make_output_folder to argument type
-    # make output directory
-    make_output_folder(args.output_folder)
+    # TODO: replace the 'arguments' variable with explicit arguments.
 
     #load the mutated and unmutated data frames
     logger.info("Loading and preprocessing the data frames")

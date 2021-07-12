@@ -68,6 +68,7 @@ if __name__ == '__main__':
 
     startTime = datetime.now()
     # run statistics analysis
+    # TODO: replace the 'arguments' variable with explicit arguments.
     sc_rna_variants.stats_generator.run(args)
     print(datetime.now() - startTime)
 

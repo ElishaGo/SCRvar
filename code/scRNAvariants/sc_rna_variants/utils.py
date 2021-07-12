@@ -71,7 +71,7 @@ def genome_fasta_check(input_genome_fasta):
 
 
 def filtered_barcodes_processing(filtered_barcodes_file):
-    """Given a path to a file with barcodes as a first column, returns a set of the barcodes"""
+    """Given a path to a txt/tsv file with barcodes as a first column, returns a set of the barcodes"""
     assert_is_file(filtered_barcodes_file)
     try:
         with open(filtered_barcodes_file, 'r') as barcodes_file_handler:
