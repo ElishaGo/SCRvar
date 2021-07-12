@@ -125,7 +125,7 @@ def create_job_file(args):
 
     # get path to filtered bam file
     filtered_bam_path = str(
-        os.path.join(os.getcwd(), 'filtered_bam_files', os.path.basename(args.bam_file) + "_filtered.bam"))
+        os.path.join(args.working_dir, 'filtered_bam_files', os.path.basename(args.bam_file) + "_filtered.bam"))
 
     # f.write("python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/individual_scripts/filter_bam.py {bam} {filter_list}"
     #           " --output_folder filtered_bam_files/ --name_suffix {fname} --threads {n}\n\n".format(bam=args.bam_file,
