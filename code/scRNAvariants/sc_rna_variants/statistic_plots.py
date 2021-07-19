@@ -195,7 +195,6 @@ def plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, out_folder
     fig, axs = plt.subplots(2, 1, sharex=True, figsize=(10, 12))
     for i, df_tuple in enumerate(zip([df_merged_agg, df_merged_agg_filtered], ['Before', 'After'])):
         df, df_name = df_tuple[0], df_tuple[1]
-        # df.to_csv(os.path.join(out_folder, "test2_df.tsv"))
         cb_counts = df['count of mutated cell barcodes']  # mutated counts
         unmutated_cb_counts = df['count of unmutated cell barcodes']  # unmutated counts
         cb_counts = cb_counts.combine(unmutated_cb_counts, np.add, fill_value=0)  # sum mutated and unmutated counts
