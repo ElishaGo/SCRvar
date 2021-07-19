@@ -193,8 +193,6 @@ def agg_dfs(df):
             how='outer', left_index=True, right_index=True),
         how='outer', left_index=True, right_index=True)
 
-    umi_stats.fillna(0, inplace=True)  # where no value is calculated, fill with 0
-
     # merge the UMI statistics with table
     df_agg = df_agg.merge(umi_stats, left_on='position', right_index=True)
     return df_agg
