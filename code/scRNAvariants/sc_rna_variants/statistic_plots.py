@@ -9,27 +9,27 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def plot_cb_occurences_hist(df_orig, df_filtered, out_folder):
+def plot_cb_occurences_hist(df_orig, df_filtered, out_folder, sname):
     """ This function count the number of each Cb in the table, and then plot the distribution of CB occurences.
     This can give an insight regarding the representation of different cell in the table.
     Note that the counts in tables can overlap on positions."""
     fig, axs = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
 
-    def make_plot(ax, cb_counts, df_name):
+    def make_plot(ax, cb_counts, prior_post):
         ax.hist(cb_counts.values, bins=50)
-        ax.set_title("Number of cell barcodes - {} filtering".format(df_name))
+        ax.set_title("Number of cell barcodes - {} filtering - {}".format(prior_post, sname))
         ax.set_ylabel("count of different cell barcodes")
         ax.set_xlabel("number of mutated positions")
 
     for i, df_tuple in enumerate(zip([df_orig, df_filtered], ['prior', 'post'])):
         df = df_tuple[0]
-        df_name = df_tuple[1]
+        prior_post = df_tuple[1]
         cb_counts = df['cell barcode'].value_counts()
-        make_plot(axs[i], cb_counts, df_name)
+        make_plot(axs[i], cb_counts, prior_post)
     plt.savefig(os.path.join(out_folder, "cb_distribution.png"), bbox_inches='tight')
 
 
-def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder):
+def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder, sname):
     fig, axs = plt.subplots(2, 4, figsize=(15, 8), sharex=True)
     bases = ['a', 'c', 'g', 't']
     ref_umi_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
@@ -45,8 +45,8 @@ def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder):
             axs[i][j].set_xscale('log', base=10)
             for z in axs[i][j].patches:
                 axs[i][j].text(z.get_width() + .09, z.get_y() + .3, str(round((z.get_width()), 1)), fontsize=8)
-    fig.text(0, 0.65, 'Before filtering', ha='center', rotation='vertical', style='italic')
-    fig.text(0, 0.25, 'After filtering', ha='center', rotation='vertical', style='italic')
+    fig.text(0, 0.65, 'Before filtering - {}'.format(sname), ha='center', rotation='vertical', style='italic')
+    fig.text(0, 0.25, 'After filtering - {}'.format(sname), ha='center', rotation='vertical', style='italic')
     plt.savefig(os.path.join(out_folder, "umi_per_reference_base.png"), bbox_inches='tight')
 
     ### plot with unmutated data
@@ -67,39 +67,46 @@ def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder):
             axs[i][j].set_xscale('log', base=10)
             for z in axs[i][j].patches:
                 axs[i][j].text(z.get_width() + .09, z.get_y() + .3, str(round((z.get_width()), 1)), fontsize=8)
-    fig.text(0, 0.65, 'Before filtering', ha='center', rotation='vertical', style='italic')
-    fig.text(0, 0.25, 'After filtering', ha='center', rotation='vertical', style='italic')
+    fig.text(0, 0.65, 'Before filtering - {}'.format(sname), ha='center', rotation='vertical', style='italic')
+    fig.text(0, 0.25, 'After filtering - {}'.format(sname), ha='center', rotation='vertical', style='italic')
     plt.savefig(os.path.join(out_folder, "umi_per_reference_base_with_unmutated.png"), bbox_inches='tight')
 
 
-def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder):
+def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sname):
     def get_min_max(count_matrices):
         """helper function to find the common min and max values for color scaling for all heatmaps in figure"""
         vmin, vmax = np.Inf, np.NINF
         for count_matrix in count_matrices:
-            for row in count_matrix[0]:
-                if row.min() < vmin:
-                    vmin = row.min()
-                if row.max() > vmax:
-                    vmax = row.max()
+            mat_to_plot = count_matrix[0]
+            if mat_to_plot.min() < vmin:
+                vmin = mat_to_plot.min()
+            if mat_to_plot.max() > vmax:
+                vmax = mat_to_plot.max()
+
         return np.floor(np.log10(vmin)), np.ceil(np.log10(vmax))
 
-    def make_plot(count_matrices):
+    def make_mut_counts_heatmap(count_matrices, out_folder, sname):
         """helper function to plot the heatmap"""
+        # get min and max values for plotting color scale
+        vmin, vmax = get_min_max(count_matrices)
+
         fig, axs = plt.subplots(2, 2, figsize=(10, 8))
         axs = axs.reshape(-1)
-        vmin, vmax = get_min_max(count_matrices)
         for i, count_matrix in enumerate(count_matrices):
-            axs[i] = sns.heatmap(np.log10(count_matrix[0]), linewidth=0.5, annot=np.array(count_matrix[0]),
-                                 cbar_kws={'label': 'log 10'}, ax=axs[i], cmap='coolwarm', vmin=vmin, vmax=vmax,
-                                 xticklabels=['same', 'transition', 'reverse','transversion'], yticklabels=bases)
+            # add first column of unmut data to the mut data
+            mat_to_plot = count_matrix[0]
+            axs[i] = sns.heatmap(np.log10(mat_to_plot), linewidth=0.5, annot=np.array(mat_to_plot),
+                                 cbar_kws={'label': 'log 10'}, ax=axs[i], cmap='jet', vmin=vmin, vmax=vmax,  # 'brg'
+                                 xticklabels=['same_all', 'same_mut', 'transition', 'reverse','transversion'], yticklabels=bases)
             axs[i].set_yticklabels(axs[i].get_yticklabels(), rotation=360)
-            axs[i].set_title("Counts of mutations per base - {} reads {}".format(count_matrix[1], count_matrix[2]))
+            axs[i].set_xticklabels(axs[i].get_xticklabels(), rotation=30, ha='right')
+            axs[i].set_title("Counts of mutations per base - {} reads {} - {}".format(count_matrix[1], count_matrix[2], sname))
             axs[i].set_ylabel("reference base")
             axs[i].set_xlabel("mutation")
         plt.tight_layout()
+        plt.savefig(os.path.join(out_folder, "heatmap_mutation_perbase.png"), bbox_inches='tight')
 
-    def create_figure(with_unmutated, suffix=""):
+    def make_counts_matrix():
         """helper function to create two matices with counts of different umis, one with unmutated data and one with
         unmutated data"""
         umi_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
@@ -113,37 +120,60 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder):
                 for base in bases:
                     idx = df[df['reference base'] == base].index
                     df_to_plot = df.loc[idx, ref_umi_cols].sum(axis=0)
-                    if with_unmutated:
-                        df_by_refbase = df.loc[df['reference base'] == base, :]
-                        unmuteted_read_count = df_by_refbase.drop_duplicates(subset='position')[
-                            'unmutated {} reads'.format(read_type)].sum()
-                        df_to_plot['same {} reads'.format(read_type)] += unmuteted_read_count
+
+                    # add count of 'same' unis in both mutated and un mutated
+                    df_by_refbase = df.loc[df['reference base'] == base, :]
+                    unmuteted_read_count = df_by_refbase.drop_duplicates(subset='position')[
+                        'unmutated {} reads'.format(read_type)].sum()
+                    df_to_plot = pd.concat([pd.Series(df_to_plot['same {} reads'.format(read_type)] + unmuteted_read_count,
+                                                      index=['same all single reads']), df_to_plot])
+
                     count_matrix.append(df_to_plot.values)
-                count_matrices.append((count_matrix, read_type, df_name))
-        # count_matrices = []
-        # for i, df_tuple in enumerate(zip([df_merged, df_merged_filtered], ['', "- filtered"])):
-        #     df, df_name = df_tuple[0], df_tuple[1]
-        #     for j, read_type in enumerate(['single', 'multi']):
-        #         count_matrix = []
-        #         ref_umi_cols = [col for col in df.columns if (col.startswith('R->') and read_type in col)]
-        #         for base in bases:
-        #             idx = df[df['reference base'] == base].index
-        #             df_to_plot = df.loc[idx, ref_umi_cols].sum(axis=0)
-        #             if with_unmutated:
-        #                 df_by_refbase = df.loc[df['reference base'] == base, :]
-        #                 unmuteted_read_count = df_by_refbase.drop_duplicates(subset='position')['unmutated {} reads'.format(read_type)].sum()
-        #                 df_to_plot['R->{} {} reads'.format(base.upper(), read_type)] += unmuteted_read_count
-        #             count_matrix.append(df_to_plot.values)
-        #         count_matrices.append((count_matrix, read_type, df_name))
-        make_plot(count_matrices)
-        plt.savefig(os.path.join(out_folder, "heatmap_mutation_perbase{}.png".format(suffix)), bbox_inches='tight')
+                count_matrices.append((np.array(count_matrix), read_type, df_name))
+        return count_matrices
 
     bases = ['a', 'c', 'g', 't']
-    create_figure(with_unmutated=False)
-    create_figure(with_unmutated=True, suffix="_with_unmutated")
+
+    # create matrix with counts of mutations observed
+    count_matrices = make_counts_matrix()
+
+    # plot and save heatmap
+    make_mut_counts_heatmap(count_matrices, out_folder, sname)
 
 
-def plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, out_folder):
+    relative_mut_dfs = []
+    for count_matrix_set in count_matrices:
+        count_matrix = count_matrix_set[0]
+        type_name = count_matrix_set[1] + count_matrix_set[2]
+
+        same_col = count_matrix[:, 1]
+        relative_mutations = count_matrix[:, 2:] / same_col[:, None]
+        relative_mutations_df = pd.DataFrame(relative_mutations,
+                         columns=['transition', 'reverse', 'transversion'],
+                         index=bases).reset_index()
+        relative_mutations_long = pd.melt(relative_mutations_df, id_vars=['index'],
+                                          value_vars=['transition', 'reverse', 'transversion'])
+        relative_mutations_long['type'] = type_name
+        relative_mutations_long['variable'] = relative_mutations_long['index'] + '_' + relative_mutations_long['variable']
+        relative_mutations_long.drop('index', axis=1, inplace=True)
+
+        relative_mut_dfs.append(relative_mutations_long)
+
+    relative_mut_dfs = pd.concat(relative_mut_dfs)
+
+    # make barplot
+    plt.clf()
+    plt.xticks(rotation=30, ha='right')
+    plt.title("ratio of mutation out of non mutated UMIs (same column)")
+    plt.ylabel("mutation ratio with non mutation UMIs")
+    s = sns.barplot(data=relative_mut_dfs, x='variable', y='value', hue='type')
+    plt.savefig(os.path.join(out_folder, "relative_mutations_barplot.png"), bbox_inches='tight')
+
+
+
+
+
+def plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, out_folder, sname):
     """plot count of all CB overall occurences (no unique) per unique postion"""
 
     def make_plot(ax, cb_counts, df_name, num_of_bins):
@@ -152,7 +182,7 @@ def plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, out_folder):
         ax.bar(bins[:num_of_bins], bins[:num_of_bins] * counts[:num_of_bins])
         for i in range(num_of_bins):  # add ticks on top of the bars
             ax.text(bins[i], bins.round()[i] * counts[i], str(int(bins.round()[i])) + '*' + str(counts[i]), rotation=45)
-        ax.set_title("count of all cell barcodes (with repetitions) per position - {} filtering".format(df_name))
+        ax.set_title("amount of positions with a mismatch, binned by the number of cells - {} filtering".format(df_name))
         ax.set_ylabel("count of positions")
         ax.set_xlabel("number of all Cell Barcodes per position")
         ax.tick_params(axis='x', reset=True)  # show ticks of x axis on both graphs
@@ -166,7 +196,7 @@ def plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, out_folder):
     plt.savefig(os.path.join(out_folder, "cb_count_not_unique_per_position.png"), bbox_inches='tight')
 
 
-def plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, out_folder):
+def plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, out_folder, sname):
     def make_plot(ax, cb_counts, df_name):
         """helper function to plot the histogram"""
         bins = [2 ** n for n in list(range(0, ceil(np.log2(max(cb_counts))) + 1))]
