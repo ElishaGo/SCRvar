@@ -1,8 +1,11 @@
-import pandas as pd
-import argparse
-import matplotlib.pyplot as plt
-from matplotlib_venn import venn3, venn3_circles
 import os
+import argparse
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from collections import Counter
+from matplotlib_venn import venn3, venn3_circles, venn2, venn2_circles
 pd.set_option('display.max_columns', None)
 
 
@@ -24,49 +27,118 @@ def parse_arguments(arguments=None):
 
     # positional arguments
     parser.add_argument('snp_db_path', help='path to gencode file with known SNP sites')
+
+    parser.add_argument('--sname', type=str, help='sample name to add to outputs')
     
     return parser.parse_args(arguments)
 
 
-def plot_venn_diagram(df, subset_list, labels, column_name, input_dir):
-    fig, axs = plt.subplots(2, figsize=(10, 8), gridspec_kw={'height_ratios': [3, 1]})
-    fig.suptitle('Intersection - {} and {} {}'.format(labels[0], labels[2], labels[1]),
-                 fontsize=18, bbox={"facecolor": "orange", "alpha": 0.5})
-    axs[0].set_title("Venn diagram \n{a}: {b},   {c}: {d},   {e}: {f} \n{g}: {h},  {i}: {j},  {k}: {l}".format(
-        a=labels[0], b=subset_list[0],
-        c=labels[1], d=subset_list[1],
-        e="intersection", f=subset_list[2],
-        g=labels[2], h=subset_list[5] + subset_list[3],
-        i=labels[0] + " & " + labels[2], j=subset_list[4],
-        k="all_intersect", l=subset_list[6]), fontsize=10, bbox={"facecolor": "gray", "alpha": 0.3})
+def plot_venn_diagram(df, subset_list, labels, column_name, input_dir, sname):
 
-    v = venn3(subsets=subset_list, set_labels=(labels[0], labels[1], labels[2]), ax=axs[0])
-    venn3_circles(subsets=subset_list, color='gray', linewidth=1, linestyle='dashed', ax=axs[0])
+    # fig, axs = plt.subplots(2, figsize=(10, 8), gridspec_kw={'height_ratios': [3, 1]})
+    plt.title('Intersection - {} and {} {}'.format(labels[0], labels[2], labels[1]))
+    # axs[0].set_title("Venn diagram \n{a}: {b},   {c}: {d},   {e}: {f} \n{g}: {h},  {i}: {j},  {k}: {l}".format(
+    #     a=labels[0], b=subset_list[0],
+    #     c=labels[1], d=subset_list[1],
+    #     e="intersection", f=subset_list[2],
+    #     g=labels[2], h=subset_list[5] + subset_list[3],
+    #     i=labels[0] + " & " + labels[2], j=subset_list[4],
+    #     k="all_intersect", l=subset_list[6]), fontsize=10, bbox={"facecolor": "gray", "alpha": 0.3})
+
+    v = venn3(subsets=subset_list, set_labels=(labels[0], labels[1], labels[2]))
+    venn3_circles(subsets=subset_list, color='gray', linewidth=1, linestyle='dashed')
+
+    # get the text from the diagram components
+    ids = ['100', '010', '001', '110', '101','011', '111']
+    sets = Counter()
+    for id in ids:
+        try:
+            sets[id] = v.get_label_by_id(id).get_text()
+        except:
+            continue
+
+    # change the position of the text on the figure
+    h, l = [], []
+    for i in sets:
+        v.get_label_by_id(i).set_text("")  # remove label by setting them to empty string:
+        h.append(v.get_patch_by_id(i))  # append patch to handles list
+        l.append(sets[i])  # append count to labels list
+
+    # create legend from handles and labels, and save figure
+    plt.legend(handles=h, labels=l, title="counts", loc='lower right')  # bbox_to_anchor=(0.95,0.7)
+    plt.tight_layout()
+    plt.savefig(os.path.join(input_dir, 'venn_diagram_{}.png'.format(labels[0])), facecolor='white')
+    plt.clf()
+
 
     # make histogram of mutated CB
     intrsct_list = df[df[column_name] == 1]['count of mutated cell barcodes']
-    axs[1].hist(intrsct_list, bins=30)
-    axs[1].hist([i for i in intrsct_list if i >= 5], bins=30, alpha=0.7)
-    axs[1].set_title("Count of mutated cell barcodes in intersection with {}".format(labels[0]), fontsize=10,
-                     bbox={"facecolor": "gray", "alpha": 0.3})
-    axs[1].set_xlabel("mutations")
-    axs[1].set_ylabel("cell barcodes")
-    axs[1].legend(['total CB counts', 'CB counts >= 5'])
-    fig.tight_layout()
-    plt.savefig(os.path.join(input_dir, 'venn_diagram_{}.png'.format(labels[0])), facecolor='white')
+
+    # histogram on log scale.
+    # Use non-equal bin sizes, such that they look equal on log scale.
+    hist, bins = np.histogram(intrsct_list, bins=20)
+    logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
+    plt.hist(intrsct_list, bins=logbins)
+    plt.hist([i for i in intrsct_list if i >= 5], bins=logbins, alpha=0.6)
+    plt.xscale('log')
+
+    plt.title("Count of mutated cell barcodes in intersection with {} - {}".format(labels[0], sname), fontsize=10)
+    plt.xlabel("mutations")
+    plt.ylabel("cell barcodes")
+    plt.legend(['not filtered', 'fitered'])
+    plt.tight_layout()
+    plt.savefig(os.path.join(input_dir, 'CB_intersections_histogram_{}.png'.format(labels[0])), facecolor='white')
+    plt.clf()
 
 
-def run_venn(df, df_filtered, column_name, db_total_count, labels,input_dir):
-    df_pos_count = df.shape[0]
-    filtered_df_intrsct = len(df.index & df_filtered.index)
-    filtered_count = df_filtered.shape[0] - filtered_df_intrsct
-    db_df_intrsct = df[column_name].sum()
-    db_filtered_intrsct = df_filtered[column_name].sum()
-    db_filtered_df_intrsct = df_filtered[column_name].sum()
-    intersection_list = [db_total_count, df_pos_count, db_df_intrsct,
-                         filtered_count, db_filtered_intrsct, filtered_df_intrsct,
-                         db_filtered_df_intrsct]
-    plot_venn_diagram(df, intersection_list, labels, column_name, input_dir)
+def run_venn(df, df_filtered, column_name, db_total_count, labels, input_dir, sname):
+    # DB position set is combination of positions from table, and strings representing non overlaping positions.
+    set1 = set(df[df[column_name] != 0].position.to_list() +
+               ['not_in_table_position' + str(i) for i in range(db_total_count)])
+    set2 = set(df.position)  # aggregated data
+    set3 = set(df_filtered.position)  # filtered aggregated data
+
+
+    # df_pos_count = df.shape[0]
+    # filtered_df_intrsct = len(df.index & df_filtered.index)
+    # uniq_filtered_count = df_filtered.shape[0] - filtered_df_intrsct
+    # db_df_intrsct = (df[column_name] != 0).sum()
+    # db_filtered_intrsct = (df_filtered[column_name] != 0).sum()
+    # db_filtered_df_intrsct = (df_filtered[column_name] != 0).sum()
+    # # {'001':, len(df.position) - ,
+    # # '100':,
+    # # '010':
+    # # '111': db_filtered_df_intrsct}
+    # intersection_list = [db_total_count, df_pos_count, db_df_intrsct,
+    #                      uniq_filtered_count, db_filtered_intrsct, filtered_df_intrsct,
+    #                      db_filtered_df_intrsct]
+    plot_venn_diagram(df, [set1, set2, set3], labels, column_name, input_dir, sname)
+
+
+def plot_venn2_diagram(subset_list, labels, input_dir, sname):
+    # create hisrogram without green
+    v = venn2(subsets=subset_list, set_labels=(labels[0], labels[1]))
+    venn2_circles(subsets=subset_list, color='gray', linewidth=1, linestyle='dashed')
+
+    sets = Counter()
+    sets['10'] = v.get_label_by_id('10').get_text()
+    sets['01'] = v.get_label_by_id('01').get_text()
+    sets['11'] = v.get_label_by_id('11').get_text()
+
+    h, l = [], []
+    for i in sets:
+        # remove label by setting them to empty string:
+        v.get_label_by_id(i).set_text("")
+        # append patch to handles list
+        h.append(v.get_patch_by_id(i))
+        # append count to labels list
+        l.append(sets[i])
+
+    # create legend from handles and labels
+    plt.title('Intersection of {} and {} - {}'.format(labels[0], labels[1], sname))
+    plt.legend(handles=h, labels=l, title="counts", bbox_to_anchor=(0.95, 0.7))
+    plt.savefig(os.path.join(input_dir, 'venn2_diagram_{}.png'.format(labels[0])), facecolor='white')
+    plt.clf()
 
 
 def count_intersection(df_agg_intrsct, df_filtered, args):
@@ -80,13 +152,24 @@ def count_intersection(df_agg_intrsct, df_filtered, args):
     snp_total_count, edit_rep_total_count, edit_nonrep_total_count = \
         int(snp_total_count), int(edit_rep_total_count), int(edit_nonrep_total_count)
 
+    # make Venn diagram for rep and non_rep Editing sites combined
+    # DB position set is combination of positions from table, and strings representing non overlaping positions.
+    edit_db_total_count = edit_rep_total_count + edit_nonrep_total_count
+    set1 = set(df_agg_intrsct[(df_agg_intrsct['is_editing_rep'] != 0) | (
+                df_agg_intrsct['is_editing_non_rep'] != 0)].position.to_list() +
+               ['not_in_table_position' + str(i) for i in range(edit_db_total_count)])
+    set2 = set(df_filtered.position)
+    plot_venn2_diagram([set1, set2], ['Editing_sites_DB', 'Filtered_data'], args.input_dir, args.sname)
+
+
+
     # make Venn diagrams for snp, editing rep and editing non_rep intersections
     run_venn(df_agg_intrsct, df_filtered, 'is_snp', snp_total_count, ['SNP', 'Aggregated data', 'Filtered data'],
-             args.input_dir)
+             args.input_dir, args.sname)
     run_venn(df_agg_intrsct, df_filtered, 'is_editing_rep', edit_rep_total_count,
-             ['Edit_rep', 'Aggregated data', 'Filtered data'], args.input_dir)
+             ['Edit_rep', 'Aggregated data', 'Filtered data'], args.input_dir, args.sname)
     run_venn(df_agg_intrsct, df_filtered, 'is_editing_non_rep', edit_nonrep_total_count,
-             ['Edit_non_rep', 'Aggregated data', 'Filtered data'], args.input_dir)
+             ['Edit_non_rep', 'Aggregated data', 'Filtered data'], args.input_dir, args.sname)
 
 
 def get_df(pathes):
@@ -177,7 +260,5 @@ if __name__ == '__main__':
 
     # make Venn diagrams of the intersections
     count_intersection(df_agg_intersect, df_filtered, args)
-
-
 
     print("Fininshed Venn diagrams")
