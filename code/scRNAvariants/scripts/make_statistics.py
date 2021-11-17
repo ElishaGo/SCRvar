@@ -46,6 +46,8 @@ def parse_arguments(arguments=None):
     parser.add_argument('--min_total_umis', default=20, type=int,
                         help='position with less number of mutated + unmutated UMIs will be filtered')
 
+    parser.add_argument('--sname', type=str, help='sample name to add to outputs')
+
     # Meta arguments
     parser.add_argument('--threads', type=int,
                         help='number of available threads', default=1)

@@ -13,17 +13,18 @@ logger = logging.getLogger(__name__)
 
 def order_and_save_agg(df, out_folder):
     # reorder columns
-    cols = ['chromosome', 'start', 'end', 'position', 'percent of non ref total umis', 'strand',
+    cols = ['chromosome', 'start', 'end', 'position', 'percent of non ref from all cells', 'strand',
             'count of unmutated cell barcodes', 'count of mutated cell barcodes',
-            'percent of non ref mutated umis', 'reference base',
+            'percent of non ref only from mutated cells', 'reference base',
             'same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
             'same single reads', 'transition single reads', 'reverse single reads', 'transvertion single reads',
             'mixed reads', 'total mutation umi count', 'unmutated single reads',
-            'unmutated multi reads', 'aggregated cell barcodes', 'bin of 1 mut per cell - #cell with mut',
-            'bin of 1 mut per cell - #median % non ref umis per barcode',
-            'bin of 2 mut per cell - #cell with mut', 'bin of 2 mut per cell - #median % non ref umis per barcode'
-            , 'bin of 3 mut per cell - #cell with mut', 'bin of 3 mut per cell - #median % non ref umis per barcode'
-            , 'bin of 4+ mut per cell - #cell with mut', 'bin of 4+ mut per cell - #median % non ref umis per barcode']
+            'unmutated multi reads', 'bin of 1 UMI per cell - #cell with mut',
+            'bin of 1 UMI per cell - #median % non ref umis per barcode',
+            'bin of 2 UMI per cell - #cell with mut', 'bin of 2 UMI per cell - #median % non ref umis per barcode'
+            , 'bin of 3 UMI per cell - #cell with mut', 'bin of 3 UMI per cell - #median % non ref umis per barcode'
+            , 'bin of 4+ UMI per cell - #cell with mut', 'bin of 4+ UMI per cell - #median % non ref umis per barcode'
+            , 'aggregated cell barcodes']
 
     df = df[cols]
     # sort and save df
@@ -59,7 +60,7 @@ def add_counts_of_umis(df):
     df_umi_cols = df[(['reference base'] + all_umi_cols)]
     cols_no_unmutated = df_umi_cols.columns[~df_umi_cols.columns.str.startswith(('unmutated', 'reference'))]  # not sure if this is faster that way
     cols_all_umi_counts = df_umi_cols.columns[~df_umi_cols.columns.str.startswith('reference')]
-    df[['percent of non ref mutated umis', 'percent of non ref total umis']] = \
+    df[['percent of non ref only from mutated cells', 'percent of non ref from all cells']] = \
         df_umi_cols.parallel_apply(get_non_ref_percent, args=(cols_no_unmutated, cols_all_umi_counts), result_type='expand', axis=1)
     return df
 
@@ -107,13 +108,13 @@ def get_stat_plots(df_merged_open, df_merged_agg, args):
                                                                     args.min_mutation_umis, args.min_total_umis)
 
     # plot not grouped data
-    statistic_plots.plot_cb_occurences_hist(df_merged_open, df_merged_filtered, args.output_folder)
-    statistic_plots.plot_umi_per_reference_base(df_merged_open, df_merged_filtered, args.output_folder)
-    statistic_plots.plot_heatmap_mutation_per_base(df_merged_open, df_merged_filtered, args.output_folder)
+    statistic_plots.plot_cb_occurences_hist(df_merged_open, df_merged_filtered, args.output_folder, args.sname)
+    statistic_plots.plot_umi_per_reference_base(df_merged_open, df_merged_filtered, args.output_folder, args.sname)
+    statistic_plots.plot_heatmap_mutation_per_base(df_merged_open, df_merged_filtered, args.output_folder, args.sname)
 
     # plot data grouped by position
-    statistic_plots.plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, args.output_folder)
-    statistic_plots.plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, args.output_folder)
+    statistic_plots.plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, args.output_folder, args.sname)
+    statistic_plots.plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, args.output_folder, args.sname)
 
 
 def agg_dfs(df):
@@ -141,8 +142,8 @@ def agg_dfs(df):
 
         # return df with two columns: count of UMIs and median fraction
         return pd.DataFrame([num_cells, fraction_mut_umi_median],
-                            index=['bin of {} mut per cell - #cell with mut'.format(num_of_umis),
-                                   'bin of {} mut per cell - #median % non ref umis per barcode'.format(num_of_umis)]).T
+                            index=['bin of {} UMI per cell - #cell with mut'.format(num_of_umis),
+                                   'bin of {} UMI per cell - #median % non ref umis per barcode'.format(num_of_umis)]).T
 
                             # index = ['total umi counts {} cells'.format(num_of_umis),
                             #          'median percent of non ref umi {} cells'.format(num_of_umis)]).T
@@ -160,7 +161,7 @@ def agg_dfs(df):
 
     # old version 9.6.21
     # df_agg = df_grouped.agg(
-    #     {'Chromosome': 'first', 'start': 'first', 'end': 'first', 'strand': 'first', 'reference base': 'first',
+    #     {'chromosome': 'first', 'start': 'first', 'end': 'first', 'strand': 'first', 'reference base': 'first',
     #     'R->A multi reads': 'sum', 'R->T multi reads': 'sum', 'R->G multi reads': 'sum',
     #      'R->C multi reads': 'sum', 'R->A single reads': 'sum', 'R->T single reads': 'sum',
     #      'R->G single reads': 'sum', 'R->C single reads': 'sum', 'mixed reads': 'sum','total umi count':'sum',
