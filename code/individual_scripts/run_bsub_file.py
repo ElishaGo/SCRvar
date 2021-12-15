@@ -190,7 +190,7 @@ def create_job_file(args):
             "--log-file log_files/log_statistics_{fname}.txt --threads {n}\n\n".format(fname=args.fname, n=args.n))
 
     f.write('# Find intersections with SNP and edit databases\n')
-    f.write('python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/make_venn.py '
+    f.write('python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/DB_intersections.py '
             'statistics_ouputs/ {edit_rep_bed} {edit_nonrep_bed} {snp_vcf}  --sname {fname}\n\n'.format(edit_rep_bed=args.edit_rep_bed,
                                                                                        edit_nonrep_bed=args.edit_nonrep_bed,
                                                                                        snp_vcf=args.snp_vcf, fname=args.fname))

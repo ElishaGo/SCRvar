@@ -46,6 +46,9 @@ def parse_arguments(arguments=None):
     parser.add_argument('--min_total_umis', default=20, type=int,
                         help='position with less number of mutated + unmutated UMIs will be filtered')
 
+    parser.add_argument('--min_mutation_rate', default=0.1, type=int,
+                        help='position with less rate of mutation will be filtered')
+
     parser.add_argument('--sname', type=str, help='sample name to add to outputs')
 
     # Meta arguments

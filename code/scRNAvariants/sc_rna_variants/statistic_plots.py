@@ -96,7 +96,7 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
             # add first column of unmut data to the mut data
             mat_to_plot = count_matrix[0]
             axs[i] = sns.heatmap(np.log10(mat_to_plot), linewidth=0.5, annot=np.array(mat_to_plot),
-                                 cbar_kws={'label': 'log 10'}, ax=axs[i], cmap='jet', vmin=vmin, vmax=vmax,  # 'brg'
+                                 cbar_kws={'label': 'log 10'}, ax=axs[i], cmap='brg', vmin=vmin, vmax=vmax,
                                  xticklabels=['same_all', 'same_mut', 'transition', 'reverse','transversion'], yticklabels=bases)
             axs[i].set_yticklabels(axs[i].get_yticklabels(), rotation=360)
             axs[i].set_xticklabels(axs[i].get_xticklabels(), rotation=30, ha='right')
@@ -146,7 +146,7 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
         count_matrix = count_matrix_set[0]
         type_name = count_matrix_set[1] + count_matrix_set[2]
 
-        same_col = count_matrix[:, 1]
+        same_col = count_matrix[:, 1]  # get the 'same_mut' column
         relative_mutations = count_matrix[:, 2:] / same_col[:, None]
         relative_mutations_df = pd.DataFrame(relative_mutations,
                          columns=['transition', 'reverse', 'transversion'],
@@ -163,14 +163,17 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
 
     # make barplot
     plt.clf()
+
+    s = sns.barplot(data=relative_mut_dfs, x='variable', y='value', hue='type')
+    s.set_yscale("log", base=10)  # set y axis in log scale
+    _ = s.set(xlabel="mutated UMIs ratio against non mutated UMIs", ylabel="ratio")  # set axis labels
+    # reset x labels
+    mut_names = ['(a->g)', '(c->t)', '(g->a)', '(t->c)', '(a->t)', '(c->g)', '(g->c)',
+                 '(t->a)', '(a->c)', '(c->a)', '(g->t)', '(t->g)']
+    s.set_xticklabels([l.get_text() + '\n' + m for l, m in zip(s.get_xticklabels(), mut_names)])
     plt.xticks(rotation=30, ha='right')
     plt.title("ratio of mutation out of non mutated UMIs (same column)")
-    plt.ylabel("mutation ratio with non mutation UMIs")
-    s = sns.barplot(data=relative_mut_dfs, x='variable', y='value', hue='type')
     plt.savefig(os.path.join(out_folder, "relative_mutations_barplot.png"), bbox_inches='tight')
-
-
-
 
 
 def plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, out_folder, sname):

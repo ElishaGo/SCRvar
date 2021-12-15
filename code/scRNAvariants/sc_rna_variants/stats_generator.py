@@ -76,8 +76,13 @@ def print_frequencies(df_merged, df_merged_agg, output_folder):
         f.write("number of rows in table: %s \n" %str(df_merged_agg.shape[0]))
 
 
-def filter_by_cb_count(df, df_agg, min_mutation_cb_to_filter,min_mutation_umis, min_total_umis):
+def filter_by_cb_count(df, df_agg, min_mutation_cb_to_filter,min_mutation_umis, min_total_umis, min_mutation_rate):
     """filtering function for aggregated tables and open table by the same positions from aggregated filtered table."""
+
+    #  'true values' - drop positions with rare mutations and probably hard to get insights from
+    def filter_rare_mut(df, min_mutation_rate):
+        df = df[df['percent of non ref from all cells'] > min_mutation_rate]
+        return df
 
     # first condition to filter by
     cond_1 = (df_agg['count of mutated cell barcodes'] >= min_mutation_cb_to_filter)
@@ -91,10 +96,11 @@ def filter_by_cb_count(df, df_agg, min_mutation_cb_to_filter,min_mutation_umis, 
 
     # filter the aggregated df
     df_agg_filt = df_agg[cond_1 & cond_2]
+    df_agg_filt = filter_rare_mut(df_agg_filt, min_mutation_rate)
 
     # filter the open table by the position which were filtered in the aggregated df
     filter_idx = df_agg_filt['position'].values
-    df_filt = df[df['position'].isin(filter_idx)]  # TODO: check if you can use directly the filter idx without 'isin'
+    df_filt = df[df['position'].isin(filter_idx)]
     return df_filt, df_agg_filt
 
 
@@ -105,7 +111,7 @@ def get_stat_plots(df_merged_open, df_merged_agg, args):
     """
     # get filtered data for both aggregated and open aggregated df
     df_merged_filtered, df_merged_agg_filtered = filter_by_cb_count(df_merged_open, df_merged_agg, args.min_cb_per_pos,
-                                                                    args.min_mutation_umis, args.min_total_umis)
+                                                                    args.min_mutation_umis, args.min_total_umis, args.min_mutation_rate)
 
     # plot not grouped data
     statistic_plots.plot_cb_occurences_hist(df_merged_open, df_merged_filtered, args.output_folder, args.sname)
@@ -303,19 +309,19 @@ def run(args):
     logger.info("started to aggregate the data")
     df_merged_agg = agg_dfs(df_merged)
 
-    # make plots
-    # logger.info("started to make plots")
-    get_stat_plots(df_merged, df_merged_agg, args)
-
-    # write data to text file
-    logger.info("started to make frequency text file")
-    print_frequencies(df_merged, df_merged_agg, args.output_folder)
-
     # add two columns with counts of UMIs to table
     logger.info("started to count UMIs in aggregated file")
     # initialize pandarallel for parallel pandas apply. used in the following function
     pandarallel.initialize(nb_workers=args.threads)
     df_merged_agg = add_counts_of_umis(df_merged_agg)
+
+    # make plots
+    logger.info("started to make plots")
+    get_stat_plots(df_merged, df_merged_agg, args)
+
+    # write data to text file
+    logger.info("started to make frequency text file")
+    print_frequencies(df_merged, df_merged_agg, args.output_folder)
 
     # reorder and save the aggregated file
     logger.info("reorder and save file")
