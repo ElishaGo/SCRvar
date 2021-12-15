@@ -503,10 +503,6 @@ def process_chromosome_chunk(
             total_singles_counts, total_multiples_counts, params = calculate_position_parameters(ref_base,
                                                                                                  cells_dict[cell][(
                                                                                                  direction, position)])
-            # TODO: update use of params
-            # transition
-            # reverse_complement
-            # transversion
 
             if params:  # has mutation
                 if direction == '-':  # flip for negative strand
@@ -515,8 +511,9 @@ def process_chromosome_chunk(
                     ref_base = 'acgt'[3 - 'acgt'.index(ref_base)]
 
                 has_mutation.add((direction, position))
+                # ouput bed file as positions start (1-based), end (1-based)
                 temp_results.append('\t'.join([
-                    fasta_chromosome_name, str(position), str(position + 1), cell,
+                    fasta_chromosome_name, str(position + 1), str(position + 2), cell,  #CHANGED HERE 15/12/2021
                     params[-1], direction, ref_base, *params[:-1]
                 ]) + '\n')
             else:  # no mutations
@@ -531,8 +528,8 @@ def process_chromosome_chunk(
     with open(output_csv_path.with_suffix('.tsv2'), 'w') as fh:
         fh.writelines(
             ['\t'.join(
-                # chromosome, start, end, unique cells, direction, multiples, singles
-                [fasta_chromosome_name, str(key[1]), str(key[1] + 1), str(value[2]), key[0], str(value[0]),
+                # chromosome, start (1-based), end (1-based), unique cells, direction, multiples, singles
+                [fasta_chromosome_name, str(key[1] + 1), str(key[1] + 2), str(value[2]), key[0], str(value[0]),  #CHANGED HERE 15/12/2021
                  str(value[1])]
             ) + '\n' for key, value in total_umis_for_unmutated_positions.items() if key in has_mutation]
         )
