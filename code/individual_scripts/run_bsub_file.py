@@ -184,14 +184,14 @@ def create_job_file(args):
     f.write("python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/make_statistics.py "
             "scRarevar_output/raw_stats.tsv "
             "scRarevar_output/raw_unmutated_stats.tsv "
-            "--output_folder statistics_ouputs/ "
+            "--output_folder statistics_ouputs/ --sname {fname}"
             "--log-file log_files/log_statistics_{fname}.txt --threads {n}\n\n".format(fname=args.fname, n=args.n))
 
     f.write('# Find intersections with SNP and edit databases\n')
-    f.write('python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/make_venn.py '
-            'statistics_ouputs/ {edit_rep_bed} {edit_nonrep_bed} {snp_vcf}\n\n'.format(edit_rep_bed=args.edit_rep_bed,
+    f.write('python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/DB_intersections.py '
+            'statistics_ouputs/ {edit_rep_bed} {edit_nonrep_bed} {snp_vcf}  --sname {fname}\n\n'.format(edit_rep_bed=args.edit_rep_bed,
                                                                                        edit_nonrep_bed=args.edit_nonrep_bed,
-                                                                                       snp_vcf=args.snp_vcf))
+                                                                                       snp_vcf=args.snp_vcf, fname=args.fname))
 
     f.write('# Find intersections with SNP and edit databases\n')
     f.write('python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/filter_snp.py '
