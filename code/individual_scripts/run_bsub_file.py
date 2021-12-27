@@ -44,8 +44,6 @@ def parse_arguments(arguments=None):
     parser.add_argument('--filter_list_bam', type=str,
                         help='List of cell barcodes to use in format as in  the bam file')
 
-    parser.add_argument('--filter_list_scrarvar', type=str, help='List of cell barcodes to use in scrarvar program')
-
     parser.add_argument('--annotation_gtf', type=str,
                         default="/home/labs/bioservices/shared/rarevar/data/gencode.v37.annotation.gtf",
                         help='gtf annotation file to find gene cites')
