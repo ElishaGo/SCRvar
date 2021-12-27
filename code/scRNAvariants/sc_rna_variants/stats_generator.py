@@ -19,11 +19,12 @@ def order_and_save_agg(df, out_folder):
             'same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
             'same single reads', 'transition single reads', 'reverse single reads', 'transvertion single reads',
             'mixed reads', 'total mutation umi count', 'unmutated single reads',
-            'unmutated multi reads', 'aggregated cell barcodes', 'bin of 1 mut per cell - #cell with mut',
+            'unmutated multi reads', 'bin of 1 mut per cell - #cell with mut',
             'bin of 1 mut per cell - #median % non ref umis per barcode',
             'bin of 2 mut per cell - #cell with mut', 'bin of 2 mut per cell - #median % non ref umis per barcode'
             , 'bin of 3 mut per cell - #cell with mut', 'bin of 3 mut per cell - #median % non ref umis per barcode'
-            , 'bin of 4+ mut per cell - #cell with mut', 'bin of 4+ mut per cell - #median % non ref umis per barcode']
+            , 'bin of 4+ mut per cell - #cell with mut', 'bin of 4+ mut per cell - #median % non ref umis per barcode'
+            , 'aggregated cell barcodes']
 
     df = df[cols]
     # sort and save df
@@ -48,7 +49,6 @@ def add_counts_of_umis(df):
         all_umi_count = line[cols_all_umi_counts].sum()
         percent_of_non_ref_total = round(mutation_umi_count / all_umi_count * 100, ndigits=2)
         percent_of_non_ref_mutated = round(mutation_umi_count / umi_count_no_unmutated * 100, ndigits=2)
-        logger.info("inside parallel function. all umi counts are: {}".format(all_umi_count))
         return percent_of_non_ref_mutated, percent_of_non_ref_total
 
     all_umi_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
