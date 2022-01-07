@@ -27,7 +27,7 @@ def parse_arguments(arguments=None):
     # optional arguments
     parser.add_argument('--q', type=str, default='bio', help='''queue to run on WEXAC''')
 
-    parser.add_argument('--J', default='jobfile', help='job name on WEXAC', type=str)
+    parser.add_argument('--J', default='jobfile_scrarv', help='job name on WEXAC', type=str)
 
     # parser.add_argument('--oo', default='%J.out',  type=str, help='path to output log file')
     #
@@ -45,23 +45,23 @@ def parse_arguments(arguments=None):
                         help='List of cell barcodes to use in format as in  the bam file')
 
     parser.add_argument('--annotation_gtf', type=str,
-                        default="/home/labs/bioservices/shared/rarevar/data/gencode.v37.annotation.gtf",
+                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/gencode.v37.annotation.gtf",
                         help='gtf annotation file to find gene cites')
 
     parser.add_argument('--genome_ref', type=str,
-                        default="/shareDB/iGenomes/Homo_sapiens/UCSC/hg38/Sequence/WholeGenomeFasta/genome.fa",
+                        default="/home/labs/bioservices/services/expression_references/refdata-gex-GRCh38-2020-A/fasta/genome.fa",
                         help='genome reference')
 
     parser.add_argument('--edit_rep_bed', type=str,
-                        default="/home/labs/bioservices/shared/rarevar/data/edit_snp_DB/human/edit_rep.bed",
+                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/edit_snp_DB/human/edit_rep.bed",
                         help='Editing repetitive sites data base in bed format')
 
     parser.add_argument('--edit_nonrep_bed', type=str,
-                        default="/home/labs/bioservices/shared/rarevar/data/edit_snp_DB/human/edit_nonrep.bed",
+                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/edit_snp_DB/human/edit_nonrep.bed",
                         help='Editing non repetitive sites data base in bed format')
 
     parser.add_argument('--snp_vcf', type=str,
-                        default="/home/labs/bioservices/shared/rarevar/data/edit_snp_DB/human/snp_chr_sorted.vcf",
+                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/edit_snp_DB/human/snp_chr_sorted.vcf",
                         help='Known SNP sites data base in vcf format')
 
     parser.add_argument('--snp_clf_weights', type=str,
@@ -105,7 +105,7 @@ def create_job_file(args):
     f.write("### Run the commands:\n")
     f.write("# load conda environment and modules\n")
     f.write(". /home/labs/bioservices/services/miniconda2/etc/profile.d/conda.sh;conda activate rarevar;module load "
-            "samtools;module load bamtools;module load bedtools\n\n")
+            "samtools/1.9;module load bamtools;module load bedtools\n\n")
 
     # create directories
     f.write("# make dirs\n")
@@ -184,7 +184,7 @@ def create_job_file(args):
     f.write("python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/make_statistics.py "
             "scRarevar_output/raw_stats.tsv "
             "scRarevar_output/raw_unmutated_stats.tsv "
-            "--output_folder statistics_ouputs/ --sname {fname}"
+            "--output_folder statistics_ouputs/ --sname {fname} "
             "--log-file log_files/log_statistics_{fname}.txt --threads {n}\n\n".format(fname=args.fname, n=args.n))
 
     f.write('# Find intersections with SNP and edit databases\n')
