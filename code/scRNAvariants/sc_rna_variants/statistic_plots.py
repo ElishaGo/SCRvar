@@ -13,13 +13,15 @@ def plot_cb_occurences_hist(df_orig, df_filtered, out_folder, sname):
     """ This function count the number of each Cb in the table, and then plot the distribution of CB occurences.
     This can give an insight regarding the representation of different cell in the table.
     Note that the counts in tables can overlap on positions."""
-    fig, axs = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
 
     def make_plot(ax, cb_counts, prior_post):
         ax.hist(cb_counts.values, bins=50)
         ax.set_title("Number of cell barcodes - {} filtering - {}".format(prior_post, sname))
         ax.set_ylabel("count of different cell barcodes")
         ax.set_xlabel("number of mutated positions")
+        ax.tick_params(axis='x', reset=True)  # show ticks of x axis on both graphs
+
+    fig, axs = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
 
     for i, df_tuple in enumerate(zip([df_orig, df_filtered], ['prior', 'post'])):
         df = df_tuple[0]
@@ -97,10 +99,12 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
             mat_to_plot = count_matrix[0]
             axs[i] = sns.heatmap(np.log10(mat_to_plot), linewidth=0.5, annot=np.array(mat_to_plot),
                                  cbar_kws={'label': 'log 10'}, ax=axs[i], cmap='brg', vmin=vmin, vmax=vmax,
-                                 xticklabels=['same_all', 'same_mut', 'transition', 'reverse','transversion'], yticklabels=bases)
+                                 xticklabels=['same_all', 'same_mut', 'transition', 'reverse', 'transversion'],
+                                 yticklabels=bases)
             axs[i].set_yticklabels(axs[i].get_yticklabels(), rotation=360)
             axs[i].set_xticklabels(axs[i].get_xticklabels(), rotation=30, ha='right')
-            axs[i].set_title("Counts of mutations per base - {} reads {} - {}".format(count_matrix[1], count_matrix[2], sname))
+            axs[i].set_title(
+                "Counts of mutations per base - {} reads {} - {}".format(count_matrix[1], count_matrix[2], sname))
             axs[i].set_ylabel("reference base")
             axs[i].set_xlabel("mutation")
         plt.tight_layout()
@@ -125,8 +129,9 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
                     df_by_refbase = df.loc[df['reference base'] == base, :]
                     unmuteted_read_count = df_by_refbase.drop_duplicates(subset='position')[
                         'unmutated {} reads'.format(read_type)].sum()
-                    df_to_plot = pd.concat([pd.Series(df_to_plot['same {} reads'.format(read_type)] + unmuteted_read_count,
-                                                      index=['same all single reads']), df_to_plot])
+                    df_to_plot = pd.concat(
+                        [pd.Series(df_to_plot['same {} reads'.format(read_type)] + unmuteted_read_count,
+                                   index=['same all single reads']), df_to_plot])
 
                     count_matrix.append(df_to_plot.values)
                 count_matrices.append((np.array(count_matrix), read_type, df_name))
@@ -140,7 +145,6 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
     # plot and save heatmap
     make_mut_counts_heatmap(count_matrices, out_folder, sname)
 
-
     relative_mut_dfs = []
     for count_matrix_set in count_matrices:
         count_matrix = count_matrix_set[0]
@@ -149,12 +153,13 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
         same_col = count_matrix[:, 1]  # get the 'same_mut' column
         relative_mutations = count_matrix[:, 2:] / same_col[:, None]
         relative_mutations_df = pd.DataFrame(relative_mutations,
-                         columns=['transition', 'reverse', 'transversion'],
-                         index=bases).reset_index()
+                                             columns=['transition', 'reverse', 'transversion'],
+                                             index=bases).reset_index()
         relative_mutations_long = pd.melt(relative_mutations_df, id_vars=['index'],
                                           value_vars=['transition', 'reverse', 'transversion'])
         relative_mutations_long['type'] = type_name
-        relative_mutations_long['variable'] = relative_mutations_long['index'] + '_' + relative_mutations_long['variable']
+        relative_mutations_long['variable'] = relative_mutations_long['index'] + '_' + relative_mutations_long[
+            'variable']
         relative_mutations_long.drop('index', axis=1, inplace=True)
 
         relative_mut_dfs.append(relative_mutations_long)
@@ -185,8 +190,9 @@ def plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, out_folder, sna
         ax.bar(bins[:num_of_bins], bins[:num_of_bins] * counts[:num_of_bins])
         for i in range(num_of_bins):  # add ticks on top of the bars
             ax.text(bins[i], bins.round()[i] * counts[i], str(int(bins.round()[i])) + '*' + str(counts[i]), rotation=45)
-        ax.set_title("amount of positions with a mismatch, binned by the number of cells - {} filtering".format(df_name))
-        ax.set_ylabel("count of positions")
+        ax.set_title(
+            "amount of (positions, CB) with a mismatch, binned by the number of cells - {} filtering".format(df_name))
+        ax.set_ylabel("count of (positions, CB) pairs")
         ax.set_xlabel("number of all Cell Barcodes per position")
         ax.tick_params(axis='x', reset=True)  # show ticks of x axis on both graphs
 
@@ -211,6 +217,7 @@ def plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, out_folder
         ax.set_ylim([0, 1])
         vals = ax.get_yticks()
         ax.set_yticklabels(['{:,.0%}'.format(x) for x in vals])
+        ax.tick_params(axis='x', reset=True)  # show ticks of x axis on both graphs
         bin_length = len(bins)
         for j in range(bin_length - 1):
             ax.text((arr[1][j] + arr[1][j + 1]) / 2.5, arr[0][j] + 0.01, str(int((arr[0][j] * 100).round())) + '%')
@@ -219,7 +226,6 @@ def plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, out_folder
     fig, axs = plt.subplots(2, 1, sharex=True, figsize=(10, 12))
     for i, df_tuple in enumerate(zip([df_merged_agg, df_merged_agg_filtered], ['Before', 'After'])):
         df, df_name = df_tuple[0], df_tuple[1]
-        # df.to_csv(os.path.join(out_folder, "test1_df.tsv"))
         cb_counts = df['count of mutated cell barcodes']
         make_plot(axs[i], cb_counts, df_name)
     plt.savefig(os.path.join(out_folder, "cb_count_per_position.png"), bbox_inches='tight')
@@ -233,15 +239,3 @@ def plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, out_folder
         cb_counts = cb_counts.combine(unmutated_cb_counts, np.add, fill_value=0)  # sum mutated and unmutated counts
         make_plot(axs[i], cb_counts, df_name)
     plt.savefig(os.path.join(out_folder, "cb_count_per_position_with_unmutated.png"), bbox_inches='tight')
-
-
-"""
-    data / raw_Stats_files / removed / ADAR / concatenated_tsv / raw_stats_removed_ADAR.tsv
-    data / raw_Stats_files / removed / ADAR / concatenated_tsv / raw_stats_unmutated_removed_ADAR.tsv
-    --output_folder
-    outputs / statistics_output / test
-    --log - file
-    log_files / log_test.txt
-    --threads
-    16
-"""

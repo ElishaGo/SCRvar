@@ -6,6 +6,7 @@ import pandas as pd
 from pandarallel import pandarallel
 
 import sc_rna_variants.statistic_plots as statistic_plots
+
 # from statistic_plots import *
 
 logger = logging.getLogger(__name__)
@@ -22,9 +23,9 @@ def order_and_save_agg(df, out_folder):
             'unmutated multi reads', 'bin of 1 UMI per cell - #cell with mut',
             'bin of 1 UMI per cell - #median % non ref umis per barcode',
             'bin of 2 UMI per cell - #cell with mut', 'bin of 2 UMI per cell - #median % non ref umis per barcode'
-            , 'bin of 3 UMI per cell - #cell with mut', 'bin of 3 UMI per cell - #median % non ref umis per barcode'
-            , 'bin of 4+ UMI per cell - #cell with mut', 'bin of 4+ UMI per cell - #median % non ref umis per barcode'
-            , 'aggregated cell barcodes']
+        , 'bin of 3 UMI per cell - #cell with mut', 'bin of 3 UMI per cell - #median % non ref umis per barcode'
+        , 'bin of 4+ UMI per cell - #cell with mut', 'bin of 4+ UMI per cell - #median % non ref umis per barcode'
+        , 'aggregated cell barcodes']
 
     df = df[cols]
     # sort and save df
@@ -37,7 +38,8 @@ def add_counts_of_umis(df):
     """
     From aggreagted tsv, add a columns with percent of UMIs in cells
     """
-    def get_non_ref_percent(line,cols_no_unmutated, cols_all_umi_counts):
+
+    def get_non_ref_percent(line, cols_no_unmutated, cols_all_umi_counts):
         """helper function to calculate the fraction of mutated UMIs from UMIs in mutated cells,
         and fraction of mutated UMIs from all UMIs including not mutated cells
         # TODO: check if it faster to use explicit column names instead of 'startswith'"""
@@ -57,28 +59,30 @@ def add_counts_of_umis(df):
     # all_umi_cols = [col for col in df.columns if  # old version 9.6.21
     #                 col.startswith(('R->', 'unmutated multi reads', 'unmutated single reads'))]
     df_umi_cols = df[(['reference base'] + all_umi_cols)]
-    cols_no_unmutated = df_umi_cols.columns[~df_umi_cols.columns.str.startswith(('unmutated', 'reference'))]  # not sure if this is faster that way
+    cols_no_unmutated = df_umi_cols.columns[
+        ~df_umi_cols.columns.str.startswith(('unmutated', 'reference'))]  # not sure if this is faster that way
     cols_all_umi_counts = df_umi_cols.columns[~df_umi_cols.columns.str.startswith('reference')]
     df[['percent of non ref only from mutated cells', 'percent of non ref from all cells']] = \
-        df_umi_cols.parallel_apply(get_non_ref_percent, args=(cols_no_unmutated, cols_all_umi_counts), result_type='expand', axis=1)
+        df_umi_cols.parallel_apply(get_non_ref_percent, args=(cols_no_unmutated, cols_all_umi_counts),
+                                   result_type='expand', axis=1)
     return df
 
 
 def print_frequencies(df_merged, df_merged_agg, output_folder):
-    with open(os.path.join(output_folder,'general_numbers.txt'), 'w') as f:
+    with open(os.path.join(output_folder, 'general_numbers.txt'), 'w') as f:
         f.write("General numbers information of table in open mode:\n\n")
-        f.write("number of rows in table: %s \n" %str(df_merged.shape[0]))
-        f.write("number of unique positions: %s \n" %str(df_merged['position'].nunique()))
-        f.write("number of unique cell barcodes: %s \n" %str(df_merged['cell barcode'].nunique()))
+        f.write("number of unique (position, CB) in table: %s \n" % str(df_merged.shape[0]))
+        f.write("number of unique positions: %s \n" % str(df_merged['position'].nunique()))
+        f.write("number of unique cell barcodes: %s \n" % str(df_merged['cell barcode'].nunique()))
 
-        f.write("\nGeneral numbers information of table in aggregated (by position) mode:\n\n")
-        f.write("number of rows in table: %s \n" %str(df_merged_agg.shape[0]))
+        # f.write("\nGeneral numbers information of table in aggregated (by position) mode:\n\n")
+        # f.write("number of rows in table: %s \n" %str(df_merged_agg.shape[0]))
 
 
-def filter_by_cb_count(df, df_agg, min_mutation_cb_to_filter,min_mutation_umis, min_total_umis, min_mutation_rate):
+def filter_by_cb_count(df, df_agg, min_mutation_cb_to_filter, min_mutation_umis, min_total_umis, min_mutation_rate):
     """filtering function for aggregated tables and open table by the same positions from aggregated filtered table."""
 
-    #  'true values' - drop positions with rare mutations and probably hard to get insights from
+    #  'true values' - drop positions tations and probably hard to get insights from
     def filter_rare_mut(df, min_mutation_rate):
         df = df[df['percent of non ref from all cells'] > min_mutation_rate]
         return df
@@ -89,7 +93,7 @@ def filter_by_cb_count(df, df_agg, min_mutation_cb_to_filter,min_mutation_umis, 
     # second condition to filter by
     mutation_umi_counts = df_agg['total mutation umi count']
     total_umi_count = mutation_umi_counts + \
-                      df_agg['unmutated multi reads'] +\
+                      df_agg['unmutated multi reads'] + \
                       df_agg['unmutated single reads']
     cond_2 = ((mutation_umi_counts >= min_mutation_umis) & (total_umi_count >= min_total_umis))
 
@@ -110,7 +114,8 @@ def get_stat_plots(df_merged_open, df_merged_agg, args):
     """
     # get filtered data for both aggregated and open aggregated df
     df_merged_filtered, df_merged_agg_filtered = filter_by_cb_count(df_merged_open, df_merged_agg, args.min_cb_per_pos,
-                                                                    args.min_mutation_umis, args.min_total_umis, args.min_mutation_rate)
+                                                                    args.min_mutation_umis, args.min_total_umis,
+                                                                    args.min_mutation_rate)
 
     # plot not grouped data
     statistic_plots.plot_cb_occurences_hist(df_merged_open, df_merged_filtered, args.output_folder, args.sname)
@@ -127,6 +132,7 @@ def agg_dfs(df):
     Aggregate the mutated dataframe on the positions.
     In addition, add count of cells in each position.
     """
+
     def get_umis_stats(num_of_umis):
         """Helper function to calculate statistics of the cells withing each position.
         Calculation is made separately for cells with 1,2,3 and 4+ umi counts."""
@@ -150,15 +156,17 @@ def agg_dfs(df):
                             index=['bin of {} UMI per cell - #cell with mut'.format(num_of_umis),
                                    'bin of {} UMI per cell - #median % non ref umis per barcode'.format(num_of_umis)]).T
 
-                            # index = ['total umi counts {} cells'.format(num_of_umis),
-                            #          'median percent of non ref umi {} cells'.format(num_of_umis)]).T
+        # index = ['total umi counts {} cells'.format(num_of_umis),
+        #          'median percent of non ref umi {} cells'.format(num_of_umis)]).T
 
     # TODO: check if we can fasten aggregation by replacing the 'first' with some other function
     df_grouped = df.groupby('position')
     df_agg = df_grouped.agg(
         {'chromosome': 'first', 'start': 'first', 'end': 'first', 'strand': 'first', 'reference base': 'first',
-         'same multi reads': 'sum', 'transition multi reads': 'sum', 'reverse multi reads': 'sum', 'transvertion multi reads': 'sum',
-         'same single reads': 'sum', 'transition single reads': 'sum', 'reverse single reads': 'sum', 'transvertion single reads': 'sum',
+         'same multi reads': 'sum', 'transition multi reads': 'sum', 'reverse multi reads': 'sum',
+         'transvertion multi reads': 'sum',
+         'same single reads': 'sum', 'transition single reads': 'sum', 'reverse single reads': 'sum',
+         'transvertion single reads': 'sum',
          'mixed reads': 'sum', 'total umi count': 'sum', 'cell barcode': lambda x: ','.join(x),
          'count of unmutated cell barcodes': 'first',  # keep only first occurrence per position of unmutated data
          'unmutated multi reads': 'first', 'unmutated single reads': 'first'}
@@ -180,7 +188,7 @@ def agg_dfs(df):
                            'total umi count': 'total mutation umi count'}, inplace=True)
 
     # add column with count of CB in each position . This can maybe be shorter by using groupby and count
-    
+
     logger.info(df_agg.shape)
     logger.info(df_agg.apply(lambda x: len(x['aggregated cell barcodes'].split(',')), axis=1).shape)
     df_agg.loc[:, 'count of mutated cell barcodes'] = df_agg.apply(
@@ -227,8 +235,8 @@ def agg_unmutated(df):
     If so, the basic aggregation function is sum.
     TODO: explain when this can happen
     """
-    #check if aggregation is needed
-    if df.duplicated('position', keep = False).sum() > 0:
+    # check if aggregation is needed
+    if df.duplicated('position', keep=False).sum() > 0:
         df = df.groupby('position').agg(
             {'count of unmutated cell barcodes': 'sum', 'unmutated multi reads': 'sum',
              'unmutated single reads': 'sum', 'total umi count': 'sum'}).reset_index()
@@ -244,9 +252,9 @@ def add_position(df):
      - add documentation including final format string
     """
     # concat 3 first columns into one column of position
-    df['position'] = df.chromosome.str.cat(df['start'].astype(str), sep=':')  #change to chromoseme
+    df['position'] = df.chromosome.str.cat(df['start'].astype(str), sep=':')  # change to chromoseme
     df['position'] = df.position.str.cat(df['end'].astype(str), sep='-')
-    df['position'] = df.position.str.cat(df['strand'].astype(str), sep = ',')
+    df['position'] = df.position.str.cat(df['strand'].astype(str), sep=',')
 
 
 def load_mutated(path):
@@ -256,14 +264,15 @@ def load_mutated(path):
     """
     df = pd.read_csv(path, sep='\t')
     df.rename(columns={'same multi': 'same multi reads',
-                         'transition multi': 'transition multi reads', 'reverse multi': 'reverse multi reads',
-                         'transvertion multi': 'transvertion multi reads', 'same single': 'same single reads',
-                         'transition single': 'transition single reads','reverse single': 'reverse single reads',
-                         'transvertion single': 'transvertion single reads'}, inplace=True)
+                       'transition multi': 'transition multi reads', 'reverse multi': 'reverse multi reads',
+                       'transvertion multi': 'transvertion multi reads', 'same single': 'same single reads',
+                       'transition single': 'transition single reads', 'reverse single': 'reverse single reads',
+                       'transvertion single': 'transvertion single reads'}, inplace=True)
 
     add_position(df)  # add column of full coordinates
-    mutation_cols = ['same multi reads','transition multi reads', 'reverse multi reads', 'transvertion multi reads',
-                     'same single reads', 'transition single reads', 'reverse single reads','transvertion single reads']
+    mutation_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
+                     'same single reads', 'transition single reads', 'reverse single reads',
+                     'transvertion single reads']
     df['total umi count'] = df[mutation_cols].sum(axis=1)
     df.sort_values(by=['position'], inplace=True)
     return df
@@ -298,7 +307,7 @@ def save_file(df, output_folder, name):
 def run(args):
     # TODO: replace the 'arguments' variable with explicit arguments.
 
-    #load the mutated and unmutated data frames
+    # load the mutated and unmutated data frames
     logger.info("Loading and preprocessing the data frames")
     df_mutated = load_mutated(args.input_mutated_file)
     df_unmutated = load_unmutated(args.input_unmutated_file)

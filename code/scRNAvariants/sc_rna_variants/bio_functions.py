@@ -259,6 +259,7 @@ def create_filtered_bam(input_bam, filtered_barcodes_list, min_mapq, cigar_clipp
     with open(temp_header_file, mode='w') as f:
         f.write(str(bamfile.header))
 
+    # for technical reasons the chunked bam files will receive a lighter version of the header
     skinny_bam_header = bamfile.header.to_dict()
     skinny_bam_header.pop('CO')
     skinny_bam_header.pop('PG')
@@ -360,7 +361,6 @@ def calculate_position_parameters(reference_base, umis_dictionary):
         else:
             singles[read_base] += 1
 
-    #  TODO : remap bases according to same, transition, reverse_complement, transversion.
     singles_anotated = [None, None, None, None]
     singles_anotated[0] = singles[reference_base]  # same
     singles_anotated[1] = singles['acgt'['gtac'.index(reference_base)]]  # transition
@@ -384,6 +384,7 @@ def calculate_position_parameters(reference_base, umis_dictionary):
     #             singles['a'], singles['c'], singles['g'], singles['t'],
     #             mixed, int(100*non_reference_umi_counts/len(umis_dictionary))%101]  # seems that %101 is not needed
     #     return total_singles_counts, total_multiples_counts, [str(number) for number in result_list]
+
     if non_reference_umi_counts > 0:  # if we have more than 1 umi different from the reference
         result_list = [multiples_anotated[0], multiples_anotated[1], multiples_anotated[2], multiples_anotated[3],
                        singles_anotated[0], singles_anotated[1], singles_anotated[2], singles_anotated[3],
