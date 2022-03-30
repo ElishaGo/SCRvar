@@ -7,31 +7,29 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from collections import Counter
 from matplotlib_venn import venn3, venn3_circles, venn2, venn2_circles
+
 pd.set_option('display.max_columns', None)
 
 
-def parse_arguments(arguments=None):
-    parser = argparse.ArgumentParser(
-        description="""This script produces Venn diagrams to see intersection between the aggregated file and already 
-        known editing sites.""",
-        epilog='''Outputs venn diagrams.'''
-    )
+def intersect_with_atacseq(df_agg_intersect, df_intersection_path, atacseq_file):
+    # load atacseq file
+    df_atacseq = pd.read_csv(atacseq_file, sep='\t')
+    print(df_atacseq.shape)
 
-    # positional arguments
-    parser.add_argument('input_dir', help='path to folder with outputs from make_statistics.py')
+    # match column names with the 10X tables
+    # TODO: ask what to do with differetn column name
+    df_atacseq = df_atacseq.rename(
+        columns={'Region': '#chromosome', 'Position': 'start', 'Strand': 'Strand (0:-, 1:+, 2:unknown)'})
 
-    # positional arguments
-    parser.add_argument('rep_db_path', help='path to gencode file with known repetitive editing sites')
+    # the atacseq is
+    df_merged = pd.merge(df_agg_intersect, df_atacseq, on=['#chromosome', 'start'], how='left')
+    df_merged_temp = df_merged[df_merged['gFrequency'].notnull()]
 
-    # positional arguments
-    parser.add_argument('non_rep_db_path', help='path to gencode file with known non repetitive editing sites')
+    # replace missing values with 0
+    df_merged_temp['gCoverage-q20'] = df_merged_temp['gCoverage-q20'].replace('-', 0).astype(int)
+    df_merged_temp['gFrequency'] = df_merged_temp['gFrequency'].replace('-', 0).astype(float)
 
-    # positional arguments
-    parser.add_argument('snp_db_path', help='path to gencode file with known SNP sites')
-
-    parser.add_argument('--sname', type=str, help='sample name to add to outputs')
-    
-    return parser.parse_args(arguments)
+    df_merged.to_csv(df_intersection_path, sep='\t', index=False)
 
 
 def find_intersections(args, pathes):
@@ -79,14 +77,13 @@ def make_pathes(input_dir):
 
 
 def plot_venn_diagram(df, subset_list, labels, column_name, input_dir, sname):
-
     plt.title('Intersection of positions - {} and {}'.format(labels[1], labels[0]))
 
     v = venn3(subsets=subset_list, set_labels=(labels[0], labels[1], labels[2]))
     venn3_circles(subsets=subset_list, color='gray', linewidth=1, linestyle='dashed')
 
     # get the text from the diagram components
-    ids = ['100', '010', '001', '110', '101','011', '111']
+    ids = ['100', '010', '001', '110', '101', '011', '111']
     sets = Counter()
     for id in ids:
         try:
@@ -107,7 +104,6 @@ def plot_venn_diagram(df, subset_list, labels, column_name, input_dir, sname):
     plt.savefig(os.path.join(input_dir, 'venn_diagram_{}.png'.format(labels[0])), facecolor='white')
     plt.clf()
 
-
     # make histogram of mutated CB
     intrsct_list = df[df[column_name] == 1]['count of mutated cell barcodes']
 
@@ -120,7 +116,8 @@ def plot_venn_diagram(df, subset_list, labels, column_name, input_dir, sname):
     plt.xscale('log', base=10)
     plt.yscale('log', base=10)
 
-    plt.title("Number of mutated cells in intersection positions between table and {} - {}".format(labels[0], sname), fontsize=10)
+    plt.title("Number of mutated cells in intersection positions between table and {} - {}".format(labels[0], sname),
+              fontsize=10)
     plt.ylabel("number of positions")
     plt.xlabel("number of mutated cells within position")
     plt.legend(['Intersection positions - not filtered', 'Intersection positions - filtered'])
@@ -169,15 +166,13 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
     def get_min_max(count_matrices):
         """helper function to find the common min and max values for color scaling for all heatmaps in figure"""
         vmin, vmax = np.Inf, np.NINF
-        for count_matrix in count_matrices:
-            mat_to_plot = count_matrix[0]
+        for mat_to_plot in count_matrices:
             if mat_to_plot.min() < vmin:
                 vmin = mat_to_plot.min()
             if mat_to_plot.max() > vmax:
                 vmax = mat_to_plot.max()
 
         return np.floor(np.log10(vmin)), np.ceil(np.log10(vmax))
-
 
     def make_mut_counts_heatmap(count_matrices, out_folder, sname):
         """helper function to plot the heatmap"""
@@ -191,15 +186,16 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
             mat_to_plot = count_matrix[0]
             axs[i] = sns.heatmap(np.log10(mat_to_plot), linewidth=0.5, annot=np.array(mat_to_plot),
                                  cbar_kws={'label': 'log 10'}, ax=axs[i], cmap='brg', vmin=vmin, vmax=vmax,
-                                 xticklabels=['same_all', 'same_mut', 'transition', 'reverse','transversion'], yticklabels=bases)
+                                 xticklabels=['same_all', 'same_mut', 'transition', 'reverse', 'transversion'],
+                                 yticklabels=bases)
             axs[i].set_yticklabels(axs[i].get_yticklabels(), rotation=360)
             axs[i].set_xticklabels(axs[i].get_xticklabels(), rotation=30, ha='right')
-            axs[i].set_title("Counts of mutations per base - {} reads {} - {}".format(count_matrix[1], count_matrix[2], sname))
+            axs[i].set_title(
+                "Counts of mutations per base - {} reads {} - {}".format(count_matrix[1], count_matrix[2], sname))
             axs[i].set_ylabel("reference base")
             axs[i].set_xlabel("mutation")
         plt.tight_layout()
         plt.savefig(os.path.join(out_folder, "heatmap_mutation_perbase_intersection.png"), bbox_inches='tight')
-
 
     def make_counts_matrix():
         """helper function to create two matices with counts of different umis, one with unmutated data and one with
@@ -213,15 +209,18 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
                 count_matrix = []
                 ref_umi_cols = [col for col in umi_cols if read_type in col]
                 for base in bases:
-                    idx = df[((df['is_editing_rep'] == 1) | (df['is_editing_non_rep'] == 1)) & (df['reference base'] == base)].index
+                    idx = df[((df['is_editing_rep'] == 1) | (df['is_editing_non_rep'] == 1)) & (
+                                df['reference base'] == base)].index
                     df_to_plot = df.loc[idx, ref_umi_cols].sum(axis=0)
 
                     # add count of 'same' umis in both mutated and un mutated
-                    df_by_refbase = df[((df['is_editing_rep'] == 1) | (df['is_editing_non_rep'] == 1)) & (df['reference base'] == base)]
+                    df_by_refbase = df[((df['is_editing_rep'] == 1) | (df['is_editing_non_rep'] == 1)) & (
+                                df['reference base'] == base)]
                     unmuteted_read_count = df_by_refbase.drop_duplicates(subset='position')[
                         'unmutated {} reads'.format(read_type)].sum()
-                    df_to_plot = pd.concat([pd.Series(df_to_plot['same {} reads'.format(read_type)] + unmuteted_read_count,
-                                                      index=['same all single reads']), df_to_plot])
+                    df_to_plot = pd.concat(
+                        [pd.Series(df_to_plot['same {} reads'.format(read_type)] + unmuteted_read_count,
+                                   index=['same all single reads']), df_to_plot])
 
                     count_matrix.append(df_to_plot.values)
                 count_matrices.append((np.array(count_matrix), read_type, df_name))
@@ -235,8 +234,6 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
     # plot and save heatmap
     make_mut_counts_heatmap(count_matrices, out_folder, sname)
 
-
-    # ~~~~~~~~~~~~~
     plt.clf()
     all_a_mutations_mat = np.zeros((4, 5))
     for i, count_matrix_set in enumerate(count_matrices):
@@ -247,9 +244,10 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
     # get min and max values for plotting color scale
     vmin, vmax = get_min_max(all_a_mutations_mat)
     s = sns.heatmap(np.log10(all_a_mutations_mat), linewidth=0.5, annot=np.array(all_a_mutations_mat),
-                         cbar_kws={'label': 'log 10'}, cmap='brg', vmin=vmin, vmax=vmax,
-                         xticklabels=['same_all', 'same_mut', 'transition', 'reverse', 'transversion'],
-                         yticklabels=['a_single_reads', 'a_multi_reads', 'a_single_reads_filtered', 'a_multi_reads_filtered'])
+                    cbar_kws={'label': 'log 10'}, cmap='brg', vmin=vmin, vmax=vmax,
+                    xticklabels=['same_all', 'same_mut', 'transition', 'reverse', 'transversion'],
+                    yticklabels=['a_single_reads', 'a_multi_reads', 'a_single_reads_filtered',
+                                 'a_multi_reads_filtered'])
     s.set_yticklabels(s.get_yticklabels(), rotation=360)
     s.set_xticklabels(s.get_xticklabels(), rotation=30, ha='right')
     plt.title("Counts of mutations 'A' reference base - {}".format(sname))
@@ -258,7 +256,6 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
 
     plt.tight_layout()
     plt.savefig(os.path.join(out_folder, "heatmap_A_mutations.png"), bbox_inches='tight')
-    # ~~~~~~~~~~~~~
 
 
 def count_intersection(df_agg_intrsct, df_filtered, args):
@@ -276,12 +273,10 @@ def count_intersection(df_agg_intrsct, df_filtered, args):
     # DB position set is combination of positions from table, and strings representing non overlaping positions.
     edit_db_total_count = edit_rep_total_count + edit_nonrep_total_count
     set1 = set(df_agg_intrsct[(df_agg_intrsct['is_editing_rep'] != 0) | (
-                df_agg_intrsct['is_editing_non_rep'] != 0)].position.to_list() +
+            df_agg_intrsct['is_editing_non_rep'] != 0)].position.to_list() +
                ['not_in_table_position' + str(i) for i in range(edit_db_total_count)])
     set2 = set(df_filtered.position)
     plot_venn2_diagram([set1, set2], ['Editing_sites_DB', 'Filtered_data'], args.input_dir, args.sname)
-
-
 
     # make Venn diagrams for snp, editing rep and editing non_rep intersections
     run_venn(df_agg_intrsct, df_filtered, 'is_snp', snp_total_count, ['SNP_DB', 'Aggregated data', 'Filtered data'],
@@ -294,6 +289,7 @@ def count_intersection(df_agg_intrsct, df_filtered, args):
 
 def get_df(pathes):
     """function to load the df and filter it"""
+
     def get_filtered(df_agg, min_mutation_cb_to_filter, min_mutation_umis, min_total_umis, min_mutation_rate):
         #  'true values' - drop positions with rare mutations and probably hard to get insights from
         def filter_rare_mut(df, min_mutation_rate):
@@ -355,6 +351,32 @@ def get_df(pathes):
     return df_agg_intrsct, df_agg_intrsct_filtered
 
 
+def parse_arguments(arguments=None):
+    parser = argparse.ArgumentParser(
+        description="""This script produces Venn diagrams to see intersection between the aggregated file and already 
+        known editing sites.""",
+        epilog='''Outputs venn diagrams.'''
+    )
+
+    # positional arguments
+    parser.add_argument('input_dir', help='path to folder with outputs from make_statistics.py')
+
+    # positional arguments
+    parser.add_argument('rep_db_path', help='path to gencode file with known repetitive editing sites')
+
+    # positional arguments
+    parser.add_argument('non_rep_db_path', help='path to gencode file with known non repetitive editing sites')
+
+    # positional arguments
+    parser.add_argument('snp_db_path', help='path to gencode file with known SNP sites')
+
+    parser.add_argument('--sname', type=str, help='sample name to add to outputs')
+
+    parser.add_argument('--atacseq', type=str, help='path to atacseq file')
+
+    return parser.parse_args(arguments)
+
+
 if __name__ == '__main__':
     # parse arguments
     args = parse_arguments()
@@ -372,5 +394,9 @@ if __name__ == '__main__':
     count_intersection(df_agg_intersect, df_agg_intrsct_filtered, args)
 
     plot_heatmap_mutation_per_base(df_agg_intersect, df_agg_intrsct_filtered, args.input_dir, args.sname)
+
+    # if ATACseq data if supplied, remove ppotential SNP sites
+    if (args.atacseq):
+        intersect_with_atacseq(df_agg_intersect, pathes[3], args.atacseq)
 
     print("Fininshed Venn diagrams")
