@@ -162,10 +162,13 @@ def create_job_file(args):
     f.write("rm filtered_bam_files/{fname}_htseq_gene.sam\n\n".format(fname=args.fname))
 
     f.write("# get statistics on bam file\n")
-    f.write("mkdir filtered_bam_files/bam_statistics\n")
+    # f.write("mkdir filtered_bam_files/bam_statistics\n")
     f.write(
         "samtools flagstat -@ {n} filtered_bam_files/{fname}_htseq_gene_header.sam > bam_statistics/flagstat_htseq.tsv\n\n".format(
             fname=args.fname, n=args.n))
+    f.write(
+        "samtools view {orig_bam} | grep NH:i:1 | sed 's/.*CB:Z:\([ACGT]*\).*/\1/' | sort | uniq -c > bam_statistics/reads_per_barcode\n\n".format(
+            orig_bam=args.bam_file))
 
     f.write("# keep only gene sites from htseq output\n")
     f.write('grep -v "__" filtered_bam_files/{fname}_htseq_gene_header.sam | '
@@ -188,10 +191,12 @@ def create_job_file(args):
             "--log-file log_files/log_statistics_{fname}.txt --threads {n}\n\n".format(fname=args.fname, n=args.n))
 
     f.write('# Find intersections with SNP and edit databases\n')
-    f.write('python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/DB_intersections.py '
-            'statistics_ouputs/ {edit_rep_bed} {edit_nonrep_bed} {snp_vcf}  --sname {fname}\n\n'.format(edit_rep_bed=args.edit_rep_bed,
-                                                                                       edit_nonrep_bed=args.edit_nonrep_bed,
-                                                                                       snp_vcf=args.snp_vcf, fname=args.fname))
+    f.write(
+        'python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/DB_intersections.py '
+        'statistics_ouputs/ {edit_rep_bed} {edit_nonrep_bed} {snp_vcf}  --sname {fname}\n\n'.format(
+            edit_rep_bed=args.edit_rep_bed,
+            edit_nonrep_bed=args.edit_nonrep_bed,
+            snp_vcf=args.snp_vcf, fname=args.fname))
 
     f.write('# Find intersections with SNP and edit databases\n')
     f.write('python /home/labs/bioservices/shared/rarevar/code/scrarevar/code/scRNAvariants/scripts/filter_snp.py '
