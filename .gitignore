@@ -3,9 +3,11 @@
 # Learn more about .gitignore:
 #     https://www.atlassian.com/git/tutorials/saving-changes/gitignore
 
-# Node artifact files
-node_modules/
-dist/
+# folders to ignore
+data/
+docs/
+log_files/
+old/
 
 # Compiled Java class files
 *.class
