@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class ReadsFilter(object):
+    # TODO: filter read with no CB tag as part of general read process where no filter list is suplied
     """ a class to help with reads filtering, 
     
     once the filter is initiated, running .process(pysamAlignmentRead) will
@@ -55,6 +56,7 @@ class ReadsFilter(object):
             return None
 
         # problematic cigar charachters
+        # filter indels
         clipped_positions = sum([cigar_length for cigar_type, cigar_length in read.cigartuples if cigar_type in [4, 5]])
         if clipped_positions > self.cigar_clip_limit or \
                 read.cigarstring.count('D') > 0 or read.cigarstring.count('I') > 0:
@@ -503,7 +505,8 @@ def process_chromosome_chunk(
 
             total_singles_counts, total_multiples_counts, params = calculate_position_parameters(ref_base,
                                                                                                  cells_dict[cell][(
-                                                                                                 direction, position)])
+                                                                                                     direction,
+                                                                                                     position)])
 
             if params:  # has mutation
                 if direction == '-':  # flip for negative strand
@@ -514,7 +517,7 @@ def process_chromosome_chunk(
                 has_mutation.add((direction, position))
                 # ouput bed file as positions start (1-based), end (1-based)
                 temp_results.append('\t'.join([
-                    fasta_chromosome_name, str(position + 1), str(position + 2), cell,  #CHANGED HERE 15/12/2021
+                    fasta_chromosome_name, str(position + 1), str(position + 2), cell,  # CHANGED HERE 15/12/2021
                     params[-1], direction, ref_base, *params[:-1]
                 ]) + '\n')
             else:  # no mutations
@@ -530,7 +533,8 @@ def process_chromosome_chunk(
         fh.writelines(
             ['\t'.join(
                 # chromosome, start (1-based), end (1-based), unique cells, direction, multiples, singles
-                [fasta_chromosome_name, str(key[1] + 1), str(key[1] + 2), str(value[2]), key[0], str(value[0]),  #CHANGED HERE 15/12/2021
+                [fasta_chromosome_name, str(key[1] + 1), str(key[1] + 2), str(value[2]), key[0], str(value[0]),
+                 # CHANGED HERE 15/12/2021
                  str(value[1])]
             ) + '\n' for key, value in total_umis_for_unmutated_positions.items() if key in has_mutation]
         )
@@ -607,14 +611,15 @@ def variants_finder(filtered_bam, genome_fasta, tag_for_umi, tag_for_cell_barcod
     output_unmutated_tsv = pathlib.Path(output_folder) / 'raw_unmutated_stats.tsv'
 
     header_line = '\t'.join([
-        "chromosome", "start", "end", "cell barcode",
+        "chrom", "chromStart", "chromEnd", "cell barcode",
         "percent of non ref", "strand", "reference base",
-        "same multi", "transition multi", "reverse multi", "transvertion multi",
-        "same single", "transition single", "reverse single", "transvertion single",
+        "same multi reads", "transition multi reads", "reverse multi reads", "transvertion multi reads",
+        "same single reads", "transition single reads", "reverse single reads", "transvertion single reads",
         "mixed reads"]) + '\n'
 
     header_line_unmutated = '\t'.join([
-        "chromosome", "start", "end", "unique cells", "direction", "multiples", "singles"
+        "chrom", "chromStart", "chromEnd", "count of unmutated cell barcodes", "strand", "unmutated multi reads",
+        "unmutated single reads"
     ]) + '\n'
 
     with open(output_tsv, 'w') as outfile, open(output_unmutated_tsv, 'w') as outfile_unmutated:

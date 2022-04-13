@@ -19,10 +19,10 @@ def intersect_with_atacseq(df_agg_intersect, df_intersection_path, atacseq_file)
     # match column names with the 10X tables
     # TODO: ask what to do with differetn column name
     df_atacseq = df_atacseq.rename(
-        columns={'Region': '#chromosome', 'Position': 'start', 'Strand': 'Strand (0:-, 1:+, 2:unknown)'})
+        columns={'Region': '#chrom', 'Position': 'chromStart', 'Strand': 'Strand (0: -, 1: +, 2:unknown)'})
 
     # the atacseq is
-    df_merged = pd.merge(df_agg_intersect, df_atacseq, on=['#chromosome', 'start'], how='left')
+    df_merged = pd.merge(df_agg_intersect, df_atacseq, on=['#chrom', 'chromStart'], how='left')
     df_merged_temp = df_merged[df_merged['gFrequency'].notnull()]
 
     # replace missing values with 0
@@ -289,7 +289,7 @@ def count_intersection(df_agg_intrsct, df_filtered, args):
 
 def get_df(pathes):
     """function to load the df and filter it"""
-
+    # TODO: see if we use the filtering in more places, if so mak
     def get_filtered(df_agg, min_mutation_cb_to_filter, min_mutation_umis, min_total_umis, min_mutation_rate):
         #  'true values' - drop positions with rare mutations and probably hard to get insights from
         def filter_rare_mut(df, min_mutation_rate):
@@ -382,6 +382,7 @@ if __name__ == '__main__':
     args = parse_arguments()
 
     # get paths to files we use
+    # TODO: see if the 'pathes' object is necessary
     pathes = make_pathes(args.input_dir)
 
     # find intersection between df and databases
@@ -395,7 +396,7 @@ if __name__ == '__main__':
 
     plot_heatmap_mutation_per_base(df_agg_intersect, df_agg_intrsct_filtered, args.input_dir, args.sname)
 
-    # if ATACseq data if supplied, remove ppotential SNP sites
+    # if ATACseq data if supplied, remove potential SNP sites
     if (args.atacseq):
         intersect_with_atacseq(df_agg_intersect, pathes[3], args.atacseq)
 

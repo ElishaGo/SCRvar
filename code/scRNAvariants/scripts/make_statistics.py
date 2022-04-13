@@ -26,11 +26,11 @@ def parse_arguments(arguments=None):
     )
 
     # positional arguments
-    parser.add_argument('input_mutated_file', type=sc_rna_variants.utils.assert_is_file,
-                        help='raw_stats.tsv file of mutated umis as it came out from scrnavariants.py')
+    parser.add_argument('input_dir', type=sc_rna_variants.utils.assert_is_directory(),
+                        help='folder with raw_stats.tsv and raw_umutated_stats.tsv files from scrnavariants.py')
 
-    parser.add_argument('input_unmutated_file', type=sc_rna_variants.utils.assert_is_file,
-                        help='raw_umutated_stats.tsv file of un-mutated umis as it came out from scrnavariants.py')
+    # parser.add_argument('input_unmutated_file', type=sc_rna_variants.utils.assert_is_file,
+    #                     help='raw_umutated_stats.tsv file of un-mutated umis as it came out from scrnavariants.py')
 
     # optional arguments
     parser.add_argument('--output_folder', type=sc_rna_variants.utils.assert_is_directory,
@@ -61,6 +61,7 @@ def parse_arguments(arguments=None):
 
 
 if __name__ == '__main__':
+    startTime = datetime.now()
     # parse arguments
     args = parse_arguments()
 
@@ -71,9 +72,7 @@ if __name__ == '__main__':
     logger.debug('Running with parameters:\n%s' % '\n'.join(
         ['%s: %s' % (key, value) for key, value in vars(args).items()]))
 
-    startTime = datetime.now()
     # run statistics analysis
-    # TODO: replace the 'arguments' variable with explicit arguments.
     sc_rna_variants.stats_generator.run(args)
     print(datetime.now() - startTime)
 

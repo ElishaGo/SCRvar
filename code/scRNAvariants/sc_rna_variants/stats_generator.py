@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def order_and_save_agg(df, out_folder):
     # reorder columns
-    cols = ['chromosome', 'start', 'end', 'position', 'percent of non ref from all cells', 'strand',
+    cols = ["chrom", "chromStart", "chromEnd", 'position', 'percent of non ref from all cells', 'strand',
             'count of unmutated cell barcodes', 'count of mutated cell barcodes',
             'percent of non ref only from mutated cells', 'reference base',
             'same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
@@ -29,7 +29,7 @@ def order_and_save_agg(df, out_folder):
 
     df = df[cols]
     # sort and save df
-    df.sort_values(by=['chromosome', 'start'], inplace=True)
+    df.sort_values(by=['chrom', 'chromStart'], inplace=True)
     save_file(df, out_folder, "aggregated_tsv.tsv")
     # df.to_csv(os.path.join(out_folder, "aggregated_tsv.tsv"), index=False, sep='\t')
 
@@ -162,7 +162,7 @@ def agg_dfs(df):
     # TODO: check if we can fasten aggregation by replacing the 'first' with some other function
     df_grouped = df.groupby('position')
     df_agg = df_grouped.agg(
-        {'chromosome': 'first', 'start': 'first', 'end': 'first', 'strand': 'first', 'reference base': 'first',
+        {'chrom': 'first', 'chromStart': 'first', 'chromEnd': 'first', 'strand': 'first', 'reference base': 'first',
          'same multi reads': 'sum', 'transition multi reads': 'sum', 'reverse multi reads': 'sum',
          'transvertion multi reads': 'sum',
          'same single reads': 'sum', 'transition single reads': 'sum', 'reverse single reads': 'sum',
@@ -243,19 +243,35 @@ def agg_unmutated(df):
     return df
 
 
-def add_position(df):
+def add_full_position_notation(df):
     """
     Add one column with the position notation.
-    TODO:
-     -change function name
-     -change function to be in one line without calling pnadas eac time
-     - add documentation including final format string
     """
     # concat 3 first columns into one column of position
-    df['position'] = df.chromosome.str.cat(df['start'].astype(str), sep=':')  # change to chromoseme
-    df['position'] = df.position.str.cat(df['end'].astype(str), sep='-')
-    df['position'] = df.position.str.cat(df['strand'].astype(str), sep=',')
+    # df['position'] = df.chromosome.str.cat(df['start'].astype(str), sep=':')  # change to chromoseme
+    # df['position'] = df.position.str.cat(df['end'].astype(str), sep='-')
+    # df['position'] = df.position.str.cat(df['strand'].astype(str), sep=',')
+    return df.chromosome + ":" + df.start +"-" + df.end +"," + df.strand
 
+
+def load_tables(path, mutated=True):
+    """Load and preprocess the data of unmutated cells from raw_stats_unmutated.tsv.
+    TODO: Change renames in source funtions
+    """
+    df = pd.read_csv(path, sep='\t')
+    # df.rename(columns={'same multi': 'same multi reads',
+    #                    'transition multi': 'transition multi reads', 'reverse multi': 'reverse multi reads',
+    #                    'transvertion multi': 'transvertion multi reads', 'same single': 'same single reads',
+    #                    'transition single': 'transition single reads', 'reverse single': 'reverse single reads',
+    #                    'transvertion single': 'transvertion single reads'}, inplace=True)
+
+    df['position'] = add_full_position_notation(df)
+    mutation_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
+                     'same single reads', 'transition single reads', 'reverse single reads',
+                     'transvertion single reads']
+    df['total umi count'] = df[mutation_cols].sum(axis=1)
+    df.sort_values(by=['position'], inplace=True)
+    return df
 
 def load_mutated(path):
     """
@@ -269,7 +285,7 @@ def load_mutated(path):
                        'transition single': 'transition single reads', 'reverse single': 'reverse single reads',
                        'transvertion single': 'transvertion single reads'}, inplace=True)
 
-    add_position(df)  # add column of full coordinates
+    add_full_position_notation(df)  # add column of full coordinates
     mutation_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
                      'same single reads', 'transition single reads', 'reverse single reads',
                      'transvertion single reads']
@@ -284,11 +300,11 @@ def load_unmutated(path):
     TODO: Change renames in source funtions
     """
     df = pd.read_csv(path, sep='\t')
-    df.rename(
-        columns={'direction': 'strand', 'unique cells': 'count of unmutated cell barcodes',
-                 'multiples': 'unmutated multi reads', 'singles': 'unmutated single reads'}, inplace=True)
+    # df.rename(
+    #     columns={'direction': 'strand', 'unique cells': 'count of unmutated cell barcodes',
+    #              'multiples': 'unmutated multi reads', 'singles': 'unmutated single reads'}, inplace=True)
     df['total unmutated umi count'] = df['unmutated multi reads'] + df['unmutated single reads']
-    add_position(df)  # add column of full coordination
+    add_full_position_notation(df)  # add column of full coordination
     df = agg_unmutated(df)
     df.sort_values(by=['position'], inplace=True)
     return df
