@@ -1,3 +1,6 @@
+# TODO: Document, put into function, take parameters out, create simple argparser
+# Important to document coordinate system 
+
 import pandas as pd
 
 bed_file_path = '/home/eligol/Documents/01_WIS/scrarevar/data/DB_edit_snp/human/edit_rep.bed'
