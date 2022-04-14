@@ -361,13 +361,13 @@ def parse_arguments(arguments=None):
     # positional arguments
     parser.add_argument('input_dir', help='path to folder with outputs from make_statistics.py')
 
-    # positional arguments
+    #TODO add output dir to output files
+    parser.add_argument('output_dir', help='path to folder with outputs from make_statistics.py')
+
     parser.add_argument('rep_db_path', help='path to gencode file with known repetitive editing sites')
 
-    # positional arguments
     parser.add_argument('non_rep_db_path', help='path to gencode file with known non repetitive editing sites')
 
-    # positional arguments
     parser.add_argument('snp_db_path', help='path to gencode file with known SNP sites')
 
     parser.add_argument('--sname', type=str, help='sample name to add to outputs')
