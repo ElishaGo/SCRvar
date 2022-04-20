@@ -7,11 +7,11 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from collections import Counter
 from matplotlib_venn import venn3, venn3_circles, venn2, venn2_circles
-
+from stats.generator import filter_by_cb_count
 pd.set_option('display.max_columns', None)
 
 
-def intersect_with_atacseq(df_agg_intersect, df_intersection_path, atacseq_file):
+def intersect_with_atacseq(df_agg_intersect, input_dir, atacseq_file):
     # load atacseq file
     df_atacseq = pd.read_csv(atacseq_file, sep='\t')
     print(df_atacseq.shape)
@@ -29,51 +29,52 @@ def intersect_with_atacseq(df_agg_intersect, df_intersection_path, atacseq_file)
     df_merged_temp['gCoverage-q20'] = df_merged_temp['gCoverage-q20'].replace('-', 0).astype(int)
     df_merged_temp['gFrequency'] = df_merged_temp['gFrequency'].replace('-', 0).astype(float)
 
-    df_merged.to_csv(df_intersection_path, sep='\t', index=False)
+    df_merged.to_csv(os.path.join(args.input_dir, 'aggregated_intersect.tsv'), sep='\t', index=False)
 
 
-def find_intersections(args, pathes):
-    # extract pathes
-    agg_df_path = pathes[0]
-    snp_temp = pathes[1]
-    edit_temp = pathes[2]
-    df_intersection = pathes[3]
+def find_intersections_with_SNP_and_edit_DB(args):
+    # define paths
+    agg_df_path = os.path.join(args.input_dir, 'aggregated_tsv.tsv')
+    snp_temp_path = os.path.join(args.input_dir, 'snp_intersect.tsv')
+    edit_temp_path = os.path.join(args.input_dir, 'edit_intersect.tsv')
+    df_intersection = os.path.join(args.input_dir, 'aggregated_intersect.tsv')
     snp_db_path = args.snp_db_path
     rep_db_path = args.rep_db_path
     non_rep_db_path = args.non_rep_db_path
 
-    ### find intersection with help of bedtools intersect
-    os.system("head -c 1 {agg_df} | grep -q '#' || sed -i '1s/^/#/' {agg_df}".format(
-        agg_df=agg_df_path))  # add '#' to header of df_aggregated
-    #### both files must be sorted if you use '-sorted' which reduce memory usage
-    os.system("bedtools intersect -c -header -sorted -a {agg_df} -b {snp_db_path} > {snp_temp}".format(
-        agg_df=agg_df_path, snp_db_path=snp_db_path, snp_temp=snp_temp))  # find intersection with snp db
+    # add '#' to header of df_aggregated
+    os.system(f"head -c 1 {agg_df_path} | grep -q '#' || sed -i '1s/^/#/' {agg_df_path}")
 
-    os.system("sed -i '1 s/.*/&\tis_snp/' {snp_temp}".format(snp_temp=snp_temp))  # add column name 'is_snp'
+    # both files must be sorted if you use '-sorted' which reduce memory usage
+    # find intersection with snp db
+    os.system(f"bedtools intersect -c -header -sorted -a {agg_df_path} -b {snp_db_path} > {snp_temp_path}")
 
-    os.system("bedtools intersect -s -c -header -a {snp_temp} -b {rep_db_path} > {edit_temp}".format(snp_temp=snp_temp,
-                                                                                                     rep_db_path=rep_db_path,
-                                                                                                     edit_temp=edit_temp))  # find intersection with editing rep db
+    # add column name 'is_snp'
+    os.system(f"sed -i '1 s/.*/&\tis_snp/' {snp_temp_path}")
 
-    os.system("sed -i '1 s/.*/&\tis_editing_rep/' {}".format(edit_temp))  # add column name 'is_editing_rep'
+    # find intersection with editing rep db
+    os.system(f"bedtools intersect -s -c -header -a {snp_temp_path} -b {rep_db_path} > {edit_temp_path}")
 
-    os.system("bedtools intersect -s -c -header -a {edit_temp} -b {non_rep_db_path} > {df_intersection}".format(
-        edit_temp=edit_temp, non_rep_db_path=non_rep_db_path,
-        df_intersection=df_intersection))  # find intersection with editing non rep db
+    # add column name 'is_editing_rep'
+    os.system(f"sed -i '1 s/.*/&\tis_editing_rep/' {edit_temp_path}")
 
-    os.system(
-        "sed -i '1 s/.*/&\tis_editing_non_rep/' {}".format(df_intersection))  # add column name 'is_editing_non_rep'
+    # find intersection with editing non rep db
+    os.system(f"bedtools intersect -s -c -header -a {edit_temp_path} -b {non_rep_db_path} > {df_intersection}")
 
-    os.system("rm {snp_temp} {edit_temp}".format(snp_temp=snp_temp, edit_temp=edit_temp))  # remove temp files
+    # add column name 'is_editing_non_rep'
+    os.system("sed -i '1 s/.*/&\tis_editing_non_rep/' {df_intersection}")
+
+    # remove temp files
+    os.system(f"rm {snp_temp_path} {edit_temp_path}")
 
 
-def make_pathes(input_dir):
-    """make pathes to temporary and output files"""
-    agg_df_path = os.path.join(input_dir, 'aggregated_tsv.tsv')
-    snp_temp = os.path.join(input_dir, 'snp_intersect.tsv')
-    edit_temp = os.path.join(input_dir, 'edit_intersect.tsv')
-    df_intersection = os.path.join(input_dir, 'aggregated_intersect.tsv')
-    return agg_df_path, snp_temp, edit_temp, df_intersection
+# def make_pathes(input_dir):
+#     """make pathes to temporary and output files"""
+#     agg_df_path = os.path.join(input_dir, 'aggregated_tsv.tsv')
+#     snp_temp = os.path.join(input_dir, 'snp_intersect.tsv')
+#     edit_temp = os.path.join(input_dir, 'edit_intersect.tsv')
+#     df_intersection = os.path.join(input_dir, 'aggregated_intersect.tsv')
+#     return agg_df_path, snp_temp, edit_temp, df_intersection
 
 
 def plot_venn_diagram(df, subset_list, labels, column_name, input_dir, sname):
@@ -210,12 +211,12 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
                 ref_umi_cols = [col for col in umi_cols if read_type in col]
                 for base in bases:
                     idx = df[((df['is_editing_rep'] == 1) | (df['is_editing_non_rep'] == 1)) & (
-                                df['reference base'] == base)].index
+                            df['reference base'] == base)].index
                     df_to_plot = df.loc[idx, ref_umi_cols].sum(axis=0)
 
                     # add count of 'same' umis in both mutated and un mutated
                     df_by_refbase = df[((df['is_editing_rep'] == 1) | (df['is_editing_non_rep'] == 1)) & (
-                                df['reference base'] == base)]
+                            df['reference base'] == base)]
                     unmuteted_read_count = df_by_refbase.drop_duplicates(subset='position')[
                         'unmutated {} reads'.format(read_type)].sum()
                     df_to_plot = pd.concat(
@@ -260,8 +261,7 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
 
 def count_intersection(df_agg_intrsct, df_filtered, args):
     """function to get information on intersections of tables with databases"""
-    # count instances in databases
-    snp_total_count = os.popen("grep -v '#' {} | wc -l".format(args.snp_db_path)).read()  # count lines without headers
+    snp_total_count = os.popen("grep -v '#' {} | wc -l".format(args.snp_db_path)).read()  # count non header lines
     edit_rep_total_count = os.popen("cat {} | wc -l".format(args.rep_db_path)).read()
     edit_nonrep_total_count = os.popen("cat {} | wc -l".format(args.non_rep_db_path)).read()
 
@@ -287,31 +287,31 @@ def count_intersection(df_agg_intrsct, df_filtered, args):
              ['Edit_non_rep_DB', 'Aggregated data', 'Filtered data'], args.input_dir, args.sname)
 
 
-def get_df(pathes):
+def get_df(input_dir):
     """function to load the df and filter it"""
 
-    def get_filtered(df_agg, min_mutation_cb_to_filter, min_mutation_umis, min_total_umis, min_mutation_rate):
-        #  'true values' - drop positions with rare mutations and probably hard to get insights from
-        def filter_rare_mut(df, min_mutation_rate):
-            df = df[df['percent of non ref from all cells'] > min_mutation_rate]
-            return df
-
-        """function to return filtered aggregated table"""
-        # first condition to filter by
-        cond_1 = (df_agg['count of mutated cell barcodes'] >= min_mutation_cb_to_filter)
-
-        # second condition to filter by
-        mutation_umi_counts = df_agg['total mutation umi count']
-        total_umi_count = mutation_umi_counts + \
-                          df_agg['unmutated multi reads'] + \
-                          df_agg['unmutated single reads']
-        cond_2 = ((mutation_umi_counts >= min_mutation_umis) & (total_umi_count >= min_total_umis))
-
-        # filter the aggregated df
-        df_agg_filt = df_agg[cond_1 & cond_2]
-        df_agg_filt = filter_rare_mut(df_agg_filt, min_mutation_rate)
-
-        return df_agg_filt
+    # def get_filtered(df_agg, min_mutation_cb_to_filter, min_mutation_umis, min_total_umis, min_mutation_rate):
+    #     #  'true values' - drop positions with rare mutations and probably hard to get insights from
+    #     def filter_rare_mut(df, min_mutation_rate):
+    #         df = df[df['percent of non ref from all cells'] > min_mutation_rate]
+    #         return df
+    #
+    #     """function to return filtered aggregated table"""
+    #     # first condition to filter by
+    #     cond_1 = (df_agg['count of mutated cell barcodes'] >= min_mutation_cb_to_filter)
+    #
+    #     # second condition to filter by
+    #     mutation_umi_counts = df_agg['total mutation umi count']
+    #     total_umi_count = mutation_umi_counts + \
+    #                       df_agg['unmutated multi reads'] + \
+    #                       df_agg['unmutated single reads']
+    #     cond_2 = ((mutation_umi_counts >= min_mutation_umis) & (total_umi_count >= min_total_umis))
+    #
+    #     # filter the aggregated df
+    #     df_agg_filt = df_agg[cond_1 & cond_2]
+    #     df_agg_filt = filter_rare_mut(df_agg_filt, min_mutation_rate)
+    #
+    #     return df_agg_filt
 
     def get_edit_intersections(df, colname):
         """helper function to keep only editing sites which intersect witht the DB,
@@ -326,7 +326,7 @@ def get_df(pathes):
         return df
 
     # extract paths
-    df_intersection_path = pathes[3]
+    df_intersection_path = os.path.join(input_dir, 'aggregated_intersect.tsv')
 
     # load and df with intersections notations
     df_agg_intrsct = pd.read_csv(df_intersection_path, sep='\t')
@@ -342,7 +342,7 @@ def get_df(pathes):
     df_agg_intrsct.to_csv(df_intersection_path, sep='\t', index=False)
 
     # get filtered df
-    df_agg_intrsct_filtered = get_filtered(df_agg=df_agg_intrsct,
+    _, df_agg_intrsct_filtered = filter_by_cb_count(df_agg=df_agg_intrsct,
                                            min_mutation_cb_to_filter=5,
                                            min_mutation_umis=10,
                                            min_total_umis=20,
@@ -351,44 +351,15 @@ def get_df(pathes):
     return df_agg_intrsct, df_agg_intrsct_filtered
 
 
-def parse_arguments(arguments=None):
-    parser = argparse.ArgumentParser(
-        description="""This script produces Venn diagrams to see intersection between the aggregated file and already 
-        known editing sites.""",
-        epilog='''Outputs venn diagrams.'''
-    )
-
-    # positional arguments
-    parser.add_argument('input_dir', help='path to folder with outputs from make_statistics.py')
-
-    # positional arguments
-    parser.add_argument('rep_db_path', help='path to gencode file with known repetitive editing sites')
-
-    # positional arguments
-    parser.add_argument('non_rep_db_path', help='path to gencode file with known non repetitive editing sites')
-
-    # positional arguments
-    parser.add_argument('snp_db_path', help='path to gencode file with known SNP sites')
-
-    parser.add_argument('--sname', type=str, help='sample name to add to outputs')
-
-    parser.add_argument('--atacseq', type=str, help='path to atacseq file')
-
-    return parser.parse_args(arguments)
-
-
-if __name__ == '__main__':
-    # parse arguments
-    args = parse_arguments()
-
+def run(args):
     # get paths to files we use
-    pathes = make_pathes(args.input_dir)
+    # pathes = make_pathes(args.input_dir)
 
     # find intersection between df and databases
-    find_intersections(args, pathes)
+    find_intersections_with_SNP_and_edit_DB(args)
 
     # get the df with intersections, before and after filtering
-    df_agg_intersect, df_agg_intrsct_filtered = get_df(pathes)
+    df_agg_intersect, df_agg_intrsct_filtered = get_df(args.input_dir)
 
     # make Venn diagrams of the intersections
     count_intersection(df_agg_intersect, df_agg_intrsct_filtered, args)
@@ -397,6 +368,34 @@ if __name__ == '__main__':
 
     # if ATACseq data if supplied, remove ppotential SNP sites
     if (args.atacseq):
-        intersect_with_atacseq(df_agg_intersect, pathes[3], args.atacseq)
+        intersect_with_atacseq(df_agg_intersect, args.input_dir, args.atacseq)
 
-    print("Fininshed Venn diagrams")
+
+#####################################################################################################
+def parse_arguments(arguments=None):
+    parser = argparse.ArgumentParser(
+        description="""Find intersection between the aggregated file and already known SNP and editing sites.""",
+        epilog='''Outputs table with new intersection columns and creates venn diagrams.'''
+    )
+
+    # positional arguments
+    parser.add_argument('input_dir', help='path to folder with outputs from make_statistics.py')
+
+    parser.add_argument('rep_db_path', help='path to gencode file with known repetitive editing sites')
+
+    parser.add_argument('non_rep_db_path', help='path to gencode file with known non repetitive editing sites')
+
+    parser.add_argument('snp_db_path', help='path to gencode file with known SNP sites')
+
+    # optional arguments
+    parser.add_argument('--sname', type=str, help='sample name to add to outputs')
+
+    parser.add_argument('--atacseq', type=str, help='path to atacseq file')
+
+    return parser.parse_args(arguments)
+
+
+if __name__ == '__main__':
+    args = parse_arguments()
+    run(args)
+    print("Fininshed DB_intersection")
