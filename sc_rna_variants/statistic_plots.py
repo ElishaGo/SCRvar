@@ -74,42 +74,45 @@ def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder, sname
     plt.savefig(os.path.join(out_folder, "umi_per_reference_base_with_unmutated.png"), bbox_inches='tight')
 
 
+def get_min_max(count_matrices):
+    """helper function to find the common min and max values for color scaling for all heatmaps in figure"""
+    vmin, vmax = np.Inf, np.NINF
+    for count_matrix in count_matrices:
+        mat_to_plot = count_matrix[0]
+        if mat_to_plot.min() < vmin:
+            vmin = mat_to_plot.min()
+        if mat_to_plot.max() > vmax:
+            vmax = mat_to_plot.max()
+
+    return np.floor(np.log10(vmin)), np.ceil(np.log10(vmax))
+
+
+def make_mut_counts_heatmap(count_matrices, out_folder, sname):
+    """helper function to plot the heatmap"""
+    # get min and max values for plotting color scale
+    bases = ['a', 'c', 'g', 't']
+    vmin, vmax = get_min_max(count_matrices)
+
+    fig, axs = plt.subplots(2, 2, figsize=(10, 8))
+    axs = axs.reshape(-1)
+    for i, count_matrix in enumerate(count_matrices):
+        # add first column of unmut data to the mut data
+        mat_to_plot = count_matrix[0]
+        axs[i] = sns.heatmap(np.log10(mat_to_plot), linewidth=0.5, annot=np.array(mat_to_plot),
+                             cbar_kws={'label': 'log 10'}, ax=axs[i], cmap='brg', vmin=vmin, vmax=vmax,
+                             xticklabels=['same_all', 'same_mut', 'transition', 'reverse', 'transversion'],
+                             yticklabels=bases)
+        axs[i].set_yticklabels(axs[i].get_yticklabels(), rotation=360)
+        axs[i].set_xticklabels(axs[i].get_xticklabels(), rotation=30, ha='right')
+        axs[i].set_title(
+            "Counts of mutations per base - {} reads {} - {}".format(count_matrix[1], count_matrix[2], sname))
+        axs[i].set_ylabel("reference base")
+        axs[i].set_xlabel("mutation")
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_folder, "heatmap_mutation_perbase.png"), bbox_inches='tight')
+
+
 def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sname):
-    def get_min_max(count_matrices):
-        """helper function to find the common min and max values for color scaling for all heatmaps in figure"""
-        vmin, vmax = np.Inf, np.NINF
-        for count_matrix in count_matrices:
-            mat_to_plot = count_matrix[0]
-            if mat_to_plot.min() < vmin:
-                vmin = mat_to_plot.min()
-            if mat_to_plot.max() > vmax:
-                vmax = mat_to_plot.max()
-
-        return np.floor(np.log10(vmin)), np.ceil(np.log10(vmax))
-
-    def make_mut_counts_heatmap(count_matrices, out_folder, sname):
-        """helper function to plot the heatmap"""
-        # get min and max values for plotting color scale
-        vmin, vmax = get_min_max(count_matrices)
-
-        fig, axs = plt.subplots(2, 2, figsize=(10, 8))
-        axs = axs.reshape(-1)
-        for i, count_matrix in enumerate(count_matrices):
-            # add first column of unmut data to the mut data
-            mat_to_plot = count_matrix[0]
-            axs[i] = sns.heatmap(np.log10(mat_to_plot), linewidth=0.5, annot=np.array(mat_to_plot),
-                                 cbar_kws={'label': 'log 10'}, ax=axs[i], cmap='brg', vmin=vmin, vmax=vmax,
-                                 xticklabels=['same_all', 'same_mut', 'transition', 'reverse', 'transversion'],
-                                 yticklabels=bases)
-            axs[i].set_yticklabels(axs[i].get_yticklabels(), rotation=360)
-            axs[i].set_xticklabels(axs[i].get_xticklabels(), rotation=30, ha='right')
-            axs[i].set_title(
-                "Counts of mutations per base - {} reads {} - {}".format(count_matrix[1], count_matrix[2], sname))
-            axs[i].set_ylabel("reference base")
-            axs[i].set_xlabel("mutation")
-        plt.tight_layout()
-        plt.savefig(os.path.join(out_folder, "heatmap_mutation_perbase.png"), bbox_inches='tight')
-
     def make_counts_matrix():
         """helper function to create two matices with counts of different umis, one with unmutated data and one with
         unmutated data"""
