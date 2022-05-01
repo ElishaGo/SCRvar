@@ -36,7 +36,6 @@ def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder, sname
     bases = ['a', 'c', 'g', 't']
     ref_umi_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
                     'same single reads', 'transition single reads', 'reverse single reads', 'transvertion single reads']
-    # ref_umi_cols = [col for col in df_merged.columns if col.startswith('R->')]
 
     for i, df in enumerate([df_merged, df_merged_filtered]):
         for j, base in enumerate(bases):
@@ -47,8 +46,9 @@ def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder, sname
             axs[i][j].set_xscale('log', base=10)
             for z in axs[i][j].patches:
                 axs[i][j].text(z.get_width() + .09, z.get_y() + .3, str(round((z.get_width()), 1)), fontsize=8)
-    fig.text(0, 0.65, 'Before filtering - {}'.format(sname), ha='center', rotation='vertical', style='italic')
-    fig.text(0, 0.25, 'After filtering - {}'.format(sname), ha='center', rotation='vertical', style='italic')
+    fig.text(0, 0.65, 'Before filtering', ha='center', rotation='vertical', style='italic')
+    fig.text(0, 0.25, 'After filtering', ha='center', rotation='vertical', style='italic')
+    plt.suptitle(f"UMI per reference base - {sname}")
     plt.savefig(os.path.join(out_folder, "umi_per_reference_base.png"), bbox_inches='tight')
 
     ### plot with unmutated data
@@ -69,8 +69,9 @@ def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder, sname
             axs[i][j].set_xscale('log', base=10)
             for z in axs[i][j].patches:
                 axs[i][j].text(z.get_width() + .09, z.get_y() + .3, str(round((z.get_width()), 1)), fontsize=8)
-    fig.text(0, 0.65, 'Before filtering - {}'.format(sname), ha='center', rotation='vertical', style='italic')
-    fig.text(0, 0.25, 'After filtering - {}'.format(sname), ha='center', rotation='vertical', style='italic')
+    fig.text(0, 0.65, 'Before filtering', ha='center', rotation='vertical', style='italic')
+    fig.text(0, 0.25, 'After filtering', ha='center', rotation='vertical', style='italic')
+    plt.suptitle(f"UMI per reference base with unmutated - {sname}")
     plt.savefig(os.path.join(out_folder, "umi_per_reference_base_with_unmutated.png"), bbox_inches='tight')
 
 
@@ -104,10 +105,10 @@ def make_mut_counts_heatmap(count_matrices, out_folder, sname):
                              yticklabels=bases)
         axs[i].set_yticklabels(axs[i].get_yticklabels(), rotation=360)
         axs[i].set_xticklabels(axs[i].get_xticklabels(), rotation=30, ha='right')
-        axs[i].set_title(
-            "Counts of mutations per base - {} reads {} - {}".format(count_matrix[1], count_matrix[2], sname))
+        axs[i].set_title("{} reads {}".format(count_matrix[1], count_matrix[2]))
         axs[i].set_ylabel("reference base")
         axs[i].set_xlabel("mutation")
+    plt.suptitle(f"Counts of mutations per base - {sname}")
     plt.tight_layout()
     plt.savefig(os.path.join(out_folder, "heatmap_mutation_perbase.png"), bbox_inches='tight')
 
