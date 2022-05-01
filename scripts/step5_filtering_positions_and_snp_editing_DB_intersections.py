@@ -10,6 +10,7 @@ from datetime import datetime
 from DB_intersections import *
 from sc_rna_variants.statistic_plots import *
 import sc_rna_variants.utils
+import sc_rna_variants.analysis_utils
 
 logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
 
@@ -79,29 +80,32 @@ def load_df(df_path):
     return pd.read_csv(df_path, sep='\t')
 
 
-def run_snp_edit_DB_intersections(args):
+def run_snp_edit_DB_intersections(input_dir, output_dir,args):
     # get paths to files we use
     # pathes = make_pathes(args.input_dir)
 
     # find intersection between df and databases
-    find_intersections_with_SNP_and_edit_DB(args)
+    find_intersections_with_SNP_and_edit_DB(input_dir, output_dir, args.snp_db_path, args.rep_db_path, args.non_rep_db_path)
 
     # get the df with intersections, before and after filtering
-    df_agg_intersect, df_agg_intrsct_filtered = get_df(args.input_dir)
+    df_agg_intersect, df_agg_intrsct_filtered = get_df(input_dir)
 
     # make Venn diagrams of the intersections
-    make_venn_diagrams(df_agg_intersect, df_agg_intrsct_filtered, args)
+    make_venn_diagrams(df_agg_intersect, df_agg_intrsct_filtered, output_dir, args.snp_db_path, args.rep_db_path, args.non_rep_db_path, args.sname)
 
-    plot_heatmap_mutation_per_base(df_agg_intersect, df_agg_intrsct_filtered, args.input_dir, args.sname)
+    plot_heatmap_mutation_per_base_DB(df_agg_intersect, df_agg_intrsct_filtered, output_dir, args.sname)
 
-    # if ATACseq data if supplied, remove ppotential SNP sites
+    # if ATACseq data if supplied, remove potential SNP sites
     if (args.atacseq):
-        intersect_with_atacseq(df_agg_intersect, args.input_dir, args.atacseq)
+        intersect_with_atacseq(df_agg_intersect, output_dir, args.atacseq)
 
 
-def run(args):
-    df_merged_open = load_df(os.path.join(args.input_dir, "aggregated_tsv.tsv"))
-    df_merged_agg = load_df(os.path.join(args.input_dir, "merged_mutated_unmutated_no_agg.tsv"))
+def run_step5(args):
+    df_merged_agg = load_df(os.path.join(args.input_dir, "step4_outputs", "aggregated_tsv.tsv"))
+    # TODO: instead of loading mut_open and unmutated and merge them, look into the plots function and see how we can avoid this
+    df_mut_open = sc_rna_variants.analysis_utils.load_tables("/home/eligol/Documents/01_WIS/scrarevar/data/outputs/scrarevar_outputs/human_RSS540_RSS451_merged/3_mismatch_dictionary.bed6", mutated=True)
+    df_unmutated = sc_rna_variants.analysis_utils.load_tables("/home/eligol/Documents/01_WIS/scrarevar/data/outputs/scrarevar_outputs/human_RSS540_RSS451_merged/3_no_mismatch_dictionary.bed6", mutated=False)
+    df_merged_open = sc_rna_variants.analysis_utils.merge_dfs(df_mut_open, df_unmutated)
 
     # get filtered data for both aggregated and open aggregated df
     df_merged_filtered, df_merged_agg_filtered = filter_open_and_agg_tables(df_merged_open, df_merged_agg, args.min_cb_per_pos,
@@ -109,14 +113,15 @@ def run(args):
                                                                             args.min_mutation_rate)
     # make plots
     logger.info("started to make plots")
-    get_stat_plots(df_merged_open, df_merged_agg, df_merged_filtered, df_merged_agg_filtered, args.output_folder, args.sname)
+    get_stat_plots(df_merged_open, df_merged_agg, df_merged_filtered, df_merged_agg_filtered, args.output_dir, args.sname)
 
     # write data to text file
     logger.info("started to make frequency text file")
-    print_frequencies(df_merged_open, df_merged_agg, args.output_folder)
+    print_frequencies(df_merged_open, df_merged_agg, args.output_dir)
 
     # make intersections with SNP and edit DB
-    run_snp_edit_DB_intersections()
+    logger.info("started to make intersection with SNP and editing data bases")
+    run_snp_edit_DB_intersections(args.input_dir, args.output_dir, args)
 
 
 ##################################################################################################################
@@ -131,7 +136,7 @@ def parse_arguments(arguments=None):
     parser.add_argument('snp_db_path', help='path to gencode file with known SNP sites')
 
     # optional arguments
-    parser.add_argument('--output_dir', default=os.path.join(sys.argv[1], "step5_outputs") , help='folder for output plots')
+    parser.add_argument('--output_dir', default=os.path.join(sys.argv[1], "step5_outputs"), help='folder for outputs')
     parser.add_argument('--min_cb_per_pos', default=5, type=int,
                         help='position with less cell barcodes will be filtered')
     parser.add_argument('--min_mutation_umis', default=10, type=int,
@@ -163,7 +168,7 @@ if __name__ == '__main__':
         ['%s: %s' % (key, value) for key, value in vars(args).items()]))
 
     # run filtering and create plots
-    run(args)
+    run_step5(args)
 
     print(datetime.now() - startTime)
     logger.info('Step 5 finished')

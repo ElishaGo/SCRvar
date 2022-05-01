@@ -13,7 +13,7 @@ from sc_rna_variants.statistic_plots import get_min_max, make_mut_counts_heatmap
 pd.set_option('display.max_columns', None)
 
 
-def intersect_with_atacseq(df_agg_intersect, input_dir, atacseq_file):
+def intersect_with_atacseq(df_agg_intersect, output_dir, atacseq_file):
     # load atacseq file
     df_atacseq = pd.read_csv(atacseq_file, sep='\t')
     print(df_atacseq.shape)
@@ -31,18 +31,18 @@ def intersect_with_atacseq(df_agg_intersect, input_dir, atacseq_file):
     df_merged_temp['gCoverage-q20'] = df_merged_temp['gCoverage-q20'].replace('-', 0).astype(int)
     df_merged_temp['gFrequency'] = df_merged_temp['gFrequency'].replace('-', 0).astype(float)
 
-    df_merged.to_csv(os.path.join(input_dir, 'aggregated_intersect.tsv'), sep='\t', index=False)
+    df_merged.to_csv(os.path.join(output_dir, 'aggregated_intersect.tsv'), sep='\t', index=False)
 
 
-def find_intersections_with_SNP_and_edit_DB(args):
+def find_intersections_with_SNP_and_edit_DB(input_dir, output_dir, snp_db_path, rep_db_path, non_rep_db_path):
     # define paths
-    agg_df_path = os.path.join(args.input_dir, 'aggregated_tsv.tsv')
-    snp_temp_path = os.path.join(args.input_dir, 'snp_intersect.tsv')
-    edit_temp_path = os.path.join(args.input_dir, 'edit_intersect.tsv')
-    df_intersection = os.path.join(args.input_dir, 'aggregated_intersect.tsv')
-    snp_db_path = args.snp_db_path
-    rep_db_path = args.rep_db_path
-    non_rep_db_path = args.non_rep_db_path
+    agg_df_path = os.path.join(input_dir, 'aggregated_tsv.tsv')
+    snp_temp_path = os.path.join(output_dir, 'snp_intersect.tsv')
+    edit_temp_path = os.path.join(output_dir, 'edit_intersect.tsv')
+    df_intersection = os.path.join(output_dir, 'aggregated_intersect.tsv')
+    snp_db_path = snp_db_path
+    rep_db_path = rep_db_path
+    non_rep_db_path = non_rep_db_path
 
     # add '#' to header of df_aggregated
     os.system(f"head -c 1 {agg_df_path} | grep -q '#' || sed -i '1s/^/#/' {agg_df_path}")
@@ -79,7 +79,7 @@ def find_intersections_with_SNP_and_edit_DB(args):
 #     return agg_df_path, snp_temp, edit_temp, df_intersection
 
 
-def plot_venn_diagram(df, subset_list, labels, column_name, input_dir, sname):
+def plot_venn_diagram(df, subset_list, labels, column_name, output_dir, sname):
     plt.title('Intersection of positions - {} and {}'.format(labels[1], labels[0]))
 
     v = venn3(subsets=subset_list, set_labels=(labels[0], labels[1], labels[2]))
@@ -104,7 +104,7 @@ def plot_venn_diagram(df, subset_list, labels, column_name, input_dir, sname):
     # create legend from handles and labels, and save figure
     plt.legend(handles=h, labels=l, title="counts", loc='lower right')  # bbox_to_anchor=(0.95,0.7)
     plt.tight_layout()
-    plt.savefig(os.path.join(input_dir, 'venn_diagram_{}.png'.format(labels[0])), facecolor='white')
+    plt.savefig(os.path.join(output_dir, 'venn_diagram_{}.png'.format(labels[0])), facecolor='white')
     plt.clf()
 
     # make histogram of mutated CB
@@ -139,7 +139,7 @@ def run_venn(df, df_filtered, column_name, db_total_count, labels, input_dir, sn
     plot_venn_diagram(df, [set1, set2, set3], labels, column_name, input_dir, sname)
 
 
-def plot_venn2_diagram(subset_list, labels, input_dir, sname):
+def plot_venn2_diagram(subset_list, labels, output_dir, sname):
     # create hisrogram without green
     v = venn2(subsets=subset_list, set_labels=(labels[0], labels[1]))
     venn2_circles(subsets=subset_list, color='gray', linewidth=1, linestyle='dashed')
@@ -161,11 +161,11 @@ def plot_venn2_diagram(subset_list, labels, input_dir, sname):
     # create legend from handles and labels
     plt.title('Intersection of {} and {} - {}'.format(labels[0], labels[1], sname))
     plt.legend(handles=h, labels=l, title="counts", bbox_to_anchor=(0.95, 0.7))
-    plt.savefig(os.path.join(input_dir, 'venn2_diagram_{}.png'.format(labels[0])), facecolor='white')
+    plt.savefig(os.path.join(output_dir, 'venn2_diagram_{}.png'.format(labels[0])), facecolor='white')
     plt.clf()
 
 
-def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sname):
+def plot_heatmap_mutation_per_base_DB(df_merged, df_merged_filtered, output_dir, sname):
     # def get_min_max(count_matrices):
     #     """helper function to find the common min and max values for color scaling for all heatmaps in figure"""
     #     vmin, vmax = np.Inf, np.NINF
@@ -235,7 +235,7 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
     count_matrices = make_counts_matrix()
 
     # plot and save heatmap
-    make_mut_counts_heatmap(count_matrices, out_folder, sname)
+    make_mut_counts_heatmap(count_matrices, output_dir, sname)
 
     # plot only A base mutations
     plt.clf()
@@ -258,14 +258,14 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
     plt.xlabel("mutation")
 
     plt.tight_layout()
-    plt.savefig(os.path.join(out_folder, "heatmap_A_mutations.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, "heatmap_A_mutations.png"), bbox_inches='tight')
 
 
-def make_venn_diagrams(df_agg_intrsct, df_filtered, args):
+def make_venn_diagrams(df_agg_intrsct, df_filtered, output_dir, snp_db_path, rep_db_path, non_rep_db_path, sname):
     """function to get information on intersections of tables with databases"""
-    snp_total_count = os.popen("grep -v '#' {} | wc -l".format(args.snp_db_path)).read()  # count non header lines
-    edit_rep_total_count = os.popen("cat {} | wc -l".format(args.rep_db_path)).read()
-    edit_nonrep_total_count = os.popen("cat {} | wc -l".format(args.non_rep_db_path)).read()
+    snp_total_count = os.popen("grep -v '#' {} | wc -l".format(snp_db_path)).read()  # count non header lines
+    edit_rep_total_count = os.popen("cat {} | wc -l".format(rep_db_path)).read()
+    edit_nonrep_total_count = os.popen("cat {} | wc -l".format(non_rep_db_path)).read()
 
     # convert to int
     snp_total_count, edit_rep_total_count, edit_nonrep_total_count = \
@@ -278,15 +278,15 @@ def make_venn_diagrams(df_agg_intrsct, df_filtered, args):
             df_agg_intrsct['is_editing_non_rep'] != 0)].position.to_list() +
                ['not_in_table_position' + str(i) for i in range(edit_db_total_count)])
     set2 = set(df_filtered.position)
-    plot_venn2_diagram([set1, set2], ['Editing_sites_DB', 'Filtered_data'], args.input_dir, args.sname)
+    plot_venn2_diagram([set1, set2], ['Editing_sites_DB', 'Filtered_data'], output_dir, sname)
 
     # make Venn diagrams for snp, editing rep and editing non_rep intersections
     run_venn(df_agg_intrsct, df_filtered, 'is_snp', snp_total_count, ['SNP_DB', 'Aggregated data', 'Filtered data'],
-             args.input_dir, args.sname)
+             output_dir, sname)
     run_venn(df_agg_intrsct, df_filtered, 'is_editing_rep', edit_rep_total_count,
-             ['Edit_rep_DB', 'Aggregated data', 'Filtered data'], args.input_dir, args.sname)
+             ['Edit_rep_DB', 'Aggregated data', 'Filtered data'], output_dir, sname)
     run_venn(df_agg_intrsct, df_filtered, 'is_editing_non_rep', edit_nonrep_total_count,
-             ['Edit_non_rep_DB', 'Aggregated data', 'Filtered data'], args.input_dir, args.sname)
+             ['Edit_non_rep_DB', 'Aggregated data', 'Filtered data'], output_dir, sname)
 
 
 def get_df(input_dir):
@@ -327,10 +327,8 @@ def get_df(input_dir):
         df.loc[temp.index, colname] = 1
         return df
 
-    # extract paths
+    # load df with intersections notations
     df_intersection_path = os.path.join(input_dir, 'aggregated_intersect.tsv')
-
-    # load and df with intersections notations
     df_agg_intrsct = pd.read_csv(df_intersection_path, sep='\t')
 
     # define intersections to be binary (1 - if any overlap with db occured, 0 otherwise)
