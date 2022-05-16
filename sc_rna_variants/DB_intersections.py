@@ -34,15 +34,16 @@ def intersect_with_atacseq(df_agg_intersect, output_dir, atacseq_file):
     df_merged.to_csv(os.path.join(output_dir, 'aggregated_intersect.tsv'), sep='\t', index=False)
 
 
-def find_intersections_with_SNP_and_edit_DB(input_dir, output_dir, snp_db_path, rep_db_path, non_rep_db_path):
+def find_intersections_with_SNP_and_edit_DB(input_dir, output_dir, snp_db_path, editing_db_path):
     # define paths
-    agg_df_path = os.path.join(input_dir, 'aggregated_tsv.tsv')
+    agg_df_path = os.path.join(input_dir, '4_test_aggregation_per_position.tsv')
     snp_temp_path = os.path.join(output_dir, 'snp_intersect.tsv')
-    edit_temp_path = os.path.join(output_dir, 'edit_intersect.tsv')
     df_intersection = os.path.join(output_dir, 'aggregated_intersect.tsv')
     snp_db_path = snp_db_path
-    rep_db_path = rep_db_path
-    non_rep_db_path = non_rep_db_path
+    editing_db_path = editing_db_path
+    # edit_temp_path = os.path.join(output_dir, 'edit_intersect.tsv')
+    # rep_db_path = rep_db_path
+    # non_rep_db_path = non_rep_db_path
 
     # add '#' to header of df_aggregated
     os.system(f"head -c 1 {agg_df_path} | grep -q '#' || sed -i '1s/^/#/' {agg_df_path}")
@@ -54,29 +55,21 @@ def find_intersections_with_SNP_and_edit_DB(input_dir, output_dir, snp_db_path, 
     # add column name 'is_snp'
     os.system(f"sed -i '1 s/.*/&\tis_snp/' {snp_temp_path}")
 
-    # find intersection with editing rep db
-    os.system(f"bedtools intersect -s -c -header -a {snp_temp_path} -b {rep_db_path} > {edit_temp_path}")
-
-    # add column name 'is_editing_rep'
-    os.system(f"sed -i '1 s/.*/&\tis_editing_rep/' {edit_temp_path}")
+    # # find intersection with editing rep db
+    # os.system(f"bedtools intersect -s -c -header -a {snp_temp_path} -b {editing_db_path} > {edit_temp_path}")
+    #
+    # # add column name 'is_editing'
+    # os.system(f"sed -i '1 s/.*/&\tis_editing/' {edit_temp_path}")
 
     # find intersection with editing non rep db
-    os.system(f"bedtools intersect -s -c -header -a {edit_temp_path} -b {non_rep_db_path} > {df_intersection}")
+    os.system(f"bedtools intersect -s -c -header -a {snp_temp_path} -b {editing_db_path} > {df_intersection}")
 
     # add column name 'is_editing_non_rep'
-    os.system(f"sed -i '1 s/.*/&\tis_editing_non_rep/' {df_intersection}")
+    os.system(f"sed -i '1 s/.*/&\tis_editing/' {df_intersection}")
 
     # remove temp files
-    os.system(f"rm {snp_temp_path} {edit_temp_path}")
-
-
-# def make_pathes(input_dir):
-#     """make pathes to temporary and output files"""
-#     agg_df_path = os.path.join(input_dir, 'aggregated_tsv.tsv')
-#     snp_temp = os.path.join(input_dir, 'snp_intersect.tsv')
-#     edit_temp = os.path.join(input_dir, 'edit_intersect.tsv')
-#     df_intersection = os.path.join(input_dir, 'aggregated_intersect.tsv')
-#     return agg_df_path, snp_temp, edit_temp, df_intersection
+    # os.system(f"rm {snp_temp_path}")
+    # os.system(f"rm {snp_temp_path} {edit_temp_path}")
 
 
 def plot_venn_diagram(df, subset_list, labels, column_name, output_dir, sname):
@@ -125,7 +118,7 @@ def plot_venn_diagram(df, subset_list, labels, column_name, output_dir, sname):
     plt.xlabel("number of mutated cells within position")
     plt.legend(['Intersection positions - not filtered', 'Intersection positions - filtered'])
     plt.tight_layout()
-    plt.savefig(os.path.join(input_dir, 'CB_intersections_histogram_{}.png'.format(labels[0])), facecolor='white')
+    plt.savefig(os.path.join(output_dir, 'CB_intersections_histogram_{}.png'.format(labels[0])), facecolor='white')
     plt.clf()
 
 
@@ -212,13 +205,15 @@ def plot_heatmap_mutation_per_base_DB(df_merged, df_merged_filtered, output_dir,
                 count_matrix = []
                 ref_umi_cols = [col for col in umi_cols if read_type in col]
                 for base in bases:
-                    idx = df[((df['is_editing_rep'] == 1) | (df['is_editing_non_rep'] == 1)) & (
-                            df['reference base'] == base)].index
+                    idx = df[(df['is_editing'] == 1) & (df['reference base'] == base)].index
+                    # idx = df[((df['is_editing_rep'] == 1) | (df['is_editing_non_rep'] == 1)) & (
+                    #         df['reference base'] == base)].index
                     df_to_plot = df.loc[idx, ref_umi_cols].sum(axis=0)
 
                     # add count of 'same' umis in both mutated and un mutated
-                    df_by_refbase = df[((df['is_editing_rep'] == 1) | (df['is_editing_non_rep'] == 1)) & (
-                            df['reference base'] == base)]
+                    df_by_refbase = df[(df['is_editing'] == 1) & (df['reference base'] == base)]
+                    # df_by_refbase = df[((df['is_editing_rep'] == 1) | (df['is_editing_non_rep'] == 1)) & (
+                    #         df['reference base'] == base)]
                     unmuteted_read_count = df_by_refbase.drop_duplicates(subset='position')[
                         'unmutated {} reads'.format(read_type)].sum()
                     df_to_plot = pd.concat(
@@ -245,7 +240,7 @@ def plot_heatmap_mutation_per_base_DB(df_merged, df_merged_filtered, output_dir,
         a_mut_data = count_matrix.sum(axis=0)
         all_a_mutations_mat[i, :] = a_mut_data
 
-    vmin, vmax = get_min_max(all_a_mutations_mat)
+    vmin, vmax = all_a_mutations_mat.min(), all_a_mutations_mat.max()
     s = sns.heatmap(np.log10(all_a_mutations_mat), linewidth=0.5, annot=np.array(all_a_mutations_mat),
                     cbar_kws={'label': 'log 10'}, cmap='brg', vmin=vmin, vmax=vmax,
                     xticklabels=['same_all', 'same_mut', 'transition', 'reverse', 'transversion'],
@@ -261,35 +256,37 @@ def plot_heatmap_mutation_per_base_DB(df_merged, df_merged_filtered, output_dir,
     plt.savefig(os.path.join(output_dir, "heatmap_A_mutations.png"), bbox_inches='tight')
 
 
-def make_venn_diagrams(df_agg_intrsct, df_filtered, output_dir, snp_db_path, rep_db_path, non_rep_db_path, sname):
+def make_venn_diagrams(df_agg_intrsct, df_filtered, output_dir, snp_db_path, editing_db_path, sname):
     """function to get information on intersections of tables with databases"""
     snp_total_count = os.popen("grep -v '#' {} | wc -l".format(snp_db_path)).read()  # count non header lines
-    edit_rep_total_count = os.popen("cat {} | wc -l".format(rep_db_path)).read()
-    edit_nonrep_total_count = os.popen("cat {} | wc -l".format(non_rep_db_path)).read()
+    editing_total_count = os.popen("cat {} | wc -l".format(editing_db_path)).read()
+    # edit_rep_total_count = os.popen("cat {} | wc -l".format(rep_db_path)).read()
+    # edit_nonrep_total_count = os.popen("cat {} | wc -l".format(non_rep_db_path)).read()
 
     # convert to int
-    snp_total_count, edit_rep_total_count, edit_nonrep_total_count = \
-        int(snp_total_count), int(edit_rep_total_count), int(edit_nonrep_total_count)
+    snp_total_count, editing_total_count = int(snp_total_count), int(editing_total_count)
 
     # make Venn diagram for rep and non_rep Editing sites combined
     # DB position set is combination of positions from table, and strings representing non overlaping positions.
-    edit_db_total_count = edit_rep_total_count + edit_nonrep_total_count
-    set1 = set(df_agg_intrsct[(df_agg_intrsct['is_editing_rep'] != 0) | (
-            df_agg_intrsct['is_editing_non_rep'] != 0)].position.to_list() +
-               ['not_in_table_position' + str(i) for i in range(edit_db_total_count)])
-    set2 = set(df_filtered.position)
-    plot_venn2_diagram([set1, set2], ['Editing_sites_DB', 'Filtered_data'], output_dir, sname)
+    # edit_db_total_count = edit_rep_total_count + edit_nonrep_total_count
+    # set1 = set(df_agg_intrsct[(df_agg_intrsct['is_editing_rep'] != 0) | (
+    #         df_agg_intrsct['is_editing_non_rep'] != 0)].position.to_list() +
+    #            ['not_in_table_position' + str(i) for i in range(edit_db_total_count)])
+    # set2 = set(df_filtered.position)
+    # plot_venn2_diagram([set1, set2], ['Editing_sites_DB', 'Filtered_data'], output_dir, sname)
 
     # make Venn diagrams for snp, editing rep and editing non_rep intersections
     run_venn(df_agg_intrsct, df_filtered, 'is_snp', snp_total_count, ['SNP_DB', 'Aggregated data', 'Filtered data'],
              output_dir, sname)
-    run_venn(df_agg_intrsct, df_filtered, 'is_editing_rep', edit_rep_total_count,
-             ['Edit_rep_DB', 'Aggregated data', 'Filtered data'], output_dir, sname)
-    run_venn(df_agg_intrsct, df_filtered, 'is_editing_non_rep', edit_nonrep_total_count,
-             ['Edit_non_rep_DB', 'Aggregated data', 'Filtered data'], output_dir, sname)
+    run_venn(df_agg_intrsct, df_filtered, 'is_editing', editing_total_count,
+             ['Editing_DB', 'Aggregated data', 'Filtered data'], output_dir, sname)
+    # run_venn(df_agg_intrsct, df_filtered, 'is_editing_rep', edit_rep_total_count,
+    #          ['Edit_rep_DB', 'Aggregated data', 'Filtered data'], output_dir, sname)
+    # run_venn(df_agg_intrsct, df_filtered, 'is_editing_non_rep', edit_nonrep_total_count,
+    #          ['Edit_non_rep_DB', 'Aggregated data', 'Filtered data'], output_dir, sname)
 
 
-def get_df(input_dir):
+def get_df(output_dir):
     """function to load the df and filter it"""
 
     # def get_filtered(df_agg, min_mutation_cb_to_filter, min_mutation_umis, min_total_umis, min_mutation_rate):
@@ -328,13 +325,14 @@ def get_df(input_dir):
         return df
 
     # load df with intersections notations
-    df_intersection_path = os.path.join(input_dir, 'aggregated_intersect.tsv')
+    df_intersection_path = os.path.join(output_dir, 'aggregated_intersect.tsv')
     df_agg_intrsct = pd.read_csv(df_intersection_path, sep='\t')
 
     # define intersections to be binary (1 - if any overlap with db occured, 0 otherwise)
     df_agg_intrsct.loc[df_agg_intrsct['is_snp'] > 0, 'is_snp'] = 1
-    df_agg_intrsct.loc[df_agg_intrsct['is_editing_rep'] > 0, 'is_editing_rep'] = 1
-    df_agg_intrsct.loc[df_agg_intrsct['is_editing_non_rep'] > 0, 'is_editing_non_rep'] = 1
+    df_agg_intrsct.loc[df_agg_intrsct['is_editing'] > 0, 'is_editing'] = 1
+    # df_agg_intrsct.loc[df_agg_intrsct['is_editing_rep'] > 0, 'is_editing_rep'] = 1
+    # df_agg_intrsct.loc[df_agg_intrsct['is_editing_non_rep'] > 0, 'is_editing_non_rep'] = 1
     # df_agg_intrsct = get_edit_intersections(df_agg_intrsct, 'is_editing_rep')  # editing sites need addition filteration
     # df_agg_intrsct = get_edit_intersections(df_agg_intrsct, 'is_editing_non_rep')  # editing sites need addition filteration
 

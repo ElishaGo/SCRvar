@@ -64,7 +64,8 @@ where each row represents the modifications a certain cell has in a certain posi
     parser.add_argument('--threads',
                         help='number of available threads',
                         type=int, default=1)
-    parser.add_argument('--log-file', default=None,
+    # To Do change the path to be the same as output folder
+    parser.add_argument('--log-file', default=os.path.join(os.getcwd(), 'step1_filtered_bam_files', '1_filter_bam.log'),
                         help='a log file for tracking the program\'s progress')
 
     return parser.parse_args(arguments)

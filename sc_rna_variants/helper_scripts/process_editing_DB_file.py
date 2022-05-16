@@ -8,8 +8,8 @@ Bedtools commands uses 'start' with zero-base and 'end' with one-base.
 for more information: https://bedtools.readthedocs.io/en/latest/content/overview.html?highlight=1-based#bed-starts-are-zero-based-and-bed-ends-are-one-based
 """
 import argparse
-import datetime
 import os
+from datetime import datetime
 import pandas as pd
 import numpy as np
 import sc_rna_variants.analysis_utils
@@ -22,7 +22,7 @@ class BadFileHeaderError(Exception):
 
 def load_file(edit_orig_DB_path):
     df = sc_rna_variants.analysis_utils.load_df(edit_orig_DB_path)
-    df.rename(columns={df.columns[0]: "#chrom", df.columns[1]: 'chromEnd'}, inplace=True)
+    df.rename(columns={df.columns[0]: "#chrom", df.columns[1]: 'chromEnd', 'Strand': 'strand'}, inplace=True)
     df = df.fillna('.')
     return df
 
@@ -41,9 +41,10 @@ def load_and_process_fasta_coordinations(editing_DB_bed, fasta_path, editing_ori
     '>chr1:87157-87158(+)\n',
     't\n', ...
     """
-    temp_ref_path = editing_orig_DB_path[:editing_orig_DB_path.rfind(os.sep)] + '/temp_ref_from_fasta_by_bed_file2.txt'
+    temp_ref_path = editing_orig_DB_path[:editing_orig_DB_path.rfind(os.sep)] + '/temp_ref_from_fasta_by_bed_file.txt'
     temp_editing_bed_path = editing_orig_DB_path[:editing_orig_DB_path.rfind(os.sep)] + '/editing_DB.bed'
     if not os.path.isfile(temp_ref_path):
+        print("running bedtools getfasta")
         editing_DB_bed.to_csv(temp_editing_bed_path, index=False, sep='\t')
         os.system(f"bedtools getfasta -s -fi {fasta_path} -bed {temp_editing_bed_path} > {temp_ref_path}")
 
@@ -56,8 +57,8 @@ def load_and_process_fasta_coordinations(editing_DB_bed, fasta_path, editing_ori
     # parse the coordinates
     coordinates_df = pd.DataFrame()
     coordinates_df[['#chrom', 'chromStart']] = pd.Series(coordinates).str.split(':', expand=True)
-    coordinates_df[['chromStart', 'Strand']] = coordinates_df['chromStart'].str.split('(', expand=True)
-    coordinates_df[['Strand', 'Ref']] = coordinates_df['Strand'].str.split(')', expand=True)
+    coordinates_df[['chromStart', 'strand']] = coordinates_df['chromStart'].str.split('(', expand=True)
+    coordinates_df[['strand', 'Ref']] = coordinates_df['strand'].str.split(')', expand=True)
     coordinates_df[['chromStart', 'chromEnd']] = coordinates_df['chromStart'].str.split('-', expand=True)
 
     coordinates_df['#chrom'] = coordinates_df['#chrom'].str.replace('>', '')
@@ -66,9 +67,24 @@ def load_and_process_fasta_coordinations(editing_DB_bed, fasta_path, editing_ori
     return coordinates_df
 
 
+def sort_and_reorder(df):
+    print("start sort")
+    df = df.sort_values(by=['#chrom', 'chromStart'])
+
+    # reorder columns
+    columns_reorder = ['#chrom', 'chromStart', 'chromEnd', 'Ref', 'empty_numeric_column', 'strand', 'Ed', 'db', 'type',
+                       'dbsnp', 'repeat',
+                       'Func.wgEncodeGencodeBasicV34', 'Gene.wgEncodeGencodeBasicV34',
+                       'GeneDetail.wgEncodeGencodeBasicV34', 'ExonicFunc.wgEncodeGencodeBasicV34',
+                       'AAChange.wgEncodeGencodeBasicV34', 'Func.refGene', 'Gene.refGene', 'GeneDetail.refGene',
+                       'ExonicFunc.refGene', 'AAChange.refGene', 'Func.knownGene', 'Gene.knownGene',
+                       'GeneDetail.knownGene', 'ExonicFunc.knownGene', 'AAChange.knownGene', 'phastConsElements100way']
+    return df[columns_reorder]
+
+
 def merge_DB_and_fasta_by_coor(editing_DB, fasta_coor):
-    return pd.merge(editing_DB.drop(['Ref', 'Strand'], axis=1).reset_index(), fasta_coor, how='inner').set_index(
-        'index').drop_duplicates()
+    print("start merge")
+    return pd.merge(editing_DB.drop_duplicates().reset_index(), fasta_coor.drop_duplicates(), how='inner').set_index('index')
 
 
 def split_editing_by_A_reference(editing_DB_bed, fasta_path, editing_orig_DB_path):
@@ -78,8 +94,8 @@ def split_editing_by_A_reference(editing_DB_bed, fasta_path, editing_orig_DB_pat
     fasta_A_I = fasta_coordinates_df[fasta_coordinates_df['Ref'] == 'a']
     fasta_other = fasta_coordinates_df[fasta_coordinates_df['Ref'] != 'a']
 
-    editing_A_I = merge_DB_and_fasta_by_coor(editing_DB_bed, fasta_A_I)
-    editing_other = merge_DB_and_fasta_by_coor(editing_DB_bed, fasta_other)
+    editing_other = merge_DB_and_fasta_by_coor(editing_DB_bed.drop(['Ref', 'strand'], axis=1), fasta_other)
+    editing_A_I = merge_DB_and_fasta_by_coor(editing_DB_bed.drop(['Ref', 'strand'], axis=1), fasta_A_I)
 
     return editing_A_I, editing_other
 
@@ -96,7 +112,7 @@ def transform_to_bed(editing_DB_df):
     editing_DB_df['chromStart'] = editing_DB_df['chromEnd'] - 1
 
     # reorder columns
-    columns_reorder = ['#chrom', 'chromStart', 'chromEnd', 'Ref', 'Strand', 'Ed', 'db', 'type', 'dbsnp', 'repeat',
+    columns_reorder = ['#chrom', 'chromStart', 'chromEnd', 'Ref', 'strand', 'Ed', 'db', 'type', 'dbsnp', 'repeat',
                        'Func.wgEncodeGencodeBasicV34', 'Gene.wgEncodeGencodeBasicV34',
                        'GeneDetail.wgEncodeGencodeBasicV34', 'ExonicFunc.wgEncodeGencodeBasicV34',
                        'AAChange.wgEncodeGencodeBasicV34', 'Func.refGene', 'Gene.refGene', 'GeneDetail.refGene',
@@ -122,6 +138,9 @@ def run(args):
     editing_A_I, editing_other = split_editing_by_A_reference(editing_DB_bed, args.fasta_path,
                                                               args.editing_orig_DB_path)
 
+    editing_A_I = sort_and_reorder(editing_A_I)
+    editing_other = sort_and_reorder(editing_other)
+
     # save the editing DB file as bed file
     output_dir = args.editing_orig_DB_path[:args.editing_orig_DB_path.rfind(os.sep)]
     editing_A_I.to_csv(os.path.join(output_dir, "0_editing_A_I.bed6"), sep='\t', index=False)
@@ -129,7 +148,7 @@ def run(args):
 
 
 def parse_arguments(arguments=None):
-    parser = argparse.ArgumentParser(formatter_class=sc_rna_variants.utils.ArgparserFormater)
+    parser = argparse.ArgumentParser()
 
     parser.add_argument('editing_orig_DB_path')
     parser.add_argument('fasta_path')

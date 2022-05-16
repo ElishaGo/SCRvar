@@ -24,11 +24,15 @@ def add_full_position_notation(df):
     return df.chrom + ":" + df.chromStart.astype(str) + "-" + df.chromEnd.astype(str) + "," + df.strand
 
 
+def load_df(df_path):
+    return pd.read_csv(df_path, sep='\t')
+
+
 def load_tables(path, mutated=True):
     """Load and preprocess the data of unmutated cells from raw_stats_unmutated.tsv.
     TODO: Change renames in source funtions
     """
-    df = pd.read_csv(path, sep='\t')
+    df = load_df(path)
     df.rename(
         columns={'chromosome': 'chrom', 'start': 'chromStart', 'end': 'chromEnd', 'same multi': 'same multi reads',
                  'transition multi': 'transition multi reads', 'reverse multi': 'reverse multi reads',

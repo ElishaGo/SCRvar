@@ -1,13 +1,12 @@
-import argparse
-import sys
+import os
 import logging
 from datetime import datetime
 
-# import sys # for development environments
-# from pathlib import Path
-# sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # for development environments
+import sys # for development environments
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # for development environments
 
-from DB_intersections import *
+from sc_rna_variants.DB_intersections import *
 from sc_rna_variants.statistic_plots import *
 import sc_rna_variants.utils
 import sc_rna_variants.analysis_utils
@@ -76,35 +75,34 @@ def get_stat_plots(df_merged_open, df_merged_agg, df_merged_filtered, df_merged_
     plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
 
 
-def load_df(df_path):
-    return pd.read_csv(df_path, sep='\t')
-
-
-def run_snp_edit_DB_intersections(input_dir, output_dir,args):
-    # get paths to files we use
-    # pathes = make_pathes(args.input_dir)
-
+def run_snp_edit_DB_intersections(input_dir, output_dir, snp_db_path, editing_db_path, sname, atacseq):
     # find intersection between df and databases
-    find_intersections_with_SNP_and_edit_DB(input_dir, output_dir, args.snp_db_path, args.rep_db_path, args.non_rep_db_path)
+    find_intersections_with_SNP_and_edit_DB(input_dir, output_dir, snp_db_path, editing_db_path)
 
     # get the df with intersections, before and after filtering
-    df_agg_intersect, df_agg_intrsct_filtered = get_df(input_dir)
+    df_agg_intersect, df_agg_intrsct_filtered = get_df(output_dir)
 
     # make Venn diagrams of the intersections
-    make_venn_diagrams(df_agg_intersect, df_agg_intrsct_filtered, output_dir, args.snp_db_path, args.rep_db_path, args.non_rep_db_path, args.sname)
+    make_venn_diagrams(df_agg_intersect, df_agg_intrsct_filtered, output_dir, snp_db_path, editing_db_path, sname)
 
-    plot_heatmap_mutation_per_base_DB(df_agg_intersect, df_agg_intrsct_filtered, output_dir, args.sname)
+    plot_heatmap_mutation_per_base_DB(df_agg_intersect, df_agg_intrsct_filtered, output_dir, sname)
 
     # if ATACseq data if supplied, remove potential SNP sites
-    if (args.atacseq):
-        intersect_with_atacseq(df_agg_intersect, output_dir, args.atacseq)
+    if (atacseq):
+        intersect_with_atacseq(df_agg_intersect, output_dir, atacseq)
 
 
 def run_step5(args):
-    df_merged_agg = load_df(os.path.join(args.input_dir, "step4_outputs", "aggregated_tsv.tsv"))
+    df_merged_agg = sc_rna_variants.analysis_utils.load_df(os.path.join(args.input_dir, "4_test_aggregation_per_position.tsv"))
     # TODO: instead of loading mut_open and unmutated and merge them, look into the plots function and see how we can avoid this
-    df_mut_open = sc_rna_variants.analysis_utils.load_tables("/home/eligol/Documents/01_WIS/scrarevar/data/outputs/scrarevar_outputs/human_RSS540_RSS451_merged/3_mismatch_dictionary.bed6", mutated=True)
-    df_unmutated = sc_rna_variants.analysis_utils.load_tables("/home/eligol/Documents/01_WIS/scrarevar/data/outputs/scrarevar_outputs/human_RSS540_RSS451_merged/3_no_mismatch_dictionary.bed6", mutated=False)
+    df_mut_open = sc_rna_variants.analysis_utils.load_tables(
+        "/home/eligol/Documents/01_WIS/scrarevar/data/test/step3_mismatch_dictionary/3_mismatch_dictionary.bed6",
+        mutated=True)
+    df_unmutated = sc_rna_variants.analysis_utils.load_tables(
+        "/home/eligol/Documents/01_WIS/scrarevar/data/test/step3_mismatch_dictionary/3_no_mismatch_dictionary.bed6",
+        mutated=False)
+    # df_mut_open = sc_rna_variants.analysis_utils.load_tables("/home/eligol/Documents/01_WIS/scrarevar/data/outputs/scrarevar_outputs/human_RSS540_RSS451_merged/3_mismatch_dictionary.bed6", mutated=True)
+    # df_unmutated = sc_rna_variants.analysis_utils.load_tables("/home/eligol/Documents/01_WIS/scrarevar/data/outputs/scrarevar_outputs/human_RSS540_RSS451_merged/3_no_mismatch_dictionary.bed6", mutated=False)
     df_merged_open = sc_rna_variants.analysis_utils.merge_dfs(df_mut_open, df_unmutated)
 
     # get filtered data for both aggregated and open aggregated df
@@ -121,7 +119,7 @@ def run_step5(args):
 
     # make intersections with SNP and edit DB
     logger.info("started to make intersection with SNP and editing data bases")
-    run_snp_edit_DB_intersections(args.input_dir, args.output_dir, args)
+    run_snp_edit_DB_intersections(args.input_dir, args.output_dir, args.snp_db_path, args.editing_db_path, args.sname, args.atacseq)
 
 
 ##################################################################################################################
@@ -131,12 +129,11 @@ def parse_arguments(arguments=None):
     # positional arguments
     parser.add_argument('input_dir', type=sc_rna_variants.utils.assert_is_directory,
                         help='folder with raw_stats.tsv and raw_umutated_stats.tsv files from scrnavariants.py')
-    parser.add_argument('rep_db_path', help='path to gencode file with known repetitive editing sites')
-    parser.add_argument('non_rep_db_path', help='path to gencode file with known non repetitive editing sites')
-    parser.add_argument('snp_db_path', help='path to gencode file with known SNP sites')
+    parser.add_argument('output_dir', type=sc_rna_variants.utils.assert_is_directory, help='folder for outputs')
+    parser.add_argument('snp_db_path', type=sc_rna_variants.utils.assert_is_file, help='path to known SNP sites file')
+    parser.add_argument('editing_db_path', type=sc_rna_variants.utils.assert_is_file, help='path to known editing sites file')
 
     # optional arguments
-    parser.add_argument('--output_dir', default=os.path.join(sys.argv[1], "step5_outputs"), help='folder for outputs')
     parser.add_argument('--min_cb_per_pos', default=5, type=int,
                         help='position with less cell barcodes will be filtered')
     parser.add_argument('--min_mutation_umis', default=10, type=int,
@@ -148,7 +145,7 @@ def parse_arguments(arguments=None):
     parser.add_argument('--atacseq', type=str, help='path to atacseq file')
 
     # Meta arguments
-    parser.add_argument('--log-file', default=os.path.join(sys.argv[1], "step5_outputs", "step5.log"),
+    parser.add_argument('--log-file', default=os.path.join(sys.argv[2], "5_filtering_positions_and_snp_editing_DB_intersections.log"),
                         help='a log file for tracking the program\'s progress')
     parser.add_argument('--sname', type=str, help='sample name to add to outputs')
 
@@ -160,7 +157,6 @@ if __name__ == '__main__':
     args = parse_arguments()
 
     # initialize logger
-    os.makedirs(args.output_dir, exist_ok=True)
     sc_rna_variants.config_logging(args.log_file)
     logger = logging.getLogger("positions_filtering_and_plots")
     logger.info('positions_filtering_and_plots started')

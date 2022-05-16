@@ -1,11 +1,13 @@
+"""
+This script creates a text file in bsub format to run the pipeline on LSF system (like WEXAC),
+and execute it as a bsub command
+"""
 import os
 import argparse
 from sc_rna_variants.utils import assert_is_directory
 
 
 def create_job_file(args):
-    """function to create file with bsub foramt to run on LSF systm"""
-    # open file
     f = open(os.path.join(args.working_dir, "bsub_file_SCrarevar_pipline.txt"), "w")
 
     # open folder for log files
@@ -31,8 +33,7 @@ def create_job_file(args):
         ['# %s: %s' % (key, value) for key, value in vars(args).items() if
          key not in ['q', 'J', 'rusage', 'hosts', 'n']]))
 
-    f.write("\n\n\n")
-    f.write("### Run the commands in serial:\n")
+    f.write("\n\n\n### Run the commands in serial:\n")
     
     # load environment and modules
     f.write("# load environment and modules\n")
@@ -45,55 +46,38 @@ def create_job_file(args):
         f"samtools view {args.bam_file} | grep NH:i:1 | sed 's/.*CB:Z:\([ACGT]*\).*/\1/' | sort | uniq -c > reads_per_barcode\n\n")
 
     # step1 - filter bam file
+    step1_output_dir = 'step1_filtered_bam_files/'
     f.write("# STEP 1 - filter bam file by filter list\n")
     f.write("mkdir step1_filtered_bam_files\n")
-    f.write(f"python {os.getcwd}/scripts/step1_filter_bam.py {args.bam_file} step1_filtered_bam_files/ --filtered-barcodes-list {args.filter_list_bam} --log-file step1_filtered_bam_files/step1_filter_bam.log --threads {args.n}\n\n")
+    f.write(f"python {os.getcwd}/scripts/step1_filter_bam.py {args.bam_file} {step1_output_dir} --filtered-barcodes-list {args.filter_list_bam} --threads {args.n}\n\n")
 
     # get path to filtered bam file
-    # TODO check how to use the file name directly in the next command. maybe somethign like "1_*_filtered.bam"
     filtered_bam_path = str(
-        os.path.join(args.working_dir, 'step1_filtered_bam_files', "1_" + os.path.basename(args.bam_file) + "_filtered.bam"))
+        os.path.join(args.working_dir, step1_output_dir, "1_" + os.path.basename(args.bam_file) + "_filtered.bam"))
 
     # step 2 - keep only reads from genes with htseq
+    step2_output_dir = 'step2_bam_gene_filter/'
     f.write("# STEP 2 - bam genes filter\n")
-    f.write(f"sh {os.getcwd}/scripts/step2_bam_gene_filter.sh {filtered_bam_path} {args.annotation_gtf} {args.fname} {args.n}\n\n")
-
-    # f.write("mkdir step2_bam_gene_filter\n")
-    # f.write("# add chr to chromosome names in bam files\n")
-    # f.write(f"samtools view -H {filtered_bam_path} | sed  -e '/SN:chr/!s/SN:\([0-9XY]*\)/SN:chr&/' -e '/SN:chrM/!s/SN:MT/SN:chrM&/' | samtools reheader - {filtered_bam_path} > step1_filtered_bam_files/1_{args.fname}_CBfiltered_chr.bam;samtools index step1_filtered_bam_files/1_{args.fname}_CBfiltered_chr.bam\n\n")
-    #
-    # f.write("# remove old bam files and index\n")
-    # f.write(f"rm {filtered_bam_path}*\n\n")
-    #
-    # f.write("# run htseq to filter non gene reads\n")
-    # f.write(f"htseq-count -f bam -i gene_name -t gene -m union -s yes -o step2_bam_gene_filter/2_{args.fname}.gene_filter.sam step1_filtered_bam_files/1_{args.fname}_CBfiltered_chr.bam {args.annotation_gtf} 3>&1 > step2_bam_gene_filter/2_{args.fname}_stranded_counts.txt\n\n")
-    # f.write("# add header to the sam file\n")
-    # f.write(f"samtools view -H step1_filtered_bam_files/1_{args.fname}_CBfiltered_chr.bam | cat - step2_bam_gene_filter/2_{args.fname}.gene_filter.sam > step2_bam_gene_filter/2_{args.fname}.gene_filter_header.sam\n\n")
-    #
-    # f.write("# get statistics on file\n")
-    # f.write(f"samtools flagstat -@ {args.n} step2_bam_gene_filter/2_{args.fname}.gene_filter_header.sam > step2_bam_gene_filter/2_flagstat_htseq.tsv\n\n")
-    #
-    # f.write("# keep only gene sites\n")
-    # f.write(f'grep -v "__" step2_bam_gene_filter/2_{args.fname}.gene_filter_header.sam | samtools view -@ {args.n} -Sb - > step2_bam_gene_filter/2_{args.fname}.gene_filter_header.bam;samtools sort -@ {args.n} step2_bam_gene_filter/2_{args.fname}.gene_filter_header.bam -o step2_bam_gene_filter/2_{args.fname}.gene_filter_header.bam;samtools index step2_bam_gene_filter/2_{args.fname}.gene_filter_header.bam\n\n')
-    #
-    # f.write("# remove sam files\n")
-    # f.write(f"rm step2_bam_gene_filter/2_{args.fname}.gene_filter_header.sam\n\n")
-    # f.write(f"rm step2_bam_gene_filter/2_{args.fname}.gene_filter.sam\n\n")
+    f.write(f"mkdir {step2_output_dir}\n")
+    f.write(f"sh {os.getcwd}/scripts/step2_bam_gene_filter.sh {filtered_bam_path} {step2_output_dir} {args.annotation_gtf} {args.fname} {args.n}\n\n")
     
     # step 3 - create mismatch dictionary
+    step3_output_dir = 'step3_mismatch_dictionary/'
     f.write("# STEP 3 - create mismatch dictionary\n")
-    f.write("mkdir step3_mismatch_dictionary\n")
-    f.write(f"python {os.getcwd}/scripts/scrnavariants.py step2_bam_gene_filter/2_{args.fname}.gene_filter_header.bam {args.genome_ref} step3_mismatch_dictionary/ --log-file step3_mismatch_dictionary/3_{args.fname}_mismatch_dictionary.log --threads {args.n}\n\n")
+    f.write(f"mkdir {step3_output_dir}\n")
+    f.write(f"python {os.getcwd}/scripts/scrnavariants.py {step2_output_dir}/2_{args.fname}.gene_filter_header.bam {args.genome_ref} {step3_output_dir} --threads {args.n}\n\n")
 
     # step 4 - Aggregation per position + statistics
+    step4_output_dir = 'step4_aggregation_per_position_and_statistics/'
     f.write('# STEP 4 - aggregation per position + statistics\n')
-    f.write("mkdir step4_aggregation_per_position_and_statistics\n")
-    f.write(f"python {os.getcwd}/scripts/make_statistics.py step3_mismatch_dictionary/3_mismatch_dictionary.bed6 step3_mismatch_dictionary/3_no_mismatch_dictionary.bed6 --output_folder step4_aggregation_per_position_and_statistics --sname 4_{args.fname} --log-file step4_aggregation_per_position_and_statistics/4_{args.fname}_aggregation_per_position_and_statisitcs.log --threads {args.n}\n\n")
+    f.write(f"mkdir {step4_output_dir}\n")
+    f.write(f"python {os.getcwd}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} --sname {args.fname} --threads {args.n}\n\n")
 
     # step 5 - filtering positions and SNP/editing DB intersections
+    step5_output_dir = 'step5_filtering_positions_and_SNP_editing_DB_intersections/'
     f.write('# STEP 5 - filtering positions and SNP/editing DB intersections\n')
-    f.write("mkdir step5_filtering_positions_and_SNP_editing_DB_intersections\n")
-    f.write(f'python {os.getcwd}/scripts/DB_intersections.py aggregation_per_position_and_statistics/ step5_filtering_positions_and_SNP_editing_DB_intersections/ {args.edit_rep_bed} {args.edit_nonrep_bed} {args.snp_vcf} --sname 5_{args.fname}\n\n')
+    f.write(f"mkdir {step5_output_dir}\n")
+    f.write(f'python {os.getcwd}/scripts/step5_filtering_positions_and_snp_editing_DB_intersections.py {step4_output_dir} {step5_output_dir} {args.editing_DB} {args.snp_vcf} --sname {args.fname}\n\n')
 
     f.write(f'python {os.getcwd}/scripts/filter_snp.py step5_filtering_positions_and_SNP_editing_DB_intersections/5_aggregated_intersect.tsv {args.snp_clf_weights}')
 
@@ -134,13 +118,17 @@ def parse_arguments(arguments=None):
                         default="/home/labs/bioservices/services/expression_references/refdata-gex-GRCh38-2020-A/fasta/genome.fa",
                         help='genome reference')
 
-    parser.add_argument('--edit_rep_bed', type=str,
-                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/edit_snp_DB/human/edit_rep.bed",
+    parser.add_argument('--editing_DB', type=str,
+                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/edit_snp_DB/human/edit_TABLE1_hg38.txt",
                         help='Editing repetitive sites data base in bed format')
 
-    parser.add_argument('--edit_nonrep_bed', type=str,
-                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/edit_snp_DB/human/edit_nonrep.bed",
-                        help='Editing non repetitive sites data base in bed format')
+    # parser.add_argument('--edit_rep_bed', type=str,
+    #                     default="/home/labs/bioservices/shared/rarevar/data/DataBases/edit_snp_DB/human/edit_rep.bed",
+    #                     help='Editing repetitive sites data base in bed format')
+    #
+    # parser.add_argument('--edit_nonrep_bed', type=str,
+    #                     default="/home/labs/bioservices/shared/rarevar/data/DataBases/edit_snp_DB/human/edit_nonrep.bed",
+    #                     help='Editing non repetitive sites data base in bed format')
 
     parser.add_argument('--snp_vcf', type=str,
                         default="/home/labs/bioservices/shared/rarevar/data/DataBases/edit_snp_DB/human/snp_chr_sorted.vcf",

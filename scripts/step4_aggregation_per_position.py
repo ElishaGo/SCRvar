@@ -6,14 +6,14 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 from pandarallel import pandarallel
+
+import sys  # for development environments
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # for development environments
+
 import sc_rna_variants.analysis_utils
 from sc_rna_variants.utils import assert_is_directory, ArgparserFormater
-
-
-# import sys, os  # for development environments
-# from pathlib import Path
-
-# sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # for development environments
 
 # logger = logging.getLogger(__name__)
 logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
@@ -185,7 +185,8 @@ def run_step4(args):
     # reorder and save the aggregated file
     logger.info("reorder and save file")
     df_merged_agg = reorder_and_sort_agg_df(df_merged_agg)
-    sc_rna_variants.analysis_utils.save_df(df_merged_agg, args.output_dir, "aggregated_tsv.tsv")
+    sc_rna_variants.analysis_utils.save_df(df_merged_agg, args.output_dir,
+                                           "4_" + args.sname + "_aggregation_per_position.tsv")
 
     # TODO: myabe we don't need this
     # save other tables
@@ -213,7 +214,7 @@ def parse_arguments(arguments=None):
     # positional arguments
     parser.add_argument('input_dir', type=assert_is_directory,
                         help='folder with raw_stats.tsv and raw_umutated_stats.tsv files from scrnavariants.py')
-    parser.add_argument('output_dir', help='folder for step outputs', type=make_output_dir)
+    parser.add_argument('output_dir', help='folder for step outputs', type=assert_is_directory)
 
     # optional arguments
     parser.add_argument('--min_cb_per_pos', default=5, type=int,
@@ -228,7 +229,8 @@ def parse_arguments(arguments=None):
     # Meta arguments
     parser.add_argument('--threads', type=int,
                         help='number of available threads', default=1)
-    parser.add_argument('--log-file', default=None,
+    parser.add_argument('--log-file',
+                        default=os.path.join(sys.argv[2], '4_aggregation_per_position_and_statisitcs.log'),
                         help='a log file for tracking the program\'s progress')
     parser.add_argument('--sname', type=str, help='sample name to add to outputs')
 

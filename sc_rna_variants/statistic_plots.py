@@ -28,7 +28,7 @@ def plot_cb_occurences_hist(df_orig, df_filtered, out_folder, sname):
         prior_post = df_tuple[1]
         cb_counts = df['cell barcode'].value_counts()
         make_plot(axs[i], cb_counts, prior_post)
-    plt.savefig(os.path.join(out_folder, "cb_distribution.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, "5_cb_distribution.png"), bbox_inches='tight')
 
 
 def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder, sname):
@@ -49,7 +49,7 @@ def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder, sname
     fig.text(0, 0.65, 'Before filtering', ha='center', rotation='vertical', style='italic')
     fig.text(0, 0.25, 'After filtering', ha='center', rotation='vertical', style='italic')
     plt.suptitle(f"UMI per reference base - {sname}")
-    plt.savefig(os.path.join(out_folder, "umi_per_reference_base.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, "5_umi_per_reference_base.png"), bbox_inches='tight')
 
     ### plot with unmutated data
     fig, axs = plt.subplots(2, 4, figsize=(15, 8), sharex=True)
@@ -72,7 +72,7 @@ def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder, sname
     fig.text(0, 0.65, 'Before filtering', ha='center', rotation='vertical', style='italic')
     fig.text(0, 0.25, 'After filtering', ha='center', rotation='vertical', style='italic')
     plt.suptitle(f"UMI per reference base with unmutated - {sname}")
-    plt.savefig(os.path.join(out_folder, "umi_per_reference_base_with_unmutated.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, "5_umi_per_reference_base_with_unmutated.png"), bbox_inches='tight')
 
 
 def get_min_max(count_matrices):
@@ -110,7 +110,7 @@ def make_mut_counts_heatmap(count_matrices, out_folder, sname):
         axs[i].set_xlabel("mutation")
     plt.suptitle(f"Counts of mutations per base - {sname}")
     plt.tight_layout()
-    plt.savefig(os.path.join(out_folder, "heatmap_mutation_perbase.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, "5_heatmap_mutation_perbase.png"), bbox_inches='tight')
 
 
 def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sname):
@@ -182,7 +182,7 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
     s.set_xticklabels([l.get_text() + '\n' + m for l, m in zip(s.get_xticklabels(), mut_names)])
     plt.xticks(rotation=30, ha='right')
     plt.title("ratio of mutation out of non mutated UMIs (same column)")
-    plt.savefig(os.path.join(out_folder, "relative_mutations_barplot.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, "5_relative_mutations_barplot.png"), bbox_inches='tight')
 
 
 def plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, out_folder, sname):
@@ -206,7 +206,7 @@ def plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, out_folder, sna
         num_of_bins = 30
         cb_counts = df['count of mutated cell barcodes']  # count of CB in each position
         make_plot(axs[i], cb_counts, df_name, num_of_bins)
-    plt.savefig(os.path.join(out_folder, "cb_count_not_unique_per_position.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, "5_cb_count_not_unique_per_position.png"), bbox_inches='tight')
 
 
 def plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, out_folder, sname):
@@ -232,7 +232,7 @@ def plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, out_folder
         df, df_name = df_tuple[0], df_tuple[1]
         cb_counts = df['count of mutated cell barcodes']
         make_plot(axs[i], cb_counts, df_name)
-    plt.savefig(os.path.join(out_folder, "cb_count_per_position.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, "5_cb_count_per_position.png"), bbox_inches='tight')
 
     # plot with unmutated data
     fig, axs = plt.subplots(2, 1, sharex=True, figsize=(10, 12))
@@ -242,4 +242,4 @@ def plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, out_folder
         unmutated_cb_counts = df['count of unmutated cell barcodes']  # unmutated counts
         cb_counts = cb_counts.combine(unmutated_cb_counts, np.add, fill_value=0)  # sum mutated and unmutated counts
         make_plot(axs[i], cb_counts, df_name)
-    plt.savefig(os.path.join(out_folder, "cb_count_per_position_with_unmutated.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, "5_cb_count_per_position_with_unmutated.png"), bbox_inches='tight')
