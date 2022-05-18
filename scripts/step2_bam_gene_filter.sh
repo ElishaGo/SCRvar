@@ -9,6 +9,8 @@ ANNOTATION_GTF=$3
 FNAME=$4
 N=$5
 INPUT_DIR=step1_filtered_bam_files
+EDITING_GTF_INTERSECT=$6
+SNP_GTF_INTERSECT=$7
 
 # add chr to chromosome names in bam files (step1)
 samtools view -H ${FILTERED_BAM_PATH} | sed  -e '/SN:chr/!s/SN:\([0-9XY]*\)/SN:chr&/' -e '/SN:chrM/!s/SN:MT/SN:chrM&/' | samtools reheader - ${FILTERED_BAM_PATH} > ${INPUT_DIR}/1_${FNAME}_CBfiltered_chr.bam;samtools index ${INPUT_DIR}/1_${FNAME}_CBfiltered_chr.bam
@@ -31,3 +33,9 @@ rm ${FILTERED_BAM_PATH}*
 # remove sam files
 rm ${OUTPUT_DIR}/2_${FNAME}.gene_filter_header.sam
 rm ${OUTPUT_DIR}/2_${FNAME}.gene_filter.sam
+
+# make intersection between editing A_I sites transcriptomes and filtered bam file
+bedtools intersect -u -header -a EDITING_GTF_INTERSECT -b 2_${FNAME}.gene_filter_header.bam > 2_${FNAME}_editing.bam_intersect.bed6
+
+# make intersection between SNP A_I sites transcriptomes and filtered bam file
+bedtools intersect -u -header -a SNP_GTF_INTERSECT -b 2_${FNAME}.gene_filter_header.bam > 2_${FNAME}_snp.bam_intersect.vcf
