@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def reorder_and_sort_agg_df(df):
     # reorder columns
-    cols = ["chrom", "chromStart", "chromEnd", 'position', 'percent of non ref from all cells', 'strand',
+    cols = ["#chrom", "chromStart", "chromEnd", 'position', 'percent of non ref from all cells', 'strand',
             'count of unmutated cell barcodes', 'count of mutated cell barcodes',
             'percent of non ref only from mutated cells', 'reference base',
             'same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
@@ -25,7 +25,7 @@ def reorder_and_sort_agg_df(df):
         , 'aggregated cell barcodes']
     df = df[cols]
 
-    df.sort_values(by=['chrom', 'chromStart'], inplace=True)  # sort by position?
+    df.sort_values(by=['#chrom', 'chromStart'], inplace=True)  # sort by position?
     return df
 
 
@@ -105,7 +105,7 @@ def per_position_statistics(df):
 def aggregate_existing_columns(df):
     df_grouped = df.groupby('position')
     df_agg = df_grouped.agg(
-        {'chrom': 'first', 'chromStart': 'first', 'chromEnd': 'first', 'strand': 'first', 'reference base': 'first',
+        {'#chrom': 'first', 'chromStart': 'first', 'chromEnd': 'first', 'strand': 'first', 'reference base': 'first',
          'same multi reads': 'sum', 'transition multi reads': 'sum', 'reverse multi reads': 'sum',
          'transvertion multi reads': 'sum',
          'same single reads': 'sum', 'transition single reads': 'sum', 'reverse single reads': 'sum',
@@ -151,7 +151,7 @@ def merge_dfs(df_mutated, df_unmutated):
     """Merge open mutation table and aggregated unmutetated table.
     NOTICE - the unmutated data is aggregated, so you should only look at one line per each position"""
     # merge aggregated mutations and non mutations tables
-    df_m = df_mutated.merge(df_unmutated.drop(['chrom', 'chromStart', 'chromEnd', 'strand'], axis=1), how='left',
+    df_m = df_mutated.merge(df_unmutated.drop(['#chrom', 'chromStart', 'chromEnd', 'strand'], axis=1), how='left',
                             on='position')
 
     # if missing values where added while merging, fill with 0

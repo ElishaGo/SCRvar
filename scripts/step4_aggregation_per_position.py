@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import argparse
 import os
 import logging
@@ -35,7 +34,7 @@ def reorder_and_sort_agg_df(df):
         , 'aggregated cell barcodes']
     df = df[cols]
 
-    df.sort_values(by=['chrom', 'chromStart'], inplace=True)  # sort by position?
+    df.sort_values(by=['#chrom', 'chromStart'], inplace=True)  # sort by position?
     return df
 
 
@@ -115,7 +114,7 @@ def per_position_statistics(df):
 def aggregate_existing_columns(df):
     df_grouped = df.groupby('position')
     df_agg = df_grouped.agg(
-        {'chrom': 'first', 'chromStart': 'first', 'chromEnd': 'first', 'strand': 'first', 'reference base': 'first',
+        {'#chrom': 'first', 'chromStart': 'first', 'chromEnd': 'first', 'strand': 'first', 'reference base': 'first',
          'same multi reads': 'sum', 'transition multi reads': 'sum', 'reverse multi reads': 'sum',
          'transvertion multi reads': 'sum',
          'same single reads': 'sum', 'transition single reads': 'sum', 'reverse single reads': 'sum',
@@ -157,7 +156,33 @@ def aggregate_df(df):
     return df_agg
 
 
+def find_intersections_with_SNP_and_edit_DB(output_dir, snp_db_path, editing_db_path):
+    agg_df_path = os.path.join(output_dir, '4_aggregation_per_position.tsv')
+    snp_temp_path = os.path.join(output_dir, '4_snp_intersect.tsv')
+    df_intersection = os.path.join(output_dir, '4_aggregated_per_position_intersect.tsv')
+
+    # add '#' to header of df_aggregated
+    os.system(f"head -c 1 {agg_df_path} | grep -q '#' || sed -i '1s/^/#/' {agg_df_path}")
+
+    # both files must be sorted if you use '-sorted' which reduce memory usage
+    # find intersection with snp db
+    os.system(f"bedtools intersect -c -header -sorted -a {agg_df_path} -b {snp_db_path} > {snp_temp_path}")
+
+    # add column name 'is_snp'
+    os.system(f"sed -i '1 s/.*/&\tis_snp/' {snp_temp_path}")
+
+    # find intersection with editing non rep db
+    os.system(f"bedtools intersect -s -c -header -a {snp_temp_path} -b {editing_db_path} > {df_intersection}")
+
+    # add column name 'is_editing_non_rep'
+    os.system(f"sed -i '1 s/.*/&\tis_editing/' {df_intersection}")
+
+    # remove temp files
+    # os.system(f"rm {snp_temp_path}")
+
+
 def run_step4(args):
+
     # load the mutated and unmutated data frames
     logger.info("Loading and preprocessing the data frames")
     df_mutated = sc_rna_variants.analysis_utils.load_tables(os.path.join(args.input_dir, "3_mismatch_dictionary.bed6"),
@@ -186,11 +211,10 @@ def run_step4(args):
     logger.info("reorder and save file")
     df_merged_agg = reorder_and_sort_agg_df(df_merged_agg)
     sc_rna_variants.analysis_utils.save_df(df_merged_agg, args.output_dir,
-                                           "4_" + args.sname + "_aggregation_per_position.tsv")
+                                           "4_aggregation_per_position.tsv")
 
-    # TODO: myabe we don't need this
-    # save other tables
-    # sc_rna_variants.analysis_utils.save_df(df_merged, args.output_dir, "merged_mutated_unmutated_no_agg.tsv")
+    # find intersection between df and databases
+    find_intersections_with_SNP_and_edit_DB(args.output_dir, args.snp_db_path, args.editing_db_path)
 
 
 def make_output_dir(string):
@@ -207,14 +231,17 @@ def parse_arguments(arguments=None):
     """
     parser = argparse.ArgumentParser(
         formatter_class=ArgparserFormater,
-        description="""This script aggregates and learns statistics on the output files from 'scrnavariants.py'.""",
+        description="""This script aggregates and learns statistics on the output files from 'step3_mismatch_dictionary.py'.""",
         epilog='''Outputs aggregated tsv, figures and statistics.'''
     )
 
     # positional arguments
     parser.add_argument('input_dir', type=assert_is_directory,
-                        help='folder with raw_stats.tsv and raw_umutated_stats.tsv files from scrnavariants.py')
+                        help='folder with raw_stats.tsv and raw_umutated_stats.tsv files from step3_mismatch_dictionary.py')
     parser.add_argument('output_dir', help='folder for step outputs', type=assert_is_directory)
+    parser.add_argument('snp_db_path', type=sc_rna_variants.utils.assert_is_file, help='path to known SNP sites file')
+    parser.add_argument('editing_db_path', type=sc_rna_variants.utils.assert_is_file,
+                        help='path to known editing sites file')
 
     # optional arguments
     parser.add_argument('--min_cb_per_pos', default=5, type=int,
@@ -230,7 +257,7 @@ def parse_arguments(arguments=None):
     parser.add_argument('--threads', type=int,
                         help='number of available threads', default=1)
     parser.add_argument('--log-file',
-                        default=os.path.join(sys.argv[2], '4_aggregation_per_position_and_statisitcs.log'),
+                        default=os.path.join(sys.argv[2], '4_aggregated_per_position_and_statisitcs.log'),
                         help='a log file for tracking the program\'s progress')
     parser.add_argument('--sname', type=str, help='sample name to add to outputs')
 

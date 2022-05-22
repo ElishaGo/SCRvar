@@ -1,7 +1,3 @@
-import os
-import argparse
-import pysam
-from subprocess import Popen, PIPE
 import argparse
 import logging
 

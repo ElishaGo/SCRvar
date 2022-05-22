@@ -120,7 +120,7 @@ def transform_to_bed(editing_DB_df):
 
 
 def intersect_with_gtf(a_path, gtf_path, output_path):
-    subprocess.run(['bedtools', ' intersect', '-a', a_path, '-b', gtf_path, '-o', output_path])
+    subprocess.run(['bedtools', ' intersect', '-u', '-header', '-a', a_path, '-b', gtf_path, '>', output_path])
 
 
 def process_editing_DB(editing_DB_path, fasta_path, gtf_path):

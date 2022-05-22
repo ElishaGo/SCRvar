@@ -611,14 +611,14 @@ def variants_finder(filtered_bam, genome_fasta, tag_for_umi, tag_for_cell_barcod
     output_unmutated_tsv = pathlib.Path(output_folder) / '3_no_mismatch_dictionary.bed6'
 
     header_line = '\t'.join([
-        "chrom", "chromStart", "chromEnd", "cell barcode",
+        "#chrom", "chromStart", "chromEnd", "cell barcode",
         "percent of non ref", "strand", "reference base",
         "same multi reads", "transition multi reads", "reverse multi reads", "transvertion multi reads",
         "same single reads", "transition single reads", "reverse single reads", "transvertion single reads",
         "mixed reads"]) + '\n'
 
     header_line_unmutated = '\t'.join([
-        "chrom", "chromStart", "chromEnd", "count of unmutated cell barcodes", "strand", "unmutated multi reads",
+        "#chrom", "chromStart", "chromEnd", "count of unmutated cell barcodes", "strand", "unmutated multi reads",
         "unmutated single reads"
     ]) + '\n'
 
