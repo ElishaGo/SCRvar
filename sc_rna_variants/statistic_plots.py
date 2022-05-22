@@ -1,10 +1,12 @@
 import os
+import warnings
 import numpy as np
 import pandas as pd
 from math import ceil
 import seaborn as sns
 import matplotlib.pyplot as plt
-import warnings
+from matplotlib import cm
+from scipy.stats import pearsonr
 
 warnings.filterwarnings("ignore")
 
@@ -243,3 +245,176 @@ def plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, out_folder
         cb_counts = cb_counts.combine(unmutated_cb_counts, np.add, fill_value=0)  # sum mutated and unmutated counts
         make_plot(axs[i], cb_counts, df_name)
     plt.savefig(os.path.join(out_folder, "5_cb_count_per_position_with_unmutated.png"), bbox_inches='tight')
+
+
+def non_ref_from_all_cells(df, output_dir):
+    plt.clf()
+    plt.hist(df['percent of non ref from all cells'], bins=21)
+    plt.title('percent of non ref from all cells')
+    plt.xlabel("percent of mutated UMIs in a position")
+    plt.ylabel("number of observed positions")
+    plt.savefig(os.path.join(output_dir, "6_mut_UMI_in_positions.png"))
+
+
+def snp_observed_against_mut_UMI_in_position(df, output_dir, sname):
+    plt.clf()
+    plt.hist(df.loc[df['is_snp'] >= 1, :]['percent of non ref from all cells'], bins=30)
+    plt.hist(df.loc[df['is_snp'] == 0, :]['percent of non ref from all cells'], bins=30, alpha=.7)
+
+    plt.title("Percent of mutated umis from all umis per position, in SNP and non SNP positions \n - {}".format(sname))
+    plt.legend(['SNP position', 'No SNP position'])
+    plt.xlabel("percent of mutated UMIs in a position")
+    plt.ylabel("number of observed positions")
+    plt.savefig(os.path.join(output_dir, "6_snp_observed_against_mut_UMI_in_position.png"))
+
+
+def editing_sites_per_chr(df_edit, output_dir, sname):
+    chr_labels = ['chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'chr9', 'chr10', 'chr11', 'chr12',
+                  'chr13', 'chr14', 'chr15', 'chr16', 'chr17', 'chr18', 'chr19', 'chr20', 'chr21', 'chr22', 'chrX',
+                  'chrY', 'chrM']
+
+    fig, ax = plt.subplots(nrows=1, ncols=1, sharex=True, sharey=False, figsize=(10, 8))
+    chr_series = df_edit['position'].map(lambda x: x.split(':')[0]).value_counts()
+    plt.barh(range(0, len(chr_labels)), pd.Series(chr_series, index=chr_labels), tick_label=chr_labels, color='b')
+    for i, v in enumerate(pd.Series(chr_series, index=chr_labels).values):
+        try:
+            ax[0].text(v, i - 0.25, str(int(v)))
+        except:
+            continue
+    plt.title("editing DB")
+    plt.ylabel("chromosome")
+    plt.xlabel("Number of editing sites")
+    plt.savefig(os.path.join(output_dir, "6_editing_sites_per_chr.png"))
+
+
+def editing_sites_per_cell(df_open_edit, output_dir, sname):
+    fig, ax = plt.subplots(nrows=1, ncols=1, sharex=True, sharey=True, figsize=(6, 4))
+
+    editings_per_cb_stats = df_open_edit.iloc[:, :].groupby('cell barcode')['is_edit'].sum()
+    print(
+        "{} mutations compattable with known editing sites in \n{} cells out of total number of \n{} cells in sample\n\n".format(
+            df_open_edit[df_open_edit['is_edit'] == 1].shape[0], (editings_per_cb_stats > 0).sum(),
+            df_open_edit['cell barcode'].nunique()))
+    plt.hist(editings_per_cb_stats, bins=30)
+    plt.title("Number of editing sites per cell")
+    plt.ylabel("number of cells")
+    plt.xlabel("number of editing sites")
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "6_editing_sites_per_cell.png"))
+
+
+def mutated_umis_per_cell(umis_per_cb_editing, output_dir, sname):
+    fig, ax = plt.subplots(nrows=1, ncols=1, sharex=True, sharey=True, figsize=(6, 4))
+
+    plt.hist(umis_per_cb_editing, bins=18)
+    plt.xlabel("number of mutated UMI's in cell")
+    plt.ylabel("observed cells")
+    fig.suptitle("number of mutated umis per cell in known editing sites")
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "6_umi_per_cell_in_editing_sites.png"))
+
+
+def make_clusters_heatmap(pivot_table, name, min_umi_per_position, min_umi_per_cell, output_dir, chr_genes_pairs):
+    plt.clf()
+    # filter rows (positions) and columns (cells)
+    df_temp = pivot_table[
+        pivot_table.sum(axis=1) > min_umi_per_cell]  # keep cells with more than N mutated umis
+    df_temp = df_temp.loc[:,
+              df_temp.sum(axis=0) > min_umi_per_position]  # keep positions with more than N mutetaed umis
+    print("shape of df is:", df_temp.shape)
+
+    # define clusters and set color map for rows
+    clusters = df_temp.index.map(lambda x: x.split('_')[0])  # use Seurat clusters - when rows are cells
+    #     clusters = df_temp.index # use Seurat clusters - when rows are clusters
+    print("number of colors on X axis:", clusters.nunique())
+    gist_rainbow = cm.get_cmap('tab20c', clusters.nunique())
+    clsters_lut = dict(zip(clusters.unique(), gist_rainbow(np.linspace(0, 1, clusters.nunique()))))
+    cluster_colors = clusters.map(clsters_lut)
+
+    # define gene names and set color map by chromosome
+    gist_rainbow = cm.get_cmap('gist_rainbow', len(set(chr_genes_pairs.values())))
+    genes_lut = dict(
+        zip(set(chr_genes_pairs.values()), gist_rainbow(np.linspace(0, 1, len(set(chr_genes_pairs.values()))))))
+    genes = df_temp.columns
+    gene_colors = genes.map(chr_genes_pairs).map(genes_lut)  # map genes to chromosomes and chromosomes to colors
+
+    # xticklabels=True, yticklabels=True
+    # col_colors=cluster_colors,
+    # distance metrics jaccard, euclidean
+    cg = sns.clustermap(df_temp.fillna(0).T, metric='jaccard', method='complete', row_cluster=True, col_cluster=True,
+                        col_colors=cluster_colors,
+                        xticklabels=True, yticklabels=True, cmap='rocket_r', figsize=(30, 30))
+    cg.ax_row_dendrogram.set_visible(True)
+    cg.ax_col_dendrogram.set_visible(True)
+
+    # color the gene names according to chromosomoes
+    for tick, color in zip(cg.ax_heatmap.get_yticklabels(), gene_colors):
+        c = genes_lut[chr_genes_pairs[tick.get_text()]]
+        plt.setp(tick, color=c, size=18, x=1, ha='left')
+
+    # color the Seurat cluster text
+    #     for tick, color in zip(cg.ax_heatmap.get_xticklabels(), cluster_colors):
+    #         c = clsters_lut[tick.get_text()]
+    #         plt.setp(tick, color=c, y=1, va='baseline')  # 'va': top', 'bottom', 'center', 'baseline', 'center_baseline'
+
+    plt.title(name)
+    plt.savefig(os.path.join(output_dir, '6_editing_{}.png'.format(name)))
+
+
+def plot_umis_per_gene(clusters_VS_genes_umis_pt, output_dir):
+    fig, ax = plt.subplots(nrows=1, ncols=1, sharey=True, sharex=True, figsize=(6, 4))
+
+    plt.hist(clusters_VS_genes_umis_pt.sum(), bins=100)
+    plt.xlabel("number of mutated UMI's in gene")
+    plt.ylabel("observed genes")
+    fig.suptitle("number of mutated UMI's in genes in known editing sites")
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "6_umi_per_gene_in_editing_sites.png"))
+
+
+def editing_events_vs_number_of_reads(df_scatter, output_dir):
+    plt.clf()
+    s = sns.lmplot(data=df_scatter, x="is_edit", y="number of reads per cell", height=7,
+                   scatter_kws={'alpha': 0.5, 's': 14})
+    s.set(xlim=(1, None))
+
+    # add correlation
+    def annotate(data, **kws):
+        r, p = pearsonr(df_scatter['is_edit'], df_scatter['number of reads per cell'])
+        ax = plt.gca()
+        ax.text(.9, .05, 'pearson_r={:.2f}, p={:.2g}'.format(r, p), transform=ax.transAxes, ha='right')
+    s.map_dataframe(annotate)
+
+    plt.title("Editing events vs. number of reads, per cell barcode")
+    plt.xlabel('number of editing events')
+    plt.ylabel('number of reads per cell')
+    # plt.yaxis.set_tick_params(labelbottom=True)
+    # plt.legend([f"a CB. Number of CB - {len(df_scatter)}"], loc='lower right')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "6_editing_VS_reads_scatter.png"))
+
+
+def editing_events_vs_number_of_mutated_umis_per_cell(editingsites_per_cb_stats, umis_per_cb_editing, output_dir):
+    """
+    the plot needs to be made from the count of all the umis in cells. this information exist in the bam file before any filtering.
+    in addition, add the column of 0 editing sites (cell barcodes not in the editing table (with the 191 rows)).
+    we want to see if there is correlation between the number of mutated umis per cell and the number of editing sites in the same cell
+    If we will see cells which doesn't follow the correlation, will probably have more editing events than usual
+    :param editingsites_per_cb_stats:
+    :param output_dir:
+    :return:
+    """
+
+    df_scatter = pd.merge(editingsites_per_cb_stats, umis_per_cb_editing, on='cell barcode')
+    plt.clf()
+    sns.scatterplot(
+        data=df_scatter.groupby(['is_edit', 'mutated umis per cell']).size().reset_index(name='count of cells'),
+        x="is_edit", y="mutated umis per cell", hue="count of cells", size='count of cells', sizes=(30, 400),
+        legend="full", hue_norm=(0, 100))
+    plt.xlabel('number of observed editing events (positions)')
+    plt.ylabel('number of mutated UMIs per cell')
+    plt.legend(title='#cells per position', loc='upper left', ncol=2)
+
+    plt.suptitle("Editing events vs. number of mutated umis per cell barcode")
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "editing_events_VS_umi_scatter.png"))
