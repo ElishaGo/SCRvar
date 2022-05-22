@@ -121,19 +121,19 @@ def parse_arguments(arguments=None):
                         help='List of cell barcodes to use in format as in  the bam file')
 
     parser.add_argument('--annotation_gtf', type=str,
-                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/gencode.v37.annotation.gtf",
-                        help='gtf annotation file to find gene cites')
+                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/genecode_gtf/gencode.v37.annotation.gtf",
+                        help='gtf annotation file to find gene sites')
 
     parser.add_argument('--genome_ref', type=str,
                         default="/home/labs/bioservices/services/expression_references/refdata-gex-GRCh38-2020-A/fasta/genome.fa",
                         help='genome reference')
 
     parser.add_argument('--editing_DB', type=str,
-                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/edit_snp_DB/human/edit_TABLE1_hg38.txt",
+                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/REDIportal/editing_DB.bed",
                         help='Editing repetitive sites data base in bed format')
 
     parser.add_argument('--snp_vcf', type=str,
-                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/edit_snp_DB/human/snp_chr_sorted.vcf",
+                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/snp_vcf/snp_chr_sorted.vcf",
                         help='Known SNP sites data base in vcf format')
 
     return parser.parse_args(arguments)

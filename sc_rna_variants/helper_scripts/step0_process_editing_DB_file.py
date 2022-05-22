@@ -124,11 +124,13 @@ def transform_to_bed(editing_DB_df):
 
 
 def intersect_with_gtf(a_path, gtf_path, output_path):
-    subprocess.run(['bedtools', ' intersect', '-u', '-header', '-a', a_path, '-b', gtf_path, '>', output_path])
+    with open(output_path, "w") as outfile:
+        subprocess.run(['bedtools', 'intersect', '-u', '-header', '-a', a_path, '-b', gtf_path], stdout=outfile)
 
 
 def process_editing_DB(editing_DB_path, fasta_path, gtf_path):
     # TODO: check how to change the header on the fly
+    
     good_header = check_editing_DB_header(editing_DB_path)
     if not good_header:
         raise BadFileHeaderError(f"Need to add '#' to the beginning of the header in file {editing_DB_path}")
@@ -149,7 +151,7 @@ def process_editing_DB(editing_DB_path, fasta_path, gtf_path):
 
     sc_rna_variants.analysis_utils.save_df(editing_A_I, output_dir, "0_editing_A_I.bed6")
     sc_rna_variants.analysis_utils.save_df(editing_other, output_dir, "0_editing_other.bed6")
-
+    
     # intersect with gencode.gtf file
     intersect_with_gtf(a_path=editing_A_I_path, gtf_path=gtf_path,
                        output_path=os.path.join(output_dir, '0_editing_A_I.genecode_intersect.bed6'))
@@ -166,13 +168,15 @@ def snp_DB_intersections(snp_DB_path, editing_DB_path, gtf_path):
     """
     # intersect with editing_A_I file
     snp_A_output = os.path.join(snp_DB_path[:snp_DB_path.rfind(os.sep)], '0_snp_A.vcf')
-    subprocess.run(['bedtools', 'intersect', '-u', '-header', '-a', snp_DB_path, '-b',
-                    os.path.join(editing_DB_path, '0_editing_A_I.bed6'), '>', snp_A_output])
+    with open(snp_A_output, "w") as outfile:
+        subprocess.run(['bedtools', 'intersect', '-u', '-header', '-a', snp_DB_path, '-b',
+                    os.path.join(editing_DB_path[:editing_DB_path.rfind(os.sep)], '0_editing_A_I.bed6')], stdout=outfile)
 
     # instersect with gtf file
     snp_A_gtf_output = os.path.join(snp_DB_path[:snp_DB_path.rfind(os.sep)], '0_snp_A.gencode_intersect.vcf')
-    subprocess.run(
-        ['bedtools', 'intersect', '-u', '-header', '-a', snp_A_output, '-b', gtf_path, '>', snp_A_gtf_output])
+    with open(snp_A_gtf_output, "w") as outfile:
+        subprocess.run(
+        ['bedtools', 'intersect', '-u', '-header', '-a', snp_A_output, '-b', gtf_path], stdout=outfile)
 
 
 def run_step0(args):
