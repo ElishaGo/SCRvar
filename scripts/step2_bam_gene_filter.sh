@@ -35,7 +35,7 @@ rm ${OUTPUT_DIR}/2_${FNAME}.gene_filter_header.sam
 rm ${OUTPUT_DIR}/2_${FNAME}.gene_filter.sam
 
 # make intersection between editing A_I sites transcriptomes and filtered bam file
-bedtools intersect -u -header -a EDITING_GTF_INTERSECT -b 2_${FNAME}.gene_filter_header.bam > 2_${FNAME}_editing.bam_intersect.bed6
+bedtools intersect -u -header -a EDITING_GTF_INTERSECT -b 2_${FNAME}.gene_filter_header.bam > ${OUTPUT_DIR}/2_${FNAME}_editing.bam_intersect.bed6
 
 # make intersection between SNP A_I sites transcriptomes and filtered bam file
-bedtools intersect -u -header -a SNP_GTF_INTERSECT -b 2_${FNAME}.gene_filter_header.bam > 2_${FNAME}_snp.bam_intersect.vcf
+bedtools intersect -u -header -a SNP_GTF_INTERSECT -b 2_${FNAME}.gene_filter_header.bam > ${OUTPUT_DIR}/2_${FNAME}_snp.bam_intersect.vcf

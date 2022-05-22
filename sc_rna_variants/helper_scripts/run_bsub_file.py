@@ -4,11 +4,15 @@ and execute it as a bsub command
 """
 import os
 import argparse
+from pathlib import Path
+import sys
+sys.path.append(str(Path(__file__).parent.parent.parent.absolute()) + os.path.sep)  # for development environments
+
 from sc_rna_variants.utils import assert_is_directory
 
 
 def create_job_file(args):
-    f = open(os.path.join(args.working_dir, "bsub_file_SCrarevar_pipline.txt"), "w")
+    f = open(os.path.join(args.working_dir, f"bsub_file_SCrarevar_pipline_{args.fname}.txt"), "w")
 
     # open folder for log files
     os.system("mkdir {}/serverlog_files/".format(args.working_dir))
@@ -42,15 +46,13 @@ def create_job_file(args):
 
     # TODO: ask what step to put this
     f.write("# count number of read per barcode\n")
-    f.write(
-        f"samtools view {args.bam_file} | grep NH:i:1 | sed 's/.*CB:Z:\([ACGT]*\).*/\1/' | sort | uniq -c > reads_per_barcode\n\n")
+    #f.write(f"samtools view {args.bam_file} | grep NH:i:1 | sed 's/.*CB:Z:\([ACGT]*\).*/\1/' | sort | uniq -c > reads_per_barcode\n\n")
 
     # step1 - filter bam file
     step1_output_dir = 'step1_filtered_bam_files/'
     f.write("# STEP 1 - filter bam file by filter list\n")
     f.write("mkdir step1_filtered_bam_files\n")
-    f.write(
-        f"python {os.getcwd}/scripts/step1_filter_bam.py {args.bam_file} {step1_output_dir} --filtered-barcodes-list {args.filter_list_bam} --threads {args.n}\n\n")
+    f.write(f"python {os.getcwd()}/scripts/step1_filter_bam.py {args.bam_file} {step1_output_dir} --filtered-barcodes-list {args.filter_list_bam} --threads {args.n}\n\n")
 
     # get path to filtered bam file
     filtered_bam_path = str(
@@ -60,36 +62,31 @@ def create_job_file(args):
     step2_output_dir = 'step2_bam_gene_filter/'
     f.write("# STEP 2 - bam genes filter\n")
     f.write(f"mkdir {step2_output_dir}\n")
-    f.write(
-        f"sh {os.getcwd}/scripts/step2_bam_gene_filter.sh {filtered_bam_path} {step2_output_dir} {args.annotation_gtf} {args.fname} {args.n}\n\n")
+    f.write(f"sh {os.getcwd()}/scripts/step2_bam_gene_filter.sh {filtered_bam_path} {step2_output_dir} {args.annotation_gtf} {args.fname} {args.n}\n\n")
 
     # step 3 - create mismatch dictionary
     step3_output_dir = 'step3_mismatch_dictionary/'
     f.write("# STEP 3 - create mismatch dictionary\n")
     f.write(f"mkdir {step3_output_dir}\n")
-    f.write(
-        f"python {os.getcwd}/scripts/step3_mismatch_dictionary.py {step2_output_dir}/2_{args.fname}.gene_filter_header.bam {args.genome_ref} {step3_output_dir} --threads {args.n}\n\n")
+    f.write(f"python {os.getcwd()}/scripts/step3_mismatch_dictionary.py {step2_output_dir}/2_{args.fname}.gene_filter_header.bam {args.genome_ref} {step3_output_dir} --threads {args.n}\n\n")
 
     # step 4 - Aggregation per position + statistics
     step4_output_dir = 'step4_aggregation_per_position_and_statistics/'
     f.write('# STEP 4 - aggregation per position + statistics\n')
     f.write(f"mkdir {step4_output_dir}\n")
-    f.write(
-        f"python {os.getcwd}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} --sname {args.fname} --threads {args.n}\n\n")
+    f.write(f"python {os.getcwd()}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} --sname {args.fname} --threads {args.n}\n\n")
 
     # step 5 - filtering positions and SNP/editing DB intersections
     step5_output_dir = 'step5_filtering_positions_and_SNP_editing_DB_intersections/'
     f.write('# STEP 5 - filtering positions and SNP/editing DB intersections\n')
     f.write(f"mkdir {step5_output_dir}\n")
-    f.write(
-        f'python {os.getcwd}/scripts/step5_filtering_positions_and_snp_editing_DB_intersections.py {step4_output_dir} {step5_output_dir} {args.editing_DB} {args.snp_vcf} --sname {args.fname}\n\n')
+    f.write(f'python {os.getcwd()}/scripts/step5_filtering_positions_and_snp_editing_DB_intersections.py {step4_output_dir} {step5_output_dir} {args.editing_DB} {args.snp_vcf} --sname {args.fname}\n\n')
 
     # step 5 - filtering positions and SNP/editing DB intersections
     step6_output_dir = 'step6_gene_level/'
     f.write('# STEP 6 - gene level\n')
     f.write(f"mkdir {step6_output_dir}\n")
-    f.write(
-        f"python {os.getcwd}/scripts/step6_gene_level.py {step4_output_dir} {step6_output_dir} {os.path.join(step3_output_dir, '3_mismatch_dictionary.bed6')} {args.barcode_clusters} {'reads_per_barcode'} {args.annotation_gtf} --sname {args.fname}\n\n")
+    f.write(f"python {os.getcwd()}/scripts/step6_gene_level.py {step4_output_dir} {step6_output_dir} {os.path.join(step3_output_dir, '3_mismatch_dictionary.bed6')} {args.barcode_clusters} {'reads_per_barcode'} {args.annotation_gtf} --sname {args.fname}\n\n")
 
     f.close()
 
@@ -138,10 +135,6 @@ def parse_arguments(arguments=None):
     parser.add_argument('--snp_vcf', type=str,
                         default="/home/labs/bioservices/shared/rarevar/data/DataBases/edit_snp_DB/human/snp_chr_sorted.vcf",
                         help='Known SNP sites data base in vcf format')
-
-    parser.add_argument('--snp_clf_weights', type=str,
-                        default="/home/labs/bioservices/shared/rarevar/data/trained_models/snp_classifier.joblib",
-                        help='SNP classifier pretrained weights')
 
     return parser.parse_args(arguments)
 

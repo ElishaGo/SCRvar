@@ -317,7 +317,7 @@ def create_filtered_bam(input_bam, filtered_barcodes_list, min_mapq, cigar_clipp
     pysam.merge("-f", "-h", str(temp_header_file), filtered_bam_path, *temporary_bams_paths, '--threads', str(threads))
 
     # create index for the filtered file
-    subprocess.run(["samtools", "index", "--threads", str(threads), filtered_bam_path], check=True)
+    subprocess.run(["samtools", "index", "-@", str(threads), filtered_bam_path], check=True)
 
     logger.info("finished merging filtered bams into the final, united, filtered bam file. starting cleanup")
 

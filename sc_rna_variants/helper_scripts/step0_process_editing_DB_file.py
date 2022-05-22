@@ -13,6 +13,10 @@ import subprocess
 from datetime import datetime
 import pandas as pd
 import numpy as np
+from pathlib import Path
+import sys
+sys.path.append(str(Path(__file__).parent.parent.parent.absolute()) + os.path.sep)
+
 import sc_rna_variants.analysis_utils
 import sc_rna_variants.utils
 
@@ -127,7 +131,7 @@ def process_editing_DB(editing_DB_path, fasta_path, gtf_path):
     # TODO: check how to change the header on the fly
     good_header = check_editing_DB_header(editing_DB_path)
     if not good_header:
-        raise BadFileHeaderError("Need to add '#' to the beginning of the header")
+        raise BadFileHeaderError(f"Need to add '#' to the beginning of the header in file {editing_DB_path}")
 
     editing_DB_df = sc_rna_variants.analysis_utils.load_df(editing_DB_path)
 
