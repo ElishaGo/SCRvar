@@ -3,14 +3,14 @@
 # A script to run step 2 in the pipeline:
 # prepare and run a bam file with htseq-count, in order to filter out reads that are not on genes.
 
-FILTERED_BAM_PATH=$1
-OUTPUT_DIR=$2
-ANNOTATION_GTF=$3
-FNAME=$4
-N=$5
-INPUT_DIR=step1_filtered_bam_files
-EDITING_GTF_INTERSECT=$6
-SNP_GTF_INTERSECT=$7
+INPUT_DIR=$1
+FILTERED_BAM_PATH=$2
+OUTPUT_DIR=$3
+ANNOTATION_GTF=$4
+EDITING_GTF_INTERSECT=$5
+SNP_GTF_INTERSECT=$6
+FNAME=$7
+N=$8
 
 # add chr to chromosome names in bam files (step1)
 samtools view -H ${FILTERED_BAM_PATH} | sed  -e '/SN:chr/!s/SN:\([0-9XY]*\)/SN:chr&/' -e '/SN:chrM/!s/SN:MT/SN:chrM&/' | samtools reheader - ${FILTERED_BAM_PATH} > ${INPUT_DIR}/1_${FNAME}_CBfiltered_chr.bam;samtools index ${INPUT_DIR}/1_${FNAME}_CBfiltered_chr.bam

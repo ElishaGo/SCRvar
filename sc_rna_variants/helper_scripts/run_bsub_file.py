@@ -60,9 +60,11 @@ def create_job_file(args):
 
     # step 2 - keep only reads from genes with htseq
     step2_output_dir = 'step2_bam_gene_filter/'
+    editing_gtf_intersect = '/home/labs/bioservices/shared/rarevar/data/DataBases/REDIportal/0_editing_A_I.genecode_intersect.bed6'
+    snp_gtf_intersect = '/home/labs/bioservices/shared/rarevar/data/DataBases/snp_vcf/0_snp_A.gencode_intersect.vcf'
     f.write("# STEP 2 - bam genes filter\n")
     f.write(f"mkdir {step2_output_dir}\n")
-    f.write(f"sh {os.getcwd()}/scripts/step2_bam_gene_filter.sh {filtered_bam_path} {step2_output_dir} {args.annotation_gtf} {args.fname} {args.n}\n\n")
+    f.write(f"sh {os.getcwd()}/scripts/step2_bam_gene_filter.sh {step1_output_dir} {filtered_bam_path} {step2_output_dir} {args.annotation_gtf} {editing_gtf_intersect} {snp_gtf_intersect} {args.fname} {args.n}\n\n")
 
     # step 3 - create mismatch dictionary
     step3_output_dir = 'step3_mismatch_dictionary/'
@@ -74,7 +76,7 @@ def create_job_file(args):
     step4_output_dir = 'step4_aggregation_per_position_and_statistics/'
     f.write('# STEP 4 - aggregation per position + statistics\n')
     f.write(f"mkdir {step4_output_dir}\n")
-    f.write(f"python {os.getcwd()}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} --sname {args.fname} --threads {args.n}\n\n")
+    f.write(f"python {os.getcwd()}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} {args.snp_vcf} {args.editing_DB} --sname {args.fname} --threads {args.n}\n\n")
 
     # step 5 - filtering positions and SNP/editing DB intersections
     step5_output_dir = 'step5_filtering_positions_and_SNP_editing_DB_intersections/'
@@ -82,7 +84,7 @@ def create_job_file(args):
     f.write(f"mkdir {step5_output_dir}\n")
     f.write(f'python {os.getcwd()}/scripts/step5_filtering_positions_and_snp_editing_DB_intersections.py {step4_output_dir} {step5_output_dir} {args.editing_DB} {args.snp_vcf} --sname {args.fname}\n\n')
 
-    # step 5 - filtering positions and SNP/editing DB intersections
+    # step 6 - gene level analysis
     step6_output_dir = 'step6_gene_level/'
     f.write('# STEP 6 - gene level\n')
     f.write(f"mkdir {step6_output_dir}\n")
@@ -104,7 +106,6 @@ def parse_arguments(arguments=None):
     parser.add_argument('barcode_clusters', type=str,
                         help='table with barcodes and associated clusters analysed by Seurat')
 
-    parser.add_argument('fname', type=str, help='File name. Will be used in inputs and outputs')
 
     # optional arguments
     parser.add_argument('--q', type=str, default='bio', help='''queue to run on WEXAC''')
@@ -135,6 +136,9 @@ def parse_arguments(arguments=None):
     parser.add_argument('--snp_vcf', type=str,
                         default="/home/labs/bioservices/shared/rarevar/data/DataBases/snp_vcf/snp_chr_sorted.vcf",
                         help='Known SNP sites data base in vcf format')
+
+    parser.add_argument('--fname', type=str, default='', help='File name. Will be used in inputs and outputs')
+
 
     return parser.parse_args(arguments)
 
