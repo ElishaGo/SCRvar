@@ -20,7 +20,7 @@ logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
 
 def reorder_and_sort_agg_df(df):
     # reorder columns
-    cols = ["chrom", "chromStart", "chromEnd", 'position', 'percent of non ref from all cells', 'strand',
+    cols = ["#chrom", "chromStart", "chromEnd", 'position', 'percent of non ref from all cells', 'strand',
             'count of unmutated cell barcodes', 'count of mutated cell barcodes',
             'percent of non ref only from mutated cells', 'reference base',
             'same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
@@ -157,7 +157,7 @@ def aggregate_df(df):
 
 
 def find_intersections_with_SNP_and_edit_DB(output_dir, snp_db_path, editing_db_path):
-    agg_df_path = os.path.join(output_dir, '4_aggregation_per_position.tsv')
+    agg_df_path = os.path.join(output_dir, '4_aggregated_per_position.tsv')
     snp_temp_path = os.path.join(output_dir, '4_snp_intersect.tsv')
     df_intersection = os.path.join(output_dir, '4_aggregated_per_position_intersect.tsv')
 
@@ -211,7 +211,7 @@ def run_step4(args):
     logger.info("reorder and save file")
     df_merged_agg = reorder_and_sort_agg_df(df_merged_agg)
     sc_rna_variants.analysis_utils.save_df(df_merged_agg, args.output_dir,
-                                           "4_aggregation_per_position.tsv")
+                                           "4_aggregated_per_position.tsv")
 
     # find intersection between df and databases
     find_intersections_with_SNP_and_edit_DB(args.output_dir, args.snp_db_path, args.editing_db_path)

@@ -45,8 +45,8 @@ def create_job_file(args):
             "SAMtools;module load bamtools;module load bedtools\n\n")
 
     # TODO: ask what step to put this
-    f.write("# count number of read per barcode\n")
-    #f.write(f"samtools view {args.bam_file} | grep NH:i:1 | sed 's/.*CB:Z:\([ACGT]*\).*/\1/' | sort | uniq -c > reads_per_barcode\n\n")
+    f.write("# count number of reads per barcode\n")
+    f.write(f"samtools view {args.bam_file} | grep NH:i:1 | sed 's/.*CB:Z:\([ACGT]*\).*/\1/' | sort | uniq -c > reads_per_barcode\n\n")
 
     # step1 - filter bam file
     step1_output_dir = 'step1_filtered_bam_files/'

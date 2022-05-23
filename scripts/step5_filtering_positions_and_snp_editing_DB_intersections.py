@@ -297,14 +297,8 @@ def run_snp_edit_DB_intersections(input_dir, output_dir, snp_db_path, editing_db
 def run_step5(args):
     df_merged_agg = sc_rna_variants.analysis_utils.load_df(os.path.join(args.input_dir, "4_aggregated_per_position.tsv"))
     # TODO: instead of loading mut_open and unmutated and merge them, look into the plots function and see how we can avoid this
-    df_mut_open = sc_rna_variants.analysis_utils.load_tables(
-        "/home/eligol/Documents/01_WIS/scrarevar/data/test/step3_mismatch_dictionary/3_mismatch_dictionary.bed6",
-        mutated=True)
-    df_unmutated = sc_rna_variants.analysis_utils.load_tables(
-        "/home/eligol/Documents/01_WIS/scrarevar/data/test/step3_mismatch_dictionary/3_no_mismatch_dictionary.bed6",
-        mutated=False)
-    # df_mut_open = sc_rna_variants.analysis_utils.load_tables("/home/eligol/Documents/01_WIS/scrarevar/data/outputs/scrarevar_outputs/human_RSS540_RSS451_merged/3_mismatch_dictionary.bed6", mutated=True)
-    # df_unmutated = sc_rna_variants.analysis_utils.load_tables("/home/eligol/Documents/01_WIS/scrarevar/data/outputs/scrarevar_outputs/human_RSS540_RSS451_merged/3_no_mismatch_dictionary.bed6", mutated=False)
+    df_mut_open = sc_rna_variants.analysis_utils.load_tables(os.path.join(os.path.dirname(args.output_dir), 'step3_mismatch_dictionary', '3_mismatch_dictionary.bed6'), mutated=True)
+    df_unmutated = sc_rna_variants.analysis_utils.load_tables(os.path.join(os.path.dirname(args.output_dir), 'step3_mismatch_dictionary', '3_no_mismatch_dictionary.bed6'), mutated=False)
     df_merged_open = sc_rna_variants.analysis_utils.merge_dfs(df_mut_open, df_unmutated)
 
     # get filtered data for both aggregated and open aggregated df
