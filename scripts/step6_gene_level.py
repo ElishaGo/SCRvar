@@ -154,7 +154,7 @@ def get_and_process_edit_df(df, output_dir, gtf_path):
     sc_rna_variants.analysis_utils.save_df(df_edit, output_dir, '6_editing_sites_df.tsv')
 
     # add gene names
-    editing_intersect_gtf_path = os.path.join(output_dir, "editing_sites_intersect_v37.txt")
+    editing_intersect_gtf_path = os.path.join(output_dir, "6_editing_sites.genecode_intersect.txt")
     df_edit_path = os.path.join(output_dir, '6_editing_sites_df.tsv')
     create_editing_sites_gtf_intersections(editing_df_path=df_edit_path, path_to_gtf=gtf_path,
                                            out_fpath=editing_intersect_gtf_path)
@@ -181,8 +181,9 @@ def load_and_process_mismatch_table(df_edit, mismatches_path, barcodes_clusters_
         # add clusters to cells in open table
         return df_open.merge(cb_clusters.loc[:, ['cell barcode', 'cluster', 'cluster cell barcode']], on='cell barcode',
                              how='left')
+    if barcodes_clusters_path:
+        df_mismatches = add_clusters(df_mismatches, barcodes_clusters_path)
 
-    df_mismatches = add_clusters(df_mismatches, barcodes_clusters_path)
     return df_mismatches
 
 
@@ -373,7 +374,9 @@ def run_step6(args):
 
     exploratory_data_analysis(df, df_edit, df_open_edit, df_mismatches, reads_per_barcode_path, args.output_dir,
                               args.sname)
-    clustering_anlysis(df_open_edit, args.output_dir, args.sname)
+
+    if args.barcode_clusters:
+        clustering_anlysis(df_open_edit, args.output_dir, args.sname)
 
 
 ##################################################################################################################
@@ -385,13 +388,13 @@ def parse_arguments(arguments=None):
     parser.add_argument('output_dir', type=sc_rna_variants.utils.assert_is_directory, help='folder for outputs')
     parser.add_argument('mismatch_dict_bed', type=sc_rna_variants.utils.assert_is_file,
                         help='path to 3_mismatch_dictionary.bed6')
-    parser.add_argument('barcode_clusters', type=sc_rna_variants.utils.assert_is_file,
-                        help='table with barcodes and associated clusters analysed by Seurat')
     parser.add_argument('read_per_barcode_raw_bam', type=sc_rna_variants.utils.assert_is_file,
                         help='count of reads per cell barcode in raw bam file')
     parser.add_argument('gtf_path', type=sc_rna_variants.utils.assert_is_file, help='path to gtf file')
 
     # optional arguments
+    parser.add_argument('--barcode_clusters', type=sc_rna_variants.utils.assert_is_file,
+                        help='table with barcodes and associated clusters analysed by Seurat')
     parser.add_argument('--min_cb_per_pos', default=5, type=int,
                         help='position with less cell barcodes will be filtered')
     parser.add_argument('--min_mutation_umis', default=10, type=int,
