@@ -73,7 +73,7 @@ def write_pipelines_scripts_execution_commands(f, args):
     f.write("# STEP 3 - create mismatch dictionary\n")
     f.write(f"mkdir {step3_output_dir}\n")
     f.write(
-        f"python {os.getcwd()}/scripts/step3_mismatch_dictionary.py {step2_output_dir}/2_{args.sname}.gene_filter_header.bam {args.genome_ref} {step3_output_dir} --threads {args.n}\n\n")
+        f"python {os.getcwd()}/scripts/step3_mismatch_dictionary.py {step2_output_dir}/2_{args.sname}.gene_filter.bam {args.genome_ref} {step3_output_dir} --threads {args.n}\n\n")
 
     # step 4 - Aggregation per position + statistics
     step4_output_dir = 'step4_aggregation_per_position_and_statistics'

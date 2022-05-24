@@ -18,24 +18,27 @@ LOGFILE=${OUTPUT_DIR}/step2.log
     htseq-count -f bam -i gene_name -t gene -m union -s yes -o ${OUTPUT_DIR}/2.${FNAME}.gene_filter.sam ${FILTERED_BAM_PATH} ${ANNOTATION_GTF} 3>&1 > ${OUTPUT_DIR}/2.${FNAME}_stranded_counts.txt
 
     # add header to the sam file
-    samtools view -H ${FILTERED_BAM_PATH} | cat - ${OUTPUT_DIR}/2.${FNAME}.gene_filter.sam > ${OUTPUT_DIR}/2.${FNAME}.gene_filter_header.sam
+    samtools view -H ${FILTERED_BAM_PATH} | cat - ${OUTPUT_DIR}/2.${FNAME}.gene_filter.sam > ${OUTPUT_DIR}/temp_2.${FNAME}.gene_filter.sam
+    
+    rm ${OUTPUT_DIR}/2.${FNAME}.gene_filter.sam
+    mv ${OUTPUT_DIR}/temp_2.${FNAME}.gene_filter.sam ${OUTPUT_DIR}/2.${FNAME}.gene_filter.sam
 
     # get statistics on file
-    samtools flagstat -@ ${N} ${OUTPUT_DIR}/2.${FNAME}.gene_filter_header.sam > ${OUTPUT_DIR}/2.flagstat_htseq.tsv
+    samtools flagstat -@ ${N} ${OUTPUT_DIR}/2.${FNAME}.gene_filter.sam > ${OUTPUT_DIR}/2.flagstat_htseq.tsv
 
     # keep only gene sites
-    grep -v "__" ${OUTPUT_DIR}/2.${FNAME}.gene_filter_header.sam | samtools view -@ ${N} -Sb - > ${OUTPUT_DIR}/2.${FNAME}.gene_filter_header.bam;samtools sort -@ ${N} ${OUTPUT_DIR}/2.${FNAME}.gene_filter_header.bam -o ${OUTPUT_DIR}/2.${FNAME}.gene_filter_header.bam;samtools index ${OUTPUT_DIR}/2.${FNAME}.gene_filter_header.bam
+    grep -v "__" ${OUTPUT_DIR}/2.${FNAME}.gene_filter.sam | samtools view -@ ${N} -Sb - > ${OUTPUT_DIR}/2.${FNAME}.gene_filter.bam;samtools sort -@ ${N} ${OUTPUT_DIR}/2.${FNAME}.gene_filter.bam -o ${OUTPUT_DIR}/2.${FNAME}.gene_filter.bam;samtools index ${OUTPUT_DIR}/2.${FNAME}.gene_filter.bam
 
 
     # remove sam files
-    rm ${OUTPUT_DIR}/2.${FNAME}.gene_filter_header.sam
+    rm ${OUTPUT_DIR}/2.${FNAME}.gene_filter.sam
     rm ${OUTPUT_DIR}/2.${FNAME}.gene_filter.sam
 
     # make intersection between editing A_I sites transcriptomes and filtered bam file
-    bedtools intersect -u -header -a ${EDITING_GTF_INTERSECT} -b ${OUTPUT_DIR}/2.${FNAME}.gene_filter_header.bam > ${OUTPUT_DIR}/2.${FNAME}_editing.bam_intersect.bed
+    bedtools intersect -u -header -a ${EDITING_GTF_INTERSECT} -b ${OUTPUT_DIR}/2.${FNAME}.gene_filter.bam > ${OUTPUT_DIR}/2.${FNAME}_editing.bam_intersect.bed
 
     # make intersection between SNP A_I sites transcriptomes and filtered bam file
-    bedtools intersect -u -header -a ${SNP_GTF_INTERSECT} -b ${OUTPUT_DIR}/2.${FNAME}.gene_filter_header.bam > ${OUTPUT_DIR}/2.${FNAME}_snp.bam_intersect.vcf
+    bedtools intersect -u -header -a ${SNP_GTF_INTERSECT} -b ${OUTPUT_DIR}/2.${FNAME}.gene_filter.bam > ${OUTPUT_DIR}/2.${FNAME}_snp.bam_intersect.vcf
 
     echo end_of_log_file 1>&2 # test stderr
 
