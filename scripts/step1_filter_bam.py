@@ -3,6 +3,7 @@ import logging
 
 import sys, os  # for development environments
 from pathlib import Path
+import subprocess
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # for development environments
 
@@ -61,7 +62,7 @@ where each row represents the modifications a certain cell has in a certain posi
                         help='number of available threads',
                         type=int, default=1)
     # To Do change the path to be the same as output folder
-    parser.add_argument('--log-file', default=os.path.join(os.getcwd(), 'step1_filtered_bam_files', '1_filter_bam.log'),
+    parser.add_argument('--log-file', default=os.path.join(sys.argv[2], '1.filter_bam.log'),
                         help='a log file for tracking the program\'s progress')
 
     return parser.parse_args(arguments)
@@ -79,8 +80,15 @@ if __name__ == '__main__':
                  )
 
     # create the filtered bam from which the variants will be counted
-    sc_rna_variants.bio_functions.create_filtered_bam(args.input_bam, args.filtered_barcodes_list,
+    filtered_bam_path = sc_rna_variants.bio_functions.create_filtered_bam(args.input_bam, args.filtered_barcodes_list,
                                                       args.min_mapq, args.cigar_clipping_allowed,
                                                       args.max_gene_length, args.max_no_basecall,
                                                       args.tag_for_umi, args.tag_for_cell_barcode,
                                                       args.output_folder, args.threads)
+
+    # add chr to chromosome names in bam files
+    subprocess.run([f"samtools view -H {filtered_bam_path} | sed -e '/SN:chr/!s/SN:\([0-9XY]*\)/SN:chr&/' -e '/SN:chrM/!s/SN:MT/SN:chrM&/' | samtools reheader - {filtered_bam_path} > {filtered_bam_path}_temp"],
+                   shell=True)
+    os.remove(filtered_bam_path)
+    os.rename(f"{filtered_bam_path}_temp", filtered_bam_path)
+    subprocess.run(['samtools', 'index', filtered_bam_path])
