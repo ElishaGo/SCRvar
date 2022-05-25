@@ -82,7 +82,7 @@ def create_job_file(args):
     step5_output_dir = 'step5_filtering_positions_and_SNP_editing_DB_intersections'
     f.write('# STEP 5 - filtering positions and SNP/editing DB intersections\n')
     f.write(f"mkdir {step5_output_dir}\n")
-    f.write(f'python {os.getcwd()}/scripts/step5_filtering_positions_and_snp_editing_DB_intersections.py {step4_output_dir} {step5_output_dir} {args.editing_DB} {args.snp_vcf} --sname {args.fname}\n\n')
+    f.write(f'python {os.getcwd()}/scripts/step5_filtering_positions_and_snp_editing_DB_intersections.py {step4_output_dir} {step5_output_dir} {args.snp_vcf} {args.editing_DB} --sname {args.fname}\n\n')
 
     # step 6 - gene level analysis
     step6_output_dir = 'step6_gene_level'
