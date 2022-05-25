@@ -20,7 +20,7 @@ def write_bsub_execution_parameters(f, args):
     f.write("#BSUB -eo serverlog_files/{}_%J.err\n".format(args.J))
     f.write('#BSUB -R "rusage[mem={}] span[hosts={}]"\n'.format(args.rusage, args.hosts))
     f.write("#BSUB -n {}\n".format(args.n))
-    f.write("#BSUB -cwd {}\n".format(args.working_dir))
+    f.write("#BSUB -cwd {}\n".format(args.sample_output_dir))
 
 
 def write_params(f, args):
@@ -46,7 +46,7 @@ def write_meta_commands(f, args):
 def write_pipelines_scripts_execution_commands(f, args):
     # TODO: ask what step to put this
     f.write("# count number of reads per barcode\n")
-    f.write(f"{os.getcwd()}/sc_rna_variants/count_reads_per_barcode_in_bam.sh {args.bam_file} {args.working_dir} {args.sname}")
+    f.write(f"{os.getcwd()}/sc_rna_variants/count_reads_per_barcode_in_bam.sh {args.bam_file} {args.sample_output_dir} {args.sname}")
 
     # step1 - filter bam file
     step1_output_dir = 'step1_filtered_bam_files'
@@ -57,7 +57,7 @@ def write_pipelines_scripts_execution_commands(f, args):
 
     # get path to filtered bam file
     filtered_bam_path = str(
-        os.path.join(args.working_dir, step1_output_dir, "1_" + os.path.basename(args.bam_file) + "_filtered.bam"))
+        os.path.join(args.sample_output_dir, step1_output_dir, "1_" + os.path.basename(args.bam_file) + "_filtered.bam"))
 
     # step 2 - keep only reads from genes with htseq
     step2_output_dir = 'step2_bam_gene_filter'
@@ -94,15 +94,15 @@ def write_pipelines_scripts_execution_commands(f, args):
     f.write('# STEP 6 - gene level\n')
     f.write(f"mkdir {step6_output_dir}\n")
     f.write(
-        f"python {os.getcwd()}/scripts/step6_gene_level.py {step4_output_dir} {step6_output_dir} {os.path.join(step3_output_dir, '3_mismatch_dictionary.bed')} {'reads_per_barcode'} {args.annotation_gtf} --barcode_clusters {args.barcode_clusters} --sname {args.sname}\n\n")
+        f"python {os.getcwd()}/scripts/step6_gene_level.py {step4_output_dir} {step6_output_dir} {os.path.join(step3_output_dir, '3_mismatch_dictionary.bed')} {os.path.join(args.sample_output_dir, f'raw_bam_reads_per_barcode_count.{args.sname}.csv')} {args.annotation_gtf} --barcode_clusters {args.barcode_clusters} --sname {args.sname}\n\n")
 
 
 def create_job_file(args):
     # open folder for log files
-    os.system("mkdir {}/serverlog_files".format(args.working_dir))
+    os.system("mkdir {}/serverlog_files".format(args.sample_output_dir))
 
     # write command and pipeline to bsub file
-    f = open(os.path.join(args.working_dir, f"bsub_file_SCrarevar_pipline_{args.sname}.txt"), "w")
+    f = open(os.path.join(args.sample_output_dir, f"bsub_file_SCrarevar_pipline_{args.sname}.txt"), "w")
     write_meta_commands(f, args)
     write_pipelines_scripts_execution_commands(f, args)
     f.close()
@@ -114,7 +114,7 @@ def parse_arguments(arguments=None):
     parser = argparse.ArgumentParser(description="""A script to set parameter to a bsub file and send to bsub""", )
 
     # positional arguments
-    parser.add_argument('working_dir', type=assert_is_directory, help='the directory to run file and get outputs')
+    parser.add_argument('sample_output_dir', type=assert_is_directory, help='the directory to run file and get outputs')
 
     parser.add_argument('bam_file', help='Input bam file')
 
@@ -140,8 +140,8 @@ def parse_arguments(arguments=None):
                         help='genome reference')
 
     parser.add_argument('--editing_DB',
-                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/REDIportal/editing_DB.bed",
-                        help='Editing repetitive sites data base in bed format')
+                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/REDIportal/0.editing_A_I.bed",
+                        help='Editing sites data base in bed format')
 
     parser.add_argument('--snp_vcf',
                         default="/home/labs/bioservices/shared/rarevar/data/DataBases/snp_vcf/snp_chr_sorted.vcf",
@@ -157,4 +157,4 @@ def parse_arguments(arguments=None):
 if __name__ == '__main__':
     args = parse_arguments()
     create_job_file(args)
-    os.system(f"bsub < {args.working_dir}/bsub_file_SCrarevar_pipline_{args.sname}.txt")
+    os.system(f"bsub < {args.sample_output_dir}/bsub_file_SCrarevar_pipline_{args.sname}.txt")
