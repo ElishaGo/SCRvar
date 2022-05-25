@@ -607,8 +607,8 @@ def variants_finder(filtered_bam, genome_fasta, tag_for_umi, tag_for_cell_barcod
     logger.debug("finished creating temporary tsv files for different segments of the genome, starting to merge them")
 
     # create the combined, filtered bam file
-    output_tsv = pathlib.Path(output_folder) / '3_mismatch_dictionary.bed6'
-    output_unmutated_tsv = pathlib.Path(output_folder) / '3_no_mismatch_dictionary.bed6'
+    output_tsv = pathlib.Path(output_folder) / '3_mismatch_dictionary.bed'
+    output_unmutated_tsv = pathlib.Path(output_folder) / '3_no_mismatch_dictionary.bed'
 
     header_line = '\t'.join([
         "#chrom", "chromStart", "chromEnd", "cell barcode",

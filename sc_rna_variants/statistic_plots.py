@@ -30,7 +30,7 @@ def plot_cb_occurences_hist(df_orig, df_filtered, out_folder, sname):
         prior_post = df_tuple[1]
         cb_counts = df['cell barcode'].value_counts()
         make_plot(axs[i], cb_counts, prior_post)
-    plt.savefig(os.path.join(out_folder, "5_cb_distribution.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, "5.cb_distribution.png"), bbox_inches='tight')
 
 
 def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder, sname):
@@ -51,7 +51,7 @@ def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder, sname
     fig.text(0, 0.65, 'Before filtering', ha='center', rotation='vertical', style='italic')
     fig.text(0, 0.25, 'After filtering', ha='center', rotation='vertical', style='italic')
     plt.suptitle(f"UMI per reference base - {sname}")
-    plt.savefig(os.path.join(out_folder, "5_umi_per_reference_base.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, "5.umi_per_reference_base.png"), bbox_inches='tight')
 
     ### plot with unmutated data
     fig, axs = plt.subplots(2, 4, figsize=(15, 8), sharex=True)
@@ -74,7 +74,7 @@ def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder, sname
     fig.text(0, 0.65, 'Before filtering', ha='center', rotation='vertical', style='italic')
     fig.text(0, 0.25, 'After filtering', ha='center', rotation='vertical', style='italic')
     plt.suptitle(f"UMI per reference base with unmutated - {sname}")
-    plt.savefig(os.path.join(out_folder, "5_umi_per_reference_base_with_unmutated.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, "5.umi_per_reference_base_with_unmutated.png"), bbox_inches='tight')
 
 
 def get_min_max(count_matrices):
@@ -112,7 +112,7 @@ def make_mut_counts_heatmap(count_matrices, out_folder, sname):
         axs[i].set_xlabel("mutation")
     plt.suptitle(f"Counts of mutations per base - {sname}")
     plt.tight_layout()
-    plt.savefig(os.path.join(out_folder, "5_heatmap_mutation_perbase.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, "5.heatmap_mutation_perbase.png"), bbox_inches='tight')
 
 
 def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sname):
@@ -184,7 +184,7 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
     s.set_xticklabels([l.get_text() + '\n' + m for l, m in zip(s.get_xticklabels(), mut_names)])
     plt.xticks(rotation=30, ha='right')
     plt.title("ratio of mutation out of non mutated UMIs (same column)")
-    plt.savefig(os.path.join(out_folder, "5_relative_mutations_barplot.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, "5.relative_mutations_barplot.png"), bbox_inches='tight')
 
 
 def plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, out_folder, sname):
@@ -208,7 +208,7 @@ def plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, out_folder, sna
         num_of_bins = 30
         cb_counts = df['count of mutated cell barcodes']  # count of CB in each position
         make_plot(axs[i], cb_counts, df_name, num_of_bins)
-    plt.savefig(os.path.join(out_folder, "5_cb_count_not_unique_per_position.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, "5.cb_count_not_unique_per_position.png"), bbox_inches='tight')
 
 
 def plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, out_folder, sname):
@@ -234,7 +234,7 @@ def plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, out_folder
         df, df_name = df_tuple[0], df_tuple[1]
         cb_counts = df['count of mutated cell barcodes']
         make_plot(axs[i], cb_counts, df_name)
-    plt.savefig(os.path.join(out_folder, "5_cb_count_per_position.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, "5.cb_count_per_position.png"), bbox_inches='tight')
 
     # plot with unmutated data
     fig, axs = plt.subplots(2, 1, sharex=True, figsize=(10, 12))
@@ -244,7 +244,7 @@ def plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, out_folder
         unmutated_cb_counts = df['count of unmutated cell barcodes']  # unmutated counts
         cb_counts = cb_counts.combine(unmutated_cb_counts, np.add, fill_value=0)  # sum mutated and unmutated counts
         make_plot(axs[i], cb_counts, df_name)
-    plt.savefig(os.path.join(out_folder, "5_cb_count_per_position_with_unmutated.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, "5.cb_count_per_position_with_unmutated.png"), bbox_inches='tight')
 
 
 def non_ref_from_all_cells(df, output_dir):
@@ -253,7 +253,7 @@ def non_ref_from_all_cells(df, output_dir):
     plt.title('percent of non ref from all cells')
     plt.xlabel("percent of mutated UMIs in a position")
     plt.ylabel("number of observed positions")
-    plt.savefig(os.path.join(output_dir, "6_mut_UMI_in_positions.png"))
+    plt.savefig(os.path.join(output_dir, "6.mut_UMI_in_positions.png"))
 
 
 def snp_observed_against_mut_UMI_in_position(df, output_dir, sname):
@@ -265,7 +265,7 @@ def snp_observed_against_mut_UMI_in_position(df, output_dir, sname):
     plt.legend(['SNP position', 'No SNP position'])
     plt.xlabel("percent of mutated UMIs in a position")
     plt.ylabel("number of observed positions")
-    plt.savefig(os.path.join(output_dir, "6_snp_observed_against_mut_UMI_in_position.png"))
+    plt.savefig(os.path.join(output_dir, "6.snp_observed_against_mut_UMI_in_position.png"))
 
 
 def editing_sites_per_chr(df_edit, output_dir, sname):
@@ -284,7 +284,7 @@ def editing_sites_per_chr(df_edit, output_dir, sname):
     plt.title("editing DB")
     plt.ylabel("chromosome")
     plt.xlabel("Number of editing sites")
-    plt.savefig(os.path.join(output_dir, "6_editing_sites_per_chr.png"))
+    plt.savefig(os.path.join(output_dir, "6.editing_sites_per_chr.png"))
 
 
 def editing_sites_per_cell(df_open_edit, output_dir, sname):
@@ -300,7 +300,7 @@ def editing_sites_per_cell(df_open_edit, output_dir, sname):
     plt.ylabel("number of cells")
     plt.xlabel("number of editing sites")
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "6_editing_sites_per_cell.png"))
+    plt.savefig(os.path.join(output_dir, "6.editing_sites_per_cell.png"))
 
 
 def mutated_umis_per_cell(umis_per_cb_editing, output_dir, sname):
@@ -311,7 +311,7 @@ def mutated_umis_per_cell(umis_per_cb_editing, output_dir, sname):
     plt.ylabel("observed cells")
     fig.suptitle("number of mutated umis per cell in known editing sites")
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "6_umi_per_cell_in_editing_sites.png"))
+    plt.savefig(os.path.join(output_dir, "6.umi_per_cell_in_editing_sites.png"))
 
 
 def make_clusters_heatmap(pivot_table, name, min_umi_per_position, min_umi_per_cell, output_dir, chr_genes_pairs):
@@ -358,7 +358,7 @@ def make_clusters_heatmap(pivot_table, name, min_umi_per_position, min_umi_per_c
     #         plt.setp(tick, color=c, y=1, va='baseline')  # 'va': top', 'bottom', 'center', 'baseline', 'center_baseline'
 
     plt.title(name)
-    plt.savefig(os.path.join(output_dir, '6_editing_{}.png'.format(name)))
+    plt.savefig(os.path.join(output_dir, '6.editing_{}.png'.format(name)))
 
 
 def plot_umis_per_gene(clusters_VS_genes_umis_pt, output_dir):
@@ -369,7 +369,7 @@ def plot_umis_per_gene(clusters_VS_genes_umis_pt, output_dir):
     plt.ylabel("observed genes")
     fig.suptitle("number of mutated UMI's in genes in known editing sites")
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "6_umi_per_gene_in_editing_sites.png"))
+    plt.savefig(os.path.join(output_dir, "6.umi_per_gene_in_editing_sites.png"))
 
 
 def editing_events_vs_number_of_reads(df_scatter, output_dir):
@@ -391,7 +391,7 @@ def editing_events_vs_number_of_reads(df_scatter, output_dir):
     # plt.yaxis.set_tick_params(labelbottom=True)
     # plt.legend([f"a CB. Number of CB - {len(df_scatter)}"], loc='lower right')
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "6_editing_VS_reads_scatter.png"))
+    plt.savefig(os.path.join(output_dir, "6.editing_VS_reads_scatter.png"))
 
 
 def editing_events_vs_number_of_mutated_umis_per_cell(editingsites_per_cb_stats, umis_per_cb_editing, output_dir):

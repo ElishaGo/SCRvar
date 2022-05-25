@@ -166,10 +166,10 @@ def merge_dfs(df_mutated, df_unmutated):
 def run(args):
     # load the mutated and unmutated data frames
     logger.info("Loading and preprocessing the data frames")
-    df_mutated = sc_rna_variants.analysis_utils.load_tables(os.path.join(args.input_dir, "3_mismatch_dictionary.bed6"),
+    df_mutated = sc_rna_variants.analysis_utils.load_tables(os.path.join(args.input_dir, "3.mismatch_dictionary.bed"),
                                                             mutated=True)
     df_unmutated = sc_rna_variants.analysis_utils.load_tables(
-        os.path.join(args.input_dir, "3_no_mismatch_dictionary.bed6"), mutated=False)
+        os.path.join(args.input_dir, "3.no_mismatch_dictionary.bed"), mutated=False)
 
     # merge mutated and unmutated files to one file
     # TODO : don't merge the open file. merge only the aggregated table
