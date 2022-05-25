@@ -88,7 +88,6 @@ def merge_DB_and_fasta_by_coor(editing_DB, fasta_coor):
 def split_editing_by_A_reference(editing_DB_bed, fasta_path, editing_DB_path):
     fasta_coordinates_df = load_and_process_fasta_coordinations(editing_DB_bed, fasta_path, editing_DB_path)
 
-    # TODO: ask Dena about filter by strand. currently we ignore here strandness
     fasta_A_I = fasta_coordinates_df[fasta_coordinates_df['Ref'] == 'a']
     fasta_other = fasta_coordinates_df[fasta_coordinates_df['Ref'] != 'a']
 
@@ -130,7 +129,6 @@ def intersect_with_gtf(a_path, gtf_path, output_path):
 
 def process_editing_DB(editing_DB_path, fasta_path, gtf_path):
     # TODO: check how to change the header on the fly
-    
     good_header = check_editing_DB_header(editing_DB_path)
     if not good_header:
         raise BadFileHeaderError(f"Need to add '#' to the beginning of the header in file {editing_DB_path}")
@@ -147,14 +145,17 @@ def process_editing_DB(editing_DB_path, fasta_path, gtf_path):
 
     # save the editing DB file as bed file
     output_dir = editing_DB_path[:editing_DB_path.rfind(os.sep)]
-    editing_A_I_path = os.path.join(output_dir, "0_editing_A_I.bed6")
+    editing_A_I_path = os.path.join(output_dir, "0.editing_A_I.bed")
+    editing_other_path = os.path.join(output_dir, "0.editing_other.bed")
 
-    sc_rna_variants.analysis_utils.save_df(editing_A_I, output_dir, "0_editing_A_I.bed6")
-    sc_rna_variants.analysis_utils.save_df(editing_other, output_dir, "0_editing_other.bed6")
-    
+    sc_rna_variants.analysis_utils.save_df(editing_A_I, output_dir, "0.editing_A_I.bed")
+    sc_rna_variants.analysis_utils.save_df(editing_other, output_dir, "0.editing_other.bed")
+
     # intersect with gencode.gtf file
     intersect_with_gtf(a_path=editing_A_I_path, gtf_path=gtf_path,
-                       output_path=os.path.join(output_dir, '0_editing_A_I.genecode_intersect.bed6'))
+                       output_path=os.path.join(output_dir, '0.editing_A_I.genecode_intersect.bed'))
+
+    return editing_A_I_path, editing_other_path
 
 
 def snp_DB_intersections(snp_DB_path, editing_DB_path, gtf_path):
@@ -167,21 +168,21 @@ def snp_DB_intersections(snp_DB_path, editing_DB_path, gtf_path):
     :return:
     """
     # intersect with editing_A_I file
-    snp_A_output = os.path.join(snp_DB_path[:snp_DB_path.rfind(os.sep)], '0_snp_A.vcf')
+    snp_A_output = os.path.join(snp_DB_path[:snp_DB_path.rfind(os.sep)], '0.snp_A.vcf')
     with open(snp_A_output, "w") as outfile:
         subprocess.run(['bedtools', 'intersect', '-u', '-header', '-a', snp_DB_path, '-b',
-                    os.path.join(editing_DB_path[:editing_DB_path.rfind(os.sep)], '0_editing_A_I.bed6')], stdout=outfile)
+                    os.path.join(editing_DB_path[:editing_DB_path.rfind(os.sep)], '0.editing_A_I.bed')], stdout=outfile)
 
     # instersect with gtf file
-    snp_A_gtf_output = os.path.join(snp_DB_path[:snp_DB_path.rfind(os.sep)], '0_snp_A.gencode_intersect.vcf')
+    snp_A_gtf_output = os.path.join(snp_DB_path[:snp_DB_path.rfind(os.sep)], '0.snp_A.gencode_intersect.vcf')
     with open(snp_A_gtf_output, "w") as outfile:
         subprocess.run(
         ['bedtools', 'intersect', '-u', '-header', '-a', snp_A_output, '-b', gtf_path], stdout=outfile)
 
 
 def run_step0(args):
-    process_editing_DB(args.editing_DB_path, args.fasta_path, args.gtf_path)
-    snp_DB_intersections(args.snp_DB_path, args.editing_DB_path, args.gtf_path)
+    editing_A_I_path, _ = process_editing_DB(args.editing_DB_path, args.fasta_path, args.gtf_path)
+    snp_DB_intersections(args.snp_DB_path, editing_A_I_path, args.gtf_path)
 
 
 def parse_arguments(arguments=None):
