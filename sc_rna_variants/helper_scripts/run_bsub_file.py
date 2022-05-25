@@ -10,7 +10,7 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent.parent.absolute()) + os.path.sep)  # for development environments
 
 from sc_rna_variants.utils import assert_is_directory
-
+from sc_rna_variants.general_utils import  save_how_to
 
 def write_bsub_execution_parameters(f, args):
     """write LSF system parameters"""
@@ -157,4 +157,5 @@ def parse_arguments(arguments=None):
 if __name__ == '__main__':
     args = parse_arguments()
     create_job_file(args)
+    save_how_to(out_dir=args.sample_output_dir, sub_cmd_str='_run_bsub')
     os.system(f"bsub < {args.sample_output_dir}/bsub_file_SCrarevar_pipline_{args.sname}.txt")
