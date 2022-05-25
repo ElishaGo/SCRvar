@@ -66,7 +66,7 @@ def plot_venn_diagram(df, subset_list, labels, column_name, output_dir, sname):
     # create legend from handles and labels, and save figure
     plt.legend(handles=h, labels=l, title="counts", loc='lower right')  # bbox_to_anchor=(0.95,0.7)
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, '5_venn_diagram_{}.png'.format(labels[0])), facecolor='white')
+    plt.savefig(os.path.join(output_dir, '5.venn_diagram_{}.png'.format(labels[0])), facecolor='white')
     plt.clf()
 
     # make histogram of mutated CB
@@ -87,7 +87,7 @@ def plot_venn_diagram(df, subset_list, labels, column_name, output_dir, sname):
     plt.xlabel("number of mutated cells within position")
     plt.legend(['Intersection positions - not filtered', 'Intersection positions - filtered'])
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, '5_CB_intersections_histogram_{}.png'.format(labels[0])), facecolor='white')
+    plt.savefig(os.path.join(output_dir, '5.CB_intersections_histogram_{}.png'.format(labels[0])), facecolor='white')
     plt.clf()
 
 
@@ -222,7 +222,7 @@ def plot_heatmap_mutation_per_base_DB(df_merged, df_merged_filtered, output_dir,
     plt.xlabel("mutation")
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "5_heatmap_A_mutations.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, "5.heatmap_A_mutations.png"), bbox_inches='tight')
 
 
 def make_venn_diagrams(df_agg_intrsct, df_filtered, output_dir, snp_db_path, editing_db_path, sname):
@@ -241,7 +241,7 @@ def make_venn_diagrams(df_agg_intrsct, df_filtered, output_dir, snp_db_path, edi
 
 
 def print_frequencies(df_merged, df_merged_agg, output_folder):
-    with open(os.path.join(output_folder, '5_general_numbers.txt'), 'w') as f:
+    with open(os.path.join(output_folder, '5.general_numbers.txt'), 'w') as f:
         f.write("General numbers information of table in open mode:\n\n")
         f.write("number of unique (position, CB) in table: %s \n" % str(df_merged.shape[0]))
         f.write("number of unique positions: %s \n" % str(df_merged['position'].nunique()))
@@ -297,8 +297,8 @@ def run_snp_edit_DB_intersections(input_dir, output_dir, snp_db_path, editing_db
 def run_step5(args):
     df_merged_agg = sc_rna_variants.analysis_utils.load_df(os.path.join(args.input_dir, "4_aggregated_per_position.tsv"))
     # TODO: instead of loading mut_open and unmutated and merge them, look into the plots function and see how we can avoid this
-    df_mut_open = sc_rna_variants.analysis_utils.load_tables(os.path.join(os.path.dirname(args.output_dir), 'step3_mismatch_dictionary', '3_mismatch_dictionary.bed6'), mutated=True)
-    df_unmutated = sc_rna_variants.analysis_utils.load_tables(os.path.join(os.path.dirname(args.output_dir), 'step3_mismatch_dictionary', '3_no_mismatch_dictionary.bed6'), mutated=False)
+    df_mut_open = sc_rna_variants.analysis_utils.load_tables(os.path.join(os.path.dirname(args.output_dir), 'step3_mismatch_dictionary', '3_mismatch_dictionary.bed'), mutated=True)
+    df_unmutated = sc_rna_variants.analysis_utils.load_tables(os.path.join(os.path.dirname(args.output_dir), 'step3_mismatch_dictionary', '3_no_mismatch_dictionary.bed'), mutated=False)
     df_merged_open = sc_rna_variants.analysis_utils.merge_dfs(df_mut_open, df_unmutated)
 
     # get filtered data for both aggregated and open aggregated df
@@ -342,7 +342,7 @@ def parse_arguments(arguments=None):
     parser.add_argument('--atacseq', type=str, help='path to atacseq file')
 
     # Meta arguments
-    parser.add_argument('--log-file', default=os.path.join(sys.argv[2], "5_filtering_positions_and_snp_editing_DB_intersections.log"),
+    parser.add_argument('--log-file', default=os.path.join(sys.argv[2], "5.filtering_positions_and_snp_editing_DB_intersections.log"),
                         help='a log file for tracking the program\'s progress')
     parser.add_argument('--sname', type=str, help='sample name to add to outputs')
 

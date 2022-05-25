@@ -151,11 +151,11 @@ def save_df(df, save_path):
 
 def get_and_process_edit_df(df, output_dir, gtf_path):
     df_edit = get_editing_df(df)
-    sc_rna_variants.analysis_utils.save_df(df_edit, output_dir, '6_editing_sites_df.tsv')
+    sc_rna_variants.analysis_utils.save_df(df_edit, output_dir, '6.editing_sites_df.tsv')
 
     # add gene names
-    editing_intersect_gtf_path = os.path.join(output_dir, "6_editing_sites.genecode_intersect.txt")
-    df_edit_path = os.path.join(output_dir, '6_editing_sites_df.tsv')
+    editing_intersect_gtf_path = os.path.join(output_dir, "6.editing_sites.genecode_intersect.txt")
+    df_edit_path = os.path.join(output_dir, '6.editing_sites_df.tsv')
     create_editing_sites_gtf_intersections(editing_df_path=df_edit_path, path_to_gtf=gtf_path,
                                            out_fpath=editing_intersect_gtf_path)
     return get_gene_names(df_edit, editing_intersect_gtf_path)
@@ -387,7 +387,7 @@ def parse_arguments(arguments=None):
     parser.add_argument('input_dir', type=sc_rna_variants.utils.assert_is_directory, help='step 4 output folder')
     parser.add_argument('output_dir', type=sc_rna_variants.utils.assert_is_directory, help='folder for outputs')
     parser.add_argument('mismatch_dict_bed', type=sc_rna_variants.utils.assert_is_file,
-                        help='path to 3_mismatch_dictionary.bed6')
+                        help='path to 3_mismatch_dictionary.bed')
     parser.add_argument('read_per_barcode_raw_bam', type=sc_rna_variants.utils.assert_is_file,
                         help='count of reads per cell barcode in raw bam file')
     parser.add_argument('gtf_path', type=sc_rna_variants.utils.assert_is_file, help='path to gtf file')
@@ -407,7 +407,7 @@ def parse_arguments(arguments=None):
 
     # Meta arguments
     parser.add_argument('--log-file',
-                        default=os.path.join(sys.argv[2], "6_filtering_positions_and_snp_editing_DB_intersections.log"),
+                        default=os.path.join(sys.argv[2], "6.filtering_positions_and_snp_editing_DB_intersections.log"),
                         help='a log file for tracking the program\'s progress')
     parser.add_argument('--sname', type=str, help='sample name to add to outputs')
 
