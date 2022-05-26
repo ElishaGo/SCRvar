@@ -46,7 +46,7 @@ def write_meta_commands(f, args):
 def write_pipelines_scripts_execution_commands(f, args):
     # TODO: ask what step to put this
     f.write("# count number of reads per barcode\n")
-    f.write(f"{os.getcwd()}/sc_rna_variants/count_reads_per_barcode_in_bam.sh {args.bam_file} {args.sample_output_dir} {args.sname}\n\n")
+    f.write(f"{os.getcwd()}/sc_rna_variants/count_reads_per_barcode_in_bam.sh {args.bam_file} {args.sample_output_dir} {args.sname} {args.n}\n\n")
 
     # step1 - filter bam file
     step1_output_dir = 'step1_filtered_bam_files'
