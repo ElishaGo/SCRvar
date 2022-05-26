@@ -313,7 +313,7 @@ def create_filtered_bam(input_bam, filtered_barcodes_list, min_mapq, cigar_clipp
     logger.debug("finished creating filtered bam files for different segments of the genome, starting to merge them")
 
     # create the combined, filtered bam file
-    filtered_bam_path = os.path.join(pathlib.Path(output_folder), "1_" + (os.path.basename(input_bam) + "_filtered.bam"))
+    filtered_bam_path = os.path.join(pathlib.Path(output_folder), "1." + (os.path.basename(input_bam) + "_filtered.bam"))
     pysam.merge("-f", "-h", str(temp_header_file), filtered_bam_path, *temporary_bams_paths, '--threads', str(threads))
 
     # create index for the filtered file
@@ -607,8 +607,8 @@ def variants_finder(filtered_bam, genome_fasta, tag_for_umi, tag_for_cell_barcod
     logger.debug("finished creating temporary tsv files for different segments of the genome, starting to merge them")
 
     # create the combined, filtered bam file
-    output_tsv = pathlib.Path(output_folder) / '3_mismatch_dictionary.bed'
-    output_unmutated_tsv = pathlib.Path(output_folder) / '3_no_mismatch_dictionary.bed'
+    output_tsv = pathlib.Path(output_folder) / '3.mismatch_dictionary.bed'
+    output_unmutated_tsv = pathlib.Path(output_folder) / '3.no_mismatch_dictionary.bed'
 
     header_line = '\t'.join([
         "#chrom", "chromStart", "chromEnd", "cell barcode",

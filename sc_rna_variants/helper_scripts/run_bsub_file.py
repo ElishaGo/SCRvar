@@ -15,7 +15,7 @@ from sc_rna_variants.general_utils import  save_how_to
 def write_bsub_execution_parameters(f, args):
     """write LSF system parameters"""
     f.write("#BSUB -q {}\n".format(args.q))
-    f.write("#BSUB -J {}\n".format(args.J))
+    f.write("#BSUB -J {}\n".format(args.sname))
     f.write("#BSUB -oo serverlog_files/{}_%J.out\n".format(args.J))
     f.write("#BSUB -eo serverlog_files/{}_%J.err\n".format(args.J))
     f.write('#BSUB -R "rusage[mem={}] span[hosts={}]"\n'.format(args.rusage, args.hosts))
@@ -46,7 +46,7 @@ def write_meta_commands(f, args):
 def write_pipelines_scripts_execution_commands(f, args):
     # TODO: ask what step to put this
     f.write("# count number of reads per barcode\n")
-    f.write(f"{os.getcwd()}/sc_rna_variants/count_reads_per_barcode_in_bam.sh {args.bam_file} {args.sample_output_dir} {args.sname}")
+    f.write(f"{os.getcwd()}/sc_rna_variants/count_reads_per_barcode_in_bam.sh {args.bam_file} {args.sample_output_dir} {args.sname}\n\n")
 
     # step1 - filter bam file
     step1_output_dir = 'step1_filtered_bam_files'
@@ -73,7 +73,7 @@ def write_pipelines_scripts_execution_commands(f, args):
     f.write("# STEP 3 - create mismatch dictionary\n")
     f.write(f"mkdir {step3_output_dir}\n")
     f.write(
-        f"python {os.getcwd()}/scripts/step3_mismatch_dictionary.py {step2_output_dir}/2_{args.sname}.gene_filter.bam {args.genome_ref} {step3_output_dir} --threads {args.n}\n\n")
+        f"python {os.getcwd()}/scripts/step3_mismatch_dictionary.py {step2_output_dir}/2.{args.sname}.gene_filter.bam {args.genome_ref} {step3_output_dir} --threads {args.n}\n\n")
 
     # step 4 - Aggregation per position + statistics
     step4_output_dir = 'step4_aggregation_per_position_and_statistics'
@@ -94,7 +94,7 @@ def write_pipelines_scripts_execution_commands(f, args):
     f.write('# STEP 6 - gene level\n')
     f.write(f"mkdir {step6_output_dir}\n")
     f.write(
-        f"python {os.getcwd()}/scripts/step6_gene_level.py {step4_output_dir} {step6_output_dir} {os.path.join(step3_output_dir, '3_mismatch_dictionary.bed')} {os.path.join(args.sample_output_dir, f'raw_bam_reads_per_barcode_count.{args.sname}.csv')} {args.annotation_gtf} --barcode_clusters {args.barcode_clusters} --sname {args.sname}\n\n")
+        f"python {os.getcwd()}/scripts/step6_gene_level.py {step4_output_dir} {step6_output_dir} {os.path.join(step3_output_dir, '3.mismatch_dictionary.bed')} {os.path.join(args.sample_output_dir, f'raw_bam_reads_per_barcode_count.{args.sname}.csv')} {args.annotation_gtf} --barcode_clusters {args.barcode_clusters} --sname {args.sname}\n\n")
 
 
 def create_job_file(args):

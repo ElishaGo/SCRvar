@@ -1,8 +1,7 @@
 #!/bin/bash
-"""
-A script to run step 2 in the pipeline:
-Run a bam file with htseq-count in order to filter out reads that are not on genes.
-"""
+# A script to run step 2 in the pipeline:
+# Run a bam file with htseq-count in order to filter out reads that are not on genes.
+
 
 FILTERED_BAM_PATH=$1  # bam to filter
 OUTPUT_DIR=$2  # folder for outputs
@@ -17,7 +16,7 @@ LOGFILE=${OUTPUT_DIR}/step2.log
 
 (
     # run htseq to filter non gene reads
-    htseq-count -f bam -i gene_name -t gene -m union -s yes -o ${OUTPUT_FILE}.sam ${FILTERED_BAM_PATH} ${ANNOTATION_GTF} 3>&1 > ${OUTPUT_DIR}/2.${FNAME}_read_counts.txt
+    htseq-count -f bam -i gene_name -t gene -m union -s yes -n ${N} -o ${OUTPUT_FILE}.sam ${FILTERED_BAM_PATH} ${ANNOTATION_GTF} 3>&1 > ${OUTPUT_DIR}/2.${FNAME}_read_counts.txt
 
     # add header to the sam file
     samtools view -H ${FILTERED_BAM_PATH} | cat - ${OUTPUT_FILE}.sam > ${OUTPUT_FILE}_temp.sam

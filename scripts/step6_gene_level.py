@@ -348,7 +348,7 @@ def more_analysis(df_mismatches, umis_per_cb_editing, reads_per_barcode_path, mi
 
 
 def run_step6(args):
-    stats_agg_path = os.path.join(args.input_dir, "4_aggregated_per_position_intersect.tsv")
+    stats_agg_path = os.path.join(args.input_dir, "4.aggregated_per_position_intersect.tsv")
     reads_per_barcode_path = os.path.join(args.read_per_barcode_raw_bam)
     gene_names_path = os.path.join(args.output_dir, 'editing_sites_genes_v37.txt')
 
@@ -387,7 +387,7 @@ def parse_arguments(arguments=None):
     parser.add_argument('input_dir', type=sc_rna_variants.utils.assert_is_directory, help='step 4 output folder')
     parser.add_argument('output_dir', type=sc_rna_variants.utils.assert_is_directory, help='folder for outputs')
     parser.add_argument('mismatch_dict_bed', type=sc_rna_variants.utils.assert_is_file,
-                        help='path to 3_mismatch_dictionary.bed')
+                        help='path to 3.mismatch_dictionary.bed')
     parser.add_argument('read_per_barcode_raw_bam', type=sc_rna_variants.utils.assert_is_file,
                         help='count of reads per cell barcode in raw bam file')
     parser.add_argument('gtf_path', type=sc_rna_variants.utils.assert_is_file, help='path to gtf file')

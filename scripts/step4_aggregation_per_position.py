@@ -157,9 +157,9 @@ def aggregate_df(df):
 
 
 def find_intersections_with_SNP_and_edit_DB(output_dir, snp_db_path, editing_db_path):
-    agg_df_path = os.path.join(output_dir, '4.aggregated_per_position.tsv')
-    snp_temp_path = os.path.join(output_dir, '4.snp_intersect.tsv')
-    df_intersection = os.path.join(output_dir, '4.aggregated_per_position_intersect.tsv')
+    agg_df_path = os.path.join(output_dir, '4.aggregated_per_position.bed')
+    snp_temp_path = os.path.join(output_dir, '4.snp_intersect.bed')
+    df_intersection = os.path.join(output_dir, '4.aggregated_per_position_intersect.bed')
 
     # add '#' to header of df_aggregated
     os.system(f"head -c 1 {agg_df_path} | grep -q '#' || sed -i '1s/^/#/' {agg_df_path}")
@@ -185,10 +185,10 @@ def run_step4(args):
 
     # load the mutated and unmutated data frames
     logger.info("Loading and preprocessing the data frames")
-    df_mutated = sc_rna_variants.analysis_utils.load_tables(os.path.join(args.input_dir, "3_mismatch_dictionary.bed"),
+    df_mutated = sc_rna_variants.analysis_utils.load_tables(os.path.join(args.input_dir, "3.mismatch_dictionary.bed"),
                                                             mutated=True)
     df_unmutated = sc_rna_variants.analysis_utils.load_tables(
-        os.path.join(args.input_dir, "3_no_mismatch_dictionary.bed"), mutated=False)
+        os.path.join(args.input_dir, "3.no_mismatch_dictionary.bed"), mutated=False)
 
     # merge mutated and unmutated files to one file
     # TODO : don't merge the open file. merge only the aggregated table
@@ -211,7 +211,7 @@ def run_step4(args):
     logger.info("reorder and save file")
     df_merged_agg = reorder_and_sort_agg_df(df_merged_agg)
     sc_rna_variants.analysis_utils.save_df(df_merged_agg, args.output_dir,
-                                           "4.aggregated_per_position.tsv")
+                                           "4.aggregated_per_position.bed")
 
     # find intersection between df and databases
     find_intersections_with_SNP_and_edit_DB(args.output_dir, args.snp_db_path, args.editing_db_path)

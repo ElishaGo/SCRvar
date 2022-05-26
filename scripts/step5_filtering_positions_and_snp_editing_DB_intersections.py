@@ -38,7 +38,7 @@ def intersect_with_atacseq(df_agg_intersect, output_dir, atacseq_file):
     df_merged_temp['gCoverage-q20'] = df_merged_temp['gCoverage-q20'].replace('-', 0).astype(int)
     df_merged_temp['gFrequency'] = df_merged_temp['gFrequency'].replace('-', 0).astype(float)
 
-    df_merged.to_csv(os.path.join(output_dir, '4_aggregated_per_position_intersect.tsv'), sep='\t', index=False)
+    df_merged.to_csv(os.path.join(output_dir, '4.aggregated_per_position_intersect.bed'), sep='\t', index=False)
 
 
 def plot_venn_diagram(df, subset_list, labels, column_name, output_dir, sname):
@@ -282,7 +282,7 @@ def drop_ifs(df):
 
 def run_snp_edit_DB_intersections(input_dir, output_dir, snp_db_path, editing_db_path, sname, atacseq):
     # get the df with intersections, before and after filtering
-    df_agg_intersect, df_agg_intrsct_filtered = sc_rna_variants.analysis_utils.get_df_and_filtered_df(os.path.join(input_dir, '4_aggregated_per_position_intersect.tsv'))
+    df_agg_intersect, df_agg_intrsct_filtered = sc_rna_variants.analysis_utils.get_df_and_filtered_df(os.path.join(input_dir, '4.aggregated_per_position_intersect.bed'))
 
     # make Venn diagrams of the intersections
     make_venn_diagrams(df_agg_intersect, df_agg_intrsct_filtered, output_dir, snp_db_path, editing_db_path, sname)
@@ -295,10 +295,10 @@ def run_snp_edit_DB_intersections(input_dir, output_dir, snp_db_path, editing_db
 
 
 def run_step5(args):
-    df_merged_agg = sc_rna_variants.analysis_utils.load_df(os.path.join(args.input_dir, "4_aggregated_per_position.tsv"))
+    df_merged_agg = sc_rna_variants.analysis_utils.load_df(os.path.join(args.input_dir, "4.aggregated_per_position.bed"))
     # TODO: instead of loading mut_open and unmutated and merge them, look into the plots function and see how we can avoid this
-    df_mut_open = sc_rna_variants.analysis_utils.load_tables(os.path.join(os.path.dirname(args.output_dir), 'step3_mismatch_dictionary', '3_mismatch_dictionary.bed'), mutated=True)
-    df_unmutated = sc_rna_variants.analysis_utils.load_tables(os.path.join(os.path.dirname(args.output_dir), 'step3_mismatch_dictionary', '3_no_mismatch_dictionary.bed'), mutated=False)
+    df_mut_open = sc_rna_variants.analysis_utils.load_tables(os.path.join(os.path.dirname(args.output_dir), 'step3_mismatch_dictionary', '3.mismatch_dictionary.bed'), mutated=True)
+    df_unmutated = sc_rna_variants.analysis_utils.load_tables(os.path.join(os.path.dirname(args.output_dir), 'step3_mismatch_dictionary', '3.no_mismatch_dictionary.bed'), mutated=False)
     df_merged_open = sc_rna_variants.analysis_utils.merge_dfs(df_mut_open, df_unmutated)
 
     # get filtered data for both aggregated and open aggregated df
