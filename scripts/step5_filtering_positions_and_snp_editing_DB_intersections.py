@@ -280,9 +280,14 @@ def drop_ifs(df):
     return df.drop(idx)
 
 
-def run_snp_edit_DB_intersections(input_dir, output_dir, snp_db_path, editing_db_path, sname, atacseq):
+def run_snp_edit_DB_intersections(input_dir, output_dir, snp_db_path, editing_db_path, min_cb_per_pos,
+                                  min_mutation_umis, min_total_umis,
+                                  min_mutation_rate, sname, atacseq):
     # get the df with intersections, before and after filtering
-    df_agg_intersect, df_agg_intrsct_filtered = sc_rna_variants.analysis_utils.get_df_and_filtered_df(os.path.join(input_dir, '4.aggregated_per_position_intersect.bed'))
+    df_agg_intersect, df_agg_intrsct_filtered = sc_rna_variants.analysis_utils.get_df_and_filtered_df(
+        os.path.join(input_dir, '4_aggregated_per_position_intersect.tsv'), min_cb_per_pos,
+        min_mutation_umis, min_total_umis,
+        min_mutation_rate)
 
     # make Venn diagrams of the intersections
     make_venn_diagrams(df_agg_intersect, df_agg_intrsct_filtered, output_dir, snp_db_path, editing_db_path, sname)

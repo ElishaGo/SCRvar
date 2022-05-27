@@ -313,7 +313,7 @@ def create_filtered_bam(input_bam, filtered_barcodes_list, min_mapq, cigar_clipp
     logger.debug("finished creating filtered bam files for different segments of the genome, starting to merge them")
 
     # create the combined, filtered bam file
-    filtered_bam_path = os.path.join(pathlib.Path(output_folder), "1." + (os.path.basename(input_bam) + "_filtered.bam"))
+    filtered_bam_path = os.path.join(pathlib.Path(output_folder), "1." + (os.path.basename(input_bam).replace(".bam", '') + "_filtered.bam"))
     pysam.merge("-f", "-h", str(temp_header_file), filtered_bam_path, *temporary_bams_paths, '--threads', str(threads))
 
     # create index for the filtered file

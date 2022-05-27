@@ -39,34 +39,33 @@ def write_meta_commands(f, args):
 
     # load environment and modules
     f.write("# load environment and modules\n")
-    f.write(". /home/labs/bioservices/services/miniconda2/etc/profile.d/conda.sh;conda activate rarevar;module load "
-            "SAMtools;module load bamtools;module load bedtools\n\n")
+    f.write(". /home/labs/bioservices/services/miniconda2/etc/profile.d/conda.sh;conda activate rarevar;module load SAMtools;module load bamtools;module load bedtools\n\n")
 
 
 def write_pipelines_scripts_execution_commands(f, args):
     # TODO: ask what step to put this
     f.write("# count number of reads per barcode\n")
-    f.write(f"{os.getcwd()}/sc_rna_variants/count_reads_per_barcode_in_bam.sh {args.bam_file} {args.sample_output_dir} {args.sname} {args.n}\n\n")
-
+    f.write(f"#{os.getcwd()}/sc_rna_variants/count_reads_per_barcode_in_bam.sh {args.bam_file} {args.sample_output_dir} {args.sname} {args.n}\n\n")
+    
     # step1 - filter bam file
     step1_output_dir = 'step1_filtered_bam_files'
     f.write("# STEP 1 - filter bam file by filter list\n")
     f.write(f"mkdir {step1_output_dir}\n")
     f.write(
-        f"python {os.getcwd()}/scripts/step1_filter_bam.py {args.bam_file} {step1_output_dir} --filtered-barcodes-list {args.filter_list_bam} --threads {args.n}\n\n")
+        f"#python {os.getcwd()}/scripts/step1_filter_bam.py {args.bam_file} {step1_output_dir} --filtered-barcodes-list {args.filter_list_bam} --threads {args.n}\n\n")
 
     # get path to filtered bam file
     filtered_bam_path = str(
-        os.path.join(args.sample_output_dir, step1_output_dir, "1_" + os.path.basename(args.bam_file) + "_filtered.bam"))
+        os.path.join(args.sample_output_dir, step1_output_dir, "1." + os.path.basename(args.bam_file).replace(".bam",'') + "_filtered.bam"))
 
     # step 2 - keep only reads from genes with htseq
     step2_output_dir = 'step2_bam_gene_filter'
-    editing_gtf_intersect = '/home/labs/bioservices/shared/rarevar/data/DataBases/REDIportal/0_editing_A_I.genecode_intersect.bed'
-    snp_gtf_intersect = '/home/labs/bioservices/shared/rarevar/data/DataBases/snp_vcf/0_snp_A.gencode_intersect.vcf'
+    editing_gtf_intersect = '/home/labs/bioservices/shared/rarevar/data/DataBases/REDIportal/0.editing_A_I.genecode_intersect.bed'
+    snp_gtf_intersect = '/home/labs/bioservices/shared/rarevar/data/DataBases/snp_vcf/0.snp_A.gencode_intersect.vcf'
     f.write("# STEP 2 - bam genes filter\n")
     f.write(f"mkdir {step2_output_dir}\n")
     f.write(
-        f"sh {os.getcwd()}/scripts/step2_bam_gene_filter.sh {filtered_bam_path} {step2_output_dir} {args.annotation_gtf} {editing_gtf_intersect} {snp_gtf_intersect} {args.sname} {args.n}\n\n")
+        f"#sh {os.getcwd()}/scripts/step2_bam_gene_filter.sh {filtered_bam_path} {step2_output_dir} {args.annotation_gtf} {editing_gtf_intersect} {snp_gtf_intersect} {args.sname} {args.n}\n\n")
 
     # step 3 - create mismatch dictionary
     step3_output_dir = 'step3_mismatch_dictionary'
