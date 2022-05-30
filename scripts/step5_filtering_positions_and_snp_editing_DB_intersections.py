@@ -208,7 +208,7 @@ def plot_heatmap_mutation_per_base_DB(df_merged, df_merged_filtered, output_dir,
         a_mut_data = count_matrix.sum(axis=0)
         all_a_mutations_mat[i, :] = a_mut_data
 
-    vmin, vmax = all_a_mutations_mat.min(), all_a_mutations_mat.max()
+    vmin, vmax = np.floor(np.log10(all_a_mutations_mat.min())), np.floor(np.log10(all_a_mutations_mat.max()))
     s = sns.heatmap(np.log10(all_a_mutations_mat), linewidth=0.5, annot=np.array(all_a_mutations_mat),
                     cbar_kws={'label': 'log 10'}, cmap='brg', vmin=vmin, vmax=vmax,
                     xticklabels=['same_all', 'same_mut', 'transition', 'reverse', 'transversion'],
@@ -273,8 +273,8 @@ def get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_
                                    df_unmutated)  # use nonmut data
 
     # plot data grouped by position
-    plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
-    plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
+    # plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
+    # plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
 
 
 def drop_ifs(df):
@@ -289,7 +289,7 @@ def run_snp_edit_DB_intersections(input_dir, output_dir, snp_db_path, editing_db
                                   min_mutation_rate, sname, atacseq):
     # get the df with intersections, before and after filtering
     df_agg_intersect, df_agg_intrsct_filtered = sc_rna_variants.analysis_utils.get_df_and_filtered_df(
-        os.path.join(input_dir, '4_aggregated_per_position_intersect.bed'), min_cb_per_pos,
+        os.path.join(input_dir, '4.aggregated_per_position_intersect.bed'), min_cb_per_pos,
         min_mutation_umis, min_total_umis,
         min_mutation_rate)
 
