@@ -151,11 +151,11 @@ def save_df(df, save_path):
 
 def get_and_process_edit_df(df, output_dir, gtf_path):
     df_edit = get_editing_df(df)
-    sc_rna_variants.analysis_utils.save_df(df_edit, output_dir, '6.editing_sites_df.tsv')
+    sc_rna_variants.analysis_utils.save_df(df_edit, output_dir, '6.editing_sites_df.bed')
 
     # add gene names
-    editing_intersect_gtf_path = os.path.join(output_dir, "6.editing_sites.genecode_intersect.txt")
-    df_edit_path = os.path.join(output_dir, '6.editing_sites_df.tsv')
+    editing_intersect_gtf_path = os.path.join(output_dir, "6.editing_sites.genecode_intersect.bed")
+    df_edit_path = os.path.join(output_dir, '6.editing_sites_df.bed')
     create_editing_sites_gtf_intersections(editing_df_path=df_edit_path, path_to_gtf=gtf_path,
                                            out_fpath=editing_intersect_gtf_path)
     return get_gene_names(df_edit, editing_intersect_gtf_path)
@@ -348,7 +348,7 @@ def more_analysis(df_mismatches, umis_per_cb_editing, reads_per_barcode_path, mi
 
 
 def run_step6(args):
-    stats_agg_path = os.path.join(args.input_dir, "4.aggregated_per_position_intersect.tsv")
+    stats_agg_path = os.path.join(args.input_dir, "4.aggregated_per_position_intersect.bed")
     reads_per_barcode_path = os.path.join(args.read_per_barcode_raw_bam)
     gene_names_path = os.path.join(args.output_dir, 'editing_sites_genes_v37.txt')
 

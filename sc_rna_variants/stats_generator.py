@@ -191,7 +191,7 @@ def run(args):
     # reorder and save the aggregated file
     logger.info("reorder and save file")
     df_merged_agg = reorder_and_sort_agg_df(df_merged_agg)
-    sc_rna_variants.analysis_utils.save_df(df_merged_agg, args.output_dir, "aggregated_tsv.tsv")
+    sc_rna_variants.analysis_utils.save_df(df_merged_agg, args.output_dir, "aggregated_tsv.bed")
 
     # TODO: myabe we don't need this
     # save other tables
