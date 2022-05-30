@@ -41,6 +41,7 @@ def intersect_with_atacseq(df_agg_intersect, output_dir, atacseq_file):
 
 
 def plot_venn_diagram(df, subset_list, labels, column_name, output_dir, sname):
+    plt.clf()
     plt.title('Intersection of positions - {} and {}'.format(labels[1], labels[0]))
 
     v = venn3(subsets=subset_list, set_labels=(labels[0], labels[1], labels[2]))
@@ -66,13 +67,13 @@ def plot_venn_diagram(df, subset_list, labels, column_name, output_dir, sname):
     plt.legend(handles=h, labels=l, title="counts", loc='lower right')  # bbox_to_anchor=(0.95,0.7)
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, '5.venn_diagram_{}.png'.format(labels[0])), facecolor='white')
-    plt.clf()
 
     # make histogram of mutated CB
     intrsct_list = df[df[column_name] == 1]['count of mutated cell barcodes']
 
     # histogram on log scale.
     # Use non-equal bin sizes, such that they look equal on log scale.
+    plt.clf()
     hist, bins = np.histogram(intrsct_list, bins=30)
     logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
     plt.hist(intrsct_list, bins=logbins)
@@ -87,7 +88,6 @@ def plot_venn_diagram(df, subset_list, labels, column_name, output_dir, sname):
     plt.legend(['Intersection positions - not filtered', 'Intersection positions - filtered'])
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, '5.CB_intersections_histogram_{}.png'.format(labels[0])), facecolor='white')
-    plt.clf()
 
 
 def run_venn(df, df_filtered, column_name, db_total_count, labels, input_dir, sname):
