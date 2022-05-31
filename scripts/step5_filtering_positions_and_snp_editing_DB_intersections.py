@@ -17,6 +17,7 @@ from sc_rna_variants.statistic_plots import get_min_max, make_mut_counts_heatmap
 
 pd.set_option('display.max_columns', None)
 logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
+logger = logging.getLogger(__name__)
 
 
 def intersect_with_atacseq(df_agg_intersect, output_dir, atacseq_file):
@@ -267,10 +268,8 @@ def get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_
     """
     # plot not grouped data
     plot_cb_occurences_hist(df_merged_open, df_merged_filtered, output_folder, sname)  # no non_mut usage
-    plot_umi_per_reference_base(df_merged_open, df_merged_filtered, output_folder, sname, df_mut_open,
-                                df_unmutated)  # use nonmut data
-    plot_heatmap_mutation_per_base(df_merged_open, df_merged_filtered, output_folder, sname, df_mut_open,
-                                   df_unmutated)  # use nonmut data
+    plot_umi_per_reference_base(df_merged_open, df_merged_filtered, output_folder, sname)  # use nonmut data
+    plot_heatmap_mutation_per_base(df_merged_open, df_merged_filtered, output_folder, sname)  # use nonmut data
 
     # plot data grouped by position
     # plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
@@ -334,7 +333,7 @@ def run_step5(args):
     run_snp_edit_DB_intersections(args.input_dir, args.output_dir, args.snp_db_path, args.editing_db_path,
                                   args.min_cb_per_pos,
                                   args.min_mutation_umis, args.min_total_umis,
-                                  args.min_mutation_rate, args.sname, args.atacseq)
+                                  args.min_mutation_rate, args.sname, args.atacseq_path)
 
     # TODO: remove snp overlaps with editing sites
     # drop_ifs(df)
@@ -360,7 +359,7 @@ def parse_arguments(arguments=None):
                         help='position with less number of mutated + unmutated UMIs will be filtered')
     parser.add_argument('--min_mutation_rate', default=0.1, type=int,
                         help='position with less rate of mutation will be filtered')
-    parser.add_argument('--atacseq', type=str, help='path to atacseq file')
+    parser.add_argument('--atacseq_path', type=str, help='path to atacseq file')
 
     # Meta arguments
     parser.add_argument('--log-file',
