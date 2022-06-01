@@ -60,8 +60,8 @@ def write_pipelines_scripts_execution_commands(f, args):
 
     # step 2 - keep only reads from genes with htseq
     step2_output_dir = 'step2_bam_gene_filter'
-    editing_gtf_intersect = '/home/labs/bioservices/shared/rarevar/data/DataBases/REDIportal/0.editing_A_I.genecode_intersect.bed'
-    snp_gtf_intersect = '/home/labs/bioservices/shared/rarevar/data/DataBases/snp_vcf/0.snp_A.gencode_intersect.vcf'
+    editing_gtf_intersect = os.path.join(args.editing_DB_dir, '0.editing_A_I.genecode_intersect.bed')
+    snp_gtf_intersect = os.path.join(args.snp_vcf_dir, '0.snp_A.gencode_intersect.vcf')
     f.write("# STEP 2 - bam genes filter\n")
     f.write(f"mkdir {step2_output_dir}\n")
     f.write(
@@ -130,20 +130,20 @@ def parse_arguments(arguments=None):
 
     parser.add_argument('--filter_list_bam', help='List of cell barcodes to use in format as in  the bam file')
 
-    parser.add_argument('--annotation_gtf',
-                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/genecode_gtf/gencode.v37.annotation.gtf",
-                        help='gtf annotation file to find gene sites')
-
     parser.add_argument('--genome_ref',
                         default="/home/labs/bioservices/services/expression_references/refdata-gex-GRCh38-2020-A/fasta/genome.fa",
                         help='genome reference')
 
-    parser.add_argument('--editing_DB',
-                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/REDIportal/0.editing_A_I.bed",
+    parser.add_argument('--annotation_gtf',
+                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/genecode_gtf/gencode.v37.annotation.gtf",
+                        help='gtf annotation file to find gene sites')
+
+    parser.add_argument('--editing_DB_dir',
+                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/editing",
                         help='Editing sites data base in bed format')
 
-    parser.add_argument('--snp_vcf',
-                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/snp_vcf/snp_chr_sorted.vcf",
+    parser.add_argument('--snp_vcf_dir',
+                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/snp_vcf",
                         help='Known SNP sites data base in vcf format')
 
     parser.add_argument('--barcode_clusters', help='table with barcodes and associated clusters analysed by Seurat')
