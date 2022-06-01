@@ -61,7 +61,7 @@ def write_pipelines_scripts_execution_commands(f, args):
     # step 2 - keep only reads from genes with htseq
     step2_output_dir = 'step2_bam_gene_filter'
     editing_gtf_intersect = os.path.join(args.editing_DB_dir, '0.editing_A_I.genecode_intersect.bed')
-    snp_gtf_intersect = os.path.join(args.snp_vcf_dir, '0.snp_A.gencode_intersect.vcf')
+    snp_gtf_intersect = os.path.join(args.snp_vcf_dir, '0.snp.gencode_intersect.vcf')
     f.write("# STEP 2 - bam genes filter\n")
     f.write(f"mkdir {step2_output_dir}\n")
     f.write(
@@ -79,14 +79,14 @@ def write_pipelines_scripts_execution_commands(f, args):
     f.write('# STEP 4 - aggregation per position + statistics\n')
     f.write(f"mkdir {step4_output_dir}\n")
     f.write(
-        f"python {os.getcwd()}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} {args.snp_vcf} {args.editing_DB} --sname {args.sname} --threads {args.n}\n\n")
+        f"python {os.getcwd()}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} {snp_gtf_intersect} {editing_gtf_intersect} --sname {args.sname} --threads {args.n}\n\n")
 
     # step 5 - filtering positions and SNP/editing DB intersections
     step5_output_dir = 'step5_filtering_positions_and_SNP_editing_DB_intersections'
     f.write('# STEP 5 - filtering positions and SNP/editing DB intersections\n')
     f.write(f"mkdir {step5_output_dir}\n")
     f.write(
-        f'python {os.getcwd()}/scripts/step5_filtering_positions_and_snp_editing_DB_intersections.py {step4_output_dir} {step5_output_dir} {args.snp_vcf} {args.editing_DB} --sname {args.sname}\n\n')
+        f'python {os.getcwd()}/scripts/step5_filtering_positions_and_snp_editing_DB_intersections.py {step4_output_dir} {step5_output_dir} {snp_gtf_intersect} {editing_gtf_intersect} --sname {args.sname}\n\n')
 
     # step 6 - gene level analysis
     step6_output_dir = 'step6_gene_level'
