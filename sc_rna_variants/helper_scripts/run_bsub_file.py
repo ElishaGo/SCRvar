@@ -43,16 +43,17 @@ def write_meta_commands(f, args):
 
 
 def write_pipelines_scripts_execution_commands(f, args):
+    code_dir = "/home/labs/bioservices/shared/rarevar/scrarevar/"
     # TODO: ask what step to put this
     f.write("# count number of reads per barcode\n")
-    f.write(f"#{os.getcwd()}/sc_rna_variants/count_reads_per_barcode_in_bam.sh {args.bam_file} {args.sample_output_dir} {args.sname} {args.n}\n\n")
+    f.write(f"#{code_dir}/sc_rna_variants/count_reads_per_barcode_in_bam.sh {args.bam_file} {args.sample_output_dir} {args.sname} {args.n}\n\n")
     
     # step1 - filter bam file
     step1_output_dir = 'step1_filtered_bam_files'
     f.write("# STEP 1 - filter bam file by filter list\n")
     f.write(f"mkdir {step1_output_dir}\n")
     f.write(
-        f"#python {os.getcwd()}/scripts/step1_filter_bam.py {args.bam_file} {step1_output_dir} --filtered-barcodes-list {args.filter_list_bam} --threads {args.n}\n\n")
+        f"python {code_dir}/scripts/step1_filter_bam.py {args.bam_file} {step1_output_dir} --filtered-barcodes-list {args.filter_list_bam} --threads {args.n}\n\n")
 
     # get path to filtered bam file
     filtered_bam_path = str(
@@ -65,35 +66,37 @@ def write_pipelines_scripts_execution_commands(f, args):
     f.write("# STEP 2 - bam genes filter\n")
     f.write(f"mkdir {step2_output_dir}\n")
     f.write(
-        f"#sh {os.getcwd()}/scripts/step2_bam_gene_filter.sh {filtered_bam_path} {step2_output_dir} {args.annotation_gtf} {editing_gtf_intersect} {snp_gtf_intersect} {args.sname} {args.n}\n\n")
+        f"sh {code_dir}/scripts/step2_bam_gene_filter.sh {filtered_bam_path} {step2_output_dir} {args.annotation_gtf} {editing_gtf_intersect} {snp_gtf_intersect} {args.sname} {args.n}\n\n")
 
     # step 3 - create mismatch dictionary
     step3_output_dir = 'step3_mismatch_dictionary'
     f.write("# STEP 3 - create mismatch dictionary\n")
     f.write(f"mkdir {step3_output_dir}\n")
     f.write(
-        f"python {os.getcwd()}/scripts/step3_mismatch_dictionary.py {step2_output_dir}/2.{args.sname}.gene_filter.bam {args.genome_ref} {step3_output_dir} --threads {args.n}\n\n")
+        f"python {code_dir}/scripts/step3_mismatch_dictionary.py {step2_output_dir}/2.{args.sname}.gene_filter.bam {args.genome_ref} {step3_output_dir} --threads {args.n}\n\n")
 
     # step 4 - Aggregation per position + statistics
     step4_output_dir = 'step4_aggregation_per_position_and_statistics'
+    editing_gtf_bam_intersect = os.path.join(step2_output_dir, f'2.{args.sname}.editing.genecode.bam_intersect.bed')
+    snp_gtf_bam_intersect = os.path.join(step2_output_dir, f'2.{args.sname}.snp.genecode.bam_intersect.vcf')
     f.write('# STEP 4 - aggregation per position + statistics\n')
     f.write(f"mkdir {step4_output_dir}\n")
     f.write(
-        f"python {os.getcwd()}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} {snp_gtf_intersect} {editing_gtf_intersect} --sname {args.sname} --threads {args.n}\n\n")
+        f"python {code_dir}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} {snp_gtf_bam_intersect} {editing_gtf_bam_intersect} --sname {args.sname} --threads {args.n}\n\n")
 
     # step 5 - filtering positions and SNP/editing DB intersections
     step5_output_dir = 'step5_filtering_positions_and_SNP_editing_DB_intersections'
     f.write('# STEP 5 - filtering positions and SNP/editing DB intersections\n')
     f.write(f"mkdir {step5_output_dir}\n")
     f.write(
-        f'python {os.getcwd()}/scripts/step5_filtering_positions_and_snp_editing_DB_intersections.py {step4_output_dir} {step5_output_dir} {snp_gtf_intersect} {editing_gtf_intersect} --sname {args.sname}\n\n')
+        f'python {code_dir}/scripts/step5_filtering_positions_and_snp_editing_DB_intersections.py {step4_output_dir} {step5_output_dir} {snp_gtf_bam_intersect} {editing_gtf_bam_intersect} --sname {args.sname}\n\n')
 
     # step 6 - gene level analysis
     step6_output_dir = 'step6_gene_level'
     f.write('# STEP 6 - gene level\n')
     f.write(f"mkdir {step6_output_dir}\n")
     f.write(
-        f"python {os.getcwd()}/scripts/step6_gene_level.py {step4_output_dir} {step6_output_dir} {os.path.join(step3_output_dir, '3.mismatch_dictionary.bed')} {os.path.join(args.sample_output_dir, f'raw_bam_reads_per_barcode_count.{args.sname}.csv')} {args.annotation_gtf} --barcode_clusters {args.barcode_clusters} --sname {args.sname}\n\n")
+        f"python {code_dir}/scripts/step6_gene_level.py {step4_output_dir} {step6_output_dir} {os.path.join(step3_output_dir, '3.mismatch_dictionary.bed')} {os.path.join(args.sample_output_dir, f'raw_bam_reads_per_barcode_count.{args.sname}.csv')} {args.annotation_gtf} --barcode_clusters {args.barcode_clusters} --sname {args.sname}\n\n")
 
 
 def create_job_file(args):
@@ -135,7 +138,7 @@ def parse_arguments(arguments=None):
                         help='genome reference')
 
     parser.add_argument('--annotation_gtf',
-                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/genecode_gtf/gencode.v37.annotation.gtf",
+                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/genecode_gtf/0.gencode.v37.annotation.gtf",
                         help='gtf annotation file to find gene sites')
 
     parser.add_argument('--editing_DB_dir',

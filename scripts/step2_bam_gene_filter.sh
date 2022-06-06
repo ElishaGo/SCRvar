@@ -34,11 +34,11 @@ LOGFILE=${OUTPUT_DIR}/step2.log
     # remove sam files
     rm ${OUTPUT_FILE}.sam
 
-    # make intersection between editing A_I sites transcriptomes and filtered bam file
-    bedtools intersect -u -header -a ${EDITING_GTF_INTERSECT} -b ${OUTPUT_FILE}.bam > ${OUTPUT_DIR}/2.${FNAME}_editing.bam_intersect.bed
+    # make intersection between editing A_I sites-transcriptomes-filtered bam file
+    bedtools intersect -u -header -a ${EDITING_GTF_INTERSECT} -b ${OUTPUT_FILE}.bam > ${OUTPUT_DIR}/2.${FNAME}.editing.genecode.bam_intersect.bed
 
-    # make intersection between SNP A_I sites transcriptomes and filtered bam file
-    bedtools intersect -u -header -a ${SNP_GTF_INTERSECT} -b ${OUTPUT_FILE}.bam > ${OUTPUT_DIR}/2.${FNAME}_snp.bam_intersect.vcf
+    # make intersection between SNP-transcriptomes-filtered bam file
+    bedtools intersect -u -header -a ${SNP_GTF_INTERSECT} -b ${OUTPUT_FILE}.bam > ${OUTPUT_DIR}/2.${FNAME}.snp.genecode.bam_intersect.vcf
 
     echo end_of_log_file 1>&2 # test stderr
 

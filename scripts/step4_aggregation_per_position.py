@@ -157,8 +157,11 @@ def aggregate_df(df):
 
 
 def find_intersections_with_SNP_and_edit_DB(output_dir, snp_db_path, editing_db_path):
+    """add column for intersection with SNP and editing DB.
+    Note, we use here intersect with -c flag which add column of counts, instead of -u flag which only returns the
+    intersected entries."""
     agg_df_path = os.path.join(output_dir, '4.aggregated_per_position.bed')
-    snp_temp_path = os.path.join(output_dir, '4.snp_intersect.bed')
+    snp_temp_path = os.path.join(output_dir, 'temp_4.snp_intersect.bed')
     df_intersection = os.path.join(output_dir, '4.aggregated_per_position_intersect.bed')
 
     # add '#' to header of df_aggregated

@@ -133,6 +133,13 @@ def drop_snp_by_atacseq(df, df_atacseq, gcoverage_min, gfrequency_min):
     return df_merged
 
 
+def drop_editing_and_snp_overlap(df):
+    """remove positions which appear in both editing and snp sites"""
+    idx = df[(df['is_editing'] >= 1) & (df['is_snp'] >= 1)].index
+    print("number of positin with snp and editing overlap to remove: %d." % len(idx))
+    return df.drop(idx)
+
+
 def get_editing_df(df):
     """function returns df of only editing sites"""
     editing_sites_df = df.loc[df['is_editing'] == 1]
@@ -364,7 +371,10 @@ def run_step6(args):
 
     if (args.atacseq_path):
         atacseq_df = get_ATACseq(args.atacseq_path)
-        df = drop_snp_by_atacseq(df_filtered, atacseq_df, gcoverage_min=5, gfrequency_min=0.2)
+        df_filtered = drop_snp_by_atacseq(df_filtered, atacseq_df, gcoverage_min=5, gfrequency_min=0.2)
+
+    # TODO: make sure this is ok
+    df_filtered = drop_editing_and_snp_overlap(df_filtered)
 
     df_edit = get_and_process_edit_df(df_filtered, args.output_dir, args.gtf_path)
 

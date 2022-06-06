@@ -20,18 +20,16 @@ logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
 logger = logging.getLogger(__name__)
 
 
-def intersect_with_atacseq(df_agg_intersect, output_dir, atacseq_file):
-    # load atacseq file
+def add_atacseq_data(df_agg_intersect, output_dir, atacseq_file):
+    """function to add 'gCoverage-q20' and 'gFrequency' columns from atackseq to the position table"""
     df_atacseq = pd.read_csv(atacseq_file, sep='\t')
-    print(df_atacseq.shape)
 
-    # match column names with the 10X tables
-    # TODO: ask what to do with differetn column name
+    # rename columns name like the bed file
     df_atacseq = df_atacseq.rename(
-        columns={'Region': '#chromosome', 'Position': 'start', 'Strand': 'Strand (0:-, 1:+, 2:unknown)'})
+        columns={'Region': '#chrom', 'Position': 'chromStart', 'Strand': 'Strand (0:-, 1:+, 2:unknown)'})
 
-    # the atacseq is
-    df_merged = pd.merge(df_agg_intersect, df_atacseq, on=['#chromosome', 'start'], how='left')
+    # merge the files
+    df_merged = pd.merge(df_agg_intersect, df_atacseq, on=['#chrom', 'chromStart'], how='left')
     df_merged_temp = df_merged[df_merged['gFrequency'].notnull()]
 
     # replace missing values with 0
@@ -228,7 +226,7 @@ def plot_heatmap_mutation_per_base_DB(df_merged, df_merged_filtered, output_dir,
 def make_venn_diagrams(df_agg_intrsct, df_filtered, output_dir, snp_db_path, editing_db_path, sname):
     """function to get information on intersections of tables with databases"""
     snp_total_count = os.popen("grep -v '#' {} | wc -l".format(snp_db_path)).read()  # count non header lines
-    editing_total_count = os.popen("cat {} | wc -l".format(editing_db_path)).read()
+    editing_total_count = os.popen("grep -v '#' {} | wc -l".format(editing_db_path)).read()
 
     # convert to int
     snp_total_count, editing_total_count = int(snp_total_count), int(editing_total_count)
@@ -276,13 +274,6 @@ def get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_
     # plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
 
 
-def drop_ifs(df):
-    """remove positions which appear in both editing and snp sites"""
-    idx = df[((df['is_editing_non_rep'] == 1) | (df['is_editing_rep'] == 1)) & (df['is_snp'] == 1)].index
-    print("number of positin with snp and editing overlap to remove: %d." % len(idx))
-    return df.drop(idx)
-
-
 def run_snp_edit_DB_intersections(input_dir, output_dir, snp_db_path, editing_db_path, min_cb_per_pos,
                                   min_mutation_umis, min_total_umis,
                                   min_mutation_rate, sname, atacseq):
@@ -299,7 +290,7 @@ def run_snp_edit_DB_intersections(input_dir, output_dir, snp_db_path, editing_db
 
     # if ATACseq data if supplied, remove potential SNP sites
     if (atacseq):
-        intersect_with_atacseq(df_agg_intersect, output_dir, atacseq)
+        add_atacseq_data(df_agg_intersect, output_dir, atacseq)
 
 
 def run_step5(args):

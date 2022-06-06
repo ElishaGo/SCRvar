@@ -130,8 +130,14 @@ def bedtools_intersect_u_flag(a_path, b_path, output_path):
 
 
 def bedtools_sort(to_sort, f_sorted):
-    with open(f_sorted, "w") as outfile:
+    temp = f_sorted + "temp"
+    with open(temp, "w") as outfile:
         subprocess.run(['bedtools', 'sort', '-i', to_sort], stdout=outfile)
+
+    # bedtools sort drop the header, so we add it manually
+    with open(f_sorted, "w") as outfile:
+        subprocess.run([f"grep '#' {to_sort} | cat - {temp}"], stdout=outfile, shell=True)
+    os.remove(temp)
 
 
 def add_chr_to_vcf(snp_DB_path, f_with_chr):
@@ -179,7 +185,7 @@ def snp_DB_intersections(snp_DB_path, out_dir, editing_DB_path, gtf_path):
     :return:
     """
     # intersect with editing_A_I file
-    snp_A_output = os.path.join(out_dir, '0.snp_A.vcf')
+    snp_A_output = os.path.join(out_dir, '0.snp.A_I.vcf')
     bedtools_intersect_u_flag(a_path=snp_DB_path,
                               b_path=os.path.join(editing_DB_path[:editing_DB_path.rfind(os.sep)], '0.editing_A_I.bed'),
                               output_path=snp_A_output)
@@ -196,7 +202,7 @@ def snp_DB_intersections(snp_DB_path, out_dir, editing_DB_path, gtf_path):
 
 
 def process_gtf(orig_gtf_path, out_dir):
-    out_path = os.path.join(out_dir, "processed_" + os.path.basename(orig_gtf_path))
+    out_path = os.path.join(out_dir, "0." + os.path.basename(orig_gtf_path))
     bedtools_sort(orig_gtf_path, out_path)
     return out_path
 
