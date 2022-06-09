@@ -6,6 +6,7 @@ from datetime import datetime
 
 import sys  # for development environments
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # for development environments
 
 import sc_rna_variants.analysis_utils
@@ -132,6 +133,13 @@ def drop_snp_by_atacseq(df, df_atacseq, gcoverage_min, gfrequency_min):
     return df_merged
 
 
+def drop_editing_and_snp_overlap(df):
+    """remove positions which appear in both editing and snp sites"""
+    idx = df[(df['is_editing'] >= 1) & (df['is_snp'] >= 1)].index
+    print("number of positin with snp and editing overlap to remove: %d." % len(idx))
+    return df.drop(idx)
+
+
 def get_editing_df(df):
     """function returns df of only editing sites"""
     editing_sites_df = df.loc[df['is_editing'] == 1]
@@ -171,7 +179,6 @@ def load_and_process_mismatch_table(df_edit, mismatches_path, barcodes_clusters_
     df_mismatches.loc[df_mismatches['position'].isin(df_edit['position']), 'is_edit'] = 1
 
     # add clusters notations to open table
-    ##### THE CLUSTERS TABLE NEED TO BE CREATED BY HAND. ASK DENA HOW IT IS GENRATED
     def add_clusters(df_open, clusters_path):
         cb_clusters = pd.read_csv(clusters_path, sep='\t', names=['sample', 'cell barcode', 'cluster'])
         cb_clusters['cluster'] = cb_clusters.apply(lambda x: 'c' + str(x['cluster']), axis=1)
@@ -181,6 +188,7 @@ def load_and_process_mismatch_table(df_edit, mismatches_path, barcodes_clusters_
         # add clusters to cells in open table
         return df_open.merge(cb_clusters.loc[:, ['cell barcode', 'cluster', 'cluster cell barcode']], on='cell barcode',
                              how='left')
+
     if barcodes_clusters_path:
         df_mismatches = add_clusters(df_mismatches, barcodes_clusters_path)
 
@@ -217,15 +225,26 @@ def exploratory_data_analysis(df, df_edit, df_open_edit, df_mismatches, reads_pe
 
 
 def get_pivot_tables(df):
-    # create heatmap for Cells VS. Genes
-    cells_VS_genes_umis_pt = df.groupby(['gene_name', 'cluster cell barcode']).agg(
-        {'mutated umis per cell': 'sum'}).reset_index().pivot(index='cluster cell barcode', columns='gene_name',
-                                                              values="mutated umis per cell")
-
     # create heatmap for Seurat clusters VS. Genes
     clusters_VS_genes_umis_pt = df.groupby(['cluster', 'gene_name']).agg(
         {'mutated umis per cell': 'sum'}).reset_index().pivot(index='cluster', columns='gene_name',
                                                               values="mutated umis per cell")
+
+    # create heatmap for Seurat clusters VS. Genes - unmutated umis
+    clusters_VS_genes_unmutated_umis_pt = df.groupby(['cluster', 'gene_name', 'position']).agg(
+        {'unmutated umis per cell': 'first'}).groupby(['cluster', 'gene_name']).agg(
+        {'unmutated umis per cell': 'sum'}).reset_index().pivot(index='cluster', columns='gene_name',
+                                                                values="unmutated umis per cell")
+
+    # # create heatmap for Cells VS. Genes
+    # cells_VS_genes_umis_pt = df.groupby(['gene_name', 'cluster cell barcode']).agg(
+    #     {'mutated umis per cell': 'sum'}).reset_index().pivot(index='cluster cell barcode', columns='gene_name',
+    #                                                           values="mutated umis per cell")
+    #
+    # # create heatmap for Cells VS. Genes- unmutated umis
+    # cells_VS_genes_unmutated_umis_pt = df.groupby(['gene_name', 'cluster cell barcode']).agg(
+    #     {'unmutated umis per cell': 'first'}).reset_index().pivot(index='cluster cell barcode', columns='gene_name',
+    #                                                               values="unmutated umis per cell")
 
     # # create heatmap for Cells VS. Positions
     # cells_VS_position_mutated_umis_pt = df.pivot_table(index='cluster cell barcode', columns='position',
@@ -238,29 +257,23 @@ def get_pivot_tables(df):
     #                                                      values="unmutated umis per cell",
     #                                                      aggfunc='sum')
 
-    # create heatmap for Cells VS. Genes- unmutated umis
-    cells_VS_genes_unmutated_umis_pt = df.groupby(['gene_name', 'cluster cell barcode']).agg(
-        {'unmutated umis per cell': 'first'}).reset_index().pivot(index='cluster cell barcode', columns='gene_name',
-                                                                  values="unmutated umis per cell")
-    # create heatmap for Seurat clusters VS. Genes - unmutated umis
-    clusters_VS_genes_unmutated_umis_pt = df.groupby(['cluster', 'gene_name', 'position']).agg(
-        {'unmutated umis per cell': 'first'}).groupby(['cluster', 'gene_name']).agg(
-        {'unmutated umis per cell': 'sum'}).reset_index().pivot(index='cluster', columns='gene_name',
-                                                                values="unmutated umis per cell")
     # create a dictionary between chromosomes and genes
     print(df.columns)
     chr_genes_pairs = pd.Series(df['#chrom'].values, index=df.gene_name).to_dict()
 
-    pt_names = ['cells_VS_genes_umis', 'clusters_VS_genes_umis',
+    pt_names = ['clusters_VS_genes_umis', 'clusters_VS_genes_unmutated_umis',
+                # 'cells_VS_genes_umis',
+                # 'cells_VS_genes_unmutated_umis'
                 # 'cells_VS_position_mutated_umis',
                 # 'cells_VS_position_unmutated_umis',
-                'cells_VS_genes_unmutated_umis', 'clusters_VS_genes_unmutated_umis']
+                ]
 
-    pts = [cells_VS_genes_umis_pt, clusters_VS_genes_umis_pt,
-            # cells_VS_position_mutated_umis_pt,
-            # cells_VS_position_unmutated_umis_pt,
-            cells_VS_genes_unmutated_umis_pt, clusters_VS_genes_unmutated_umis_pt,
-            chr_genes_pairs]
+    pts = [clusters_VS_genes_umis_pt, clusters_VS_genes_unmutated_umis_pt,
+           # cells_VS_genes_umis_pt,
+           # cells_VS_genes_unmutated_umis_pt,
+           # cells_VS_position_mutated_umis_pt,
+           # cells_VS_position_unmutated_umis_pt,
+           chr_genes_pairs]
     return pts, pt_names
 
 
@@ -294,8 +307,8 @@ def plot_heatmaps(pivot_tables, pt_names, sname, output_dir):
         print("name")
         print(pt.shape)
         sc_rna_variants.statistic_plots.make_clusters_heatmap(pivot_table=pt, name=name + str(sname),
-                                                              min_umi_per_position=0,
-                                                              min_umi_per_cell=0,
+                                                              min_umi_per_position=1,
+                                                              min_umi_per_cell=1,
                                                               output_dir=output_dir,
                                                               chr_genes_pairs=chr_genes_pairs)
 
@@ -306,8 +319,8 @@ def clustering_anlysis(df_open_edit, output_dir, sname):
     print("2")
     cells_VS_genes_umis_repetetive_pt = get_repetetive_cells(df=pts[0], min_genes_to_occure_in=2)
 
-    plot_heatmaps(pts, pt_names, sname, output_dir)
     sc_rna_variants.statistic_plots.plot_umis_per_gene(pts[1], output_dir)
+    plot_heatmaps(pts, pt_names, sname, output_dir)
 
 
 def get_reads_per_cell(rpc_fpath):
@@ -358,11 +371,14 @@ def run_step6(args):
 
     if (args.atacseq_path):
         atacseq_df = get_ATACseq(args.atacseq_path)
-        df = drop_snp_by_atacseq(df, atacseq_df, gcoverage_min=5, gfrequency_min=0.2)
+        df_filtered = drop_snp_by_atacseq(df_filtered, atacseq_df, gcoverage_min=5, gfrequency_min=0.2)
 
-    df_edit = get_and_process_edit_df(df, args.output_dir, args.gtf_path)
+    # TODO: make sure this is ok
+    df_filtered = drop_editing_and_snp_overlap(df_filtered)
 
-    ###### create df_open table ######
+    df_edit = get_and_process_edit_df(df_filtered, args.output_dir, args.gtf_path)
+
+    # create df_open table
     df_mismatches = load_and_process_mismatch_table(df_edit, args.mismatch_dict_bed, args.barcode_clusters)
 
     # get open table of editing sites
@@ -372,7 +388,7 @@ def run_step6(args):
     df_open_edit = df_open_edit.merge(df_edit.loc[:, ['position', 'gene_name']], on='position', how='left')
     print("\n shape of editing sites open table is:", df_open_edit.shape)
 
-    exploratory_data_analysis(df, df_edit, df_open_edit, df_mismatches, reads_per_barcode_path, args.output_dir,
+    exploratory_data_analysis(df_filtered, df_edit, df_open_edit, df_mismatches, reads_per_barcode_path, args.output_dir,
                               args.sname)
 
     if args.barcode_clusters:

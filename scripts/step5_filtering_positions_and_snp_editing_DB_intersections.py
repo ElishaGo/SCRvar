@@ -17,20 +17,19 @@ from sc_rna_variants.statistic_plots import get_min_max, make_mut_counts_heatmap
 
 pd.set_option('display.max_columns', None)
 logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
+logger = logging.getLogger(__name__)
 
 
-def intersect_with_atacseq(df_agg_intersect, output_dir, atacseq_file):
-    # load atacseq file
+def add_atacseq_data(df_agg_intersect, output_dir, atacseq_file):
+    """function to add 'gCoverage-q20' and 'gFrequency' columns from atackseq to the position table"""
     df_atacseq = pd.read_csv(atacseq_file, sep='\t')
-    print(df_atacseq.shape)
 
-    # match column names with the 10X tables
-    # TODO: ask what to do with differetn column name
+    # rename columns name like the bed file
     df_atacseq = df_atacseq.rename(
-        columns={'Region': '#chromosome', 'Position': 'start', 'Strand': 'Strand (0:-, 1:+, 2:unknown)'})
+        columns={'Region': '#chrom', 'Position': 'chromStart', 'Strand': 'Strand (0:-, 1:+, 2:unknown)'})
 
-    # the atacseq is
-    df_merged = pd.merge(df_agg_intersect, df_atacseq, on=['#chromosome', 'start'], how='left')
+    # merge the files
+    df_merged = pd.merge(df_agg_intersect, df_atacseq, on=['#chrom', 'chromStart'], how='left')
     df_merged_temp = df_merged[df_merged['gFrequency'].notnull()]
 
     # replace missing values with 0
@@ -41,6 +40,7 @@ def intersect_with_atacseq(df_agg_intersect, output_dir, atacseq_file):
 
 
 def plot_venn_diagram(df, subset_list, labels, column_name, output_dir, sname):
+    plt.clf()
     plt.title('Intersection of positions - {} and {}'.format(labels[1], labels[0]))
 
     v = venn3(subsets=subset_list, set_labels=(labels[0], labels[1], labels[2]))
@@ -66,13 +66,13 @@ def plot_venn_diagram(df, subset_list, labels, column_name, output_dir, sname):
     plt.legend(handles=h, labels=l, title="counts", loc='lower right')  # bbox_to_anchor=(0.95,0.7)
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, '5.venn_diagram_{}.png'.format(labels[0])), facecolor='white')
-    plt.clf()
 
     # make histogram of mutated CB
     intrsct_list = df[df[column_name] == 1]['count of mutated cell barcodes']
 
     # histogram on log scale.
     # Use non-equal bin sizes, such that they look equal on log scale.
+    plt.clf()
     hist, bins = np.histogram(intrsct_list, bins=30)
     logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
     plt.hist(intrsct_list, bins=logbins)
@@ -87,7 +87,6 @@ def plot_venn_diagram(df, subset_list, labels, column_name, output_dir, sname):
     plt.legend(['Intersection positions - not filtered', 'Intersection positions - filtered'])
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, '5.CB_intersections_histogram_{}.png'.format(labels[0])), facecolor='white')
-    plt.clf()
 
 
 def run_venn(df, df_filtered, column_name, db_total_count, labels, input_dir, sname):
@@ -208,7 +207,7 @@ def plot_heatmap_mutation_per_base_DB(df_merged, df_merged_filtered, output_dir,
         a_mut_data = count_matrix.sum(axis=0)
         all_a_mutations_mat[i, :] = a_mut_data
 
-    vmin, vmax = all_a_mutations_mat.min(), all_a_mutations_mat.max()
+    vmin, vmax = np.floor(np.log10(all_a_mutations_mat.min())), np.floor(np.log10(all_a_mutations_mat.max()))
     s = sns.heatmap(np.log10(all_a_mutations_mat), linewidth=0.5, annot=np.array(all_a_mutations_mat),
                     cbar_kws={'label': 'log 10'}, cmap='brg', vmin=vmin, vmax=vmax,
                     xticklabels=['same_all', 'same_mut', 'transition', 'reverse', 'transversion'],
@@ -227,7 +226,7 @@ def plot_heatmap_mutation_per_base_DB(df_merged, df_merged_filtered, output_dir,
 def make_venn_diagrams(df_agg_intrsct, df_filtered, output_dir, snp_db_path, editing_db_path, sname):
     """function to get information on intersections of tables with databases"""
     snp_total_count = os.popen("grep -v '#' {} | wc -l".format(snp_db_path)).read()  # count non header lines
-    editing_total_count = os.popen("cat {} | wc -l".format(editing_db_path)).read()
+    editing_total_count = os.popen("grep -v '#' {} | wc -l".format(editing_db_path)).read()
 
     # convert to int
     snp_total_count, editing_total_count = int(snp_total_count), int(editing_total_count)
@@ -267,21 +266,12 @@ def get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_
     """
     # plot not grouped data
     plot_cb_occurences_hist(df_merged_open, df_merged_filtered, output_folder, sname)  # no non_mut usage
-    plot_umi_per_reference_base(df_merged_open, df_merged_filtered, output_folder, sname, df_mut_open,
-                                df_unmutated)  # use nonmut data
-    plot_heatmap_mutation_per_base(df_merged_open, df_merged_filtered, output_folder, sname, df_mut_open,
-                                   df_unmutated)  # use nonmut data
+    plot_umi_per_reference_base(df_merged_open, df_merged_filtered, output_folder, sname)  # use nonmut data
+    plot_heatmap_mutation_per_base(df_merged_open, df_merged_filtered, output_folder, sname)  # use nonmut data
 
     # plot data grouped by position
-    plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
-    plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
-
-
-def drop_ifs(df):
-    """remove positions which appear in both editing and snp sites"""
-    idx = df[((df['is_editing_non_rep'] == 1) | (df['is_editing_rep'] == 1)) & (df['is_snp'] == 1)].index
-    print("number of positin with snp and editing overlap to remove: %d." % len(idx))
-    return df.drop(idx)
+    # plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
+    # plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
 
 
 def run_snp_edit_DB_intersections(input_dir, output_dir, snp_db_path, editing_db_path, min_cb_per_pos,
@@ -289,7 +279,7 @@ def run_snp_edit_DB_intersections(input_dir, output_dir, snp_db_path, editing_db
                                   min_mutation_rate, sname, atacseq):
     # get the df with intersections, before and after filtering
     df_agg_intersect, df_agg_intrsct_filtered = sc_rna_variants.analysis_utils.get_df_and_filtered_df(
-        os.path.join(input_dir, '4_aggregated_per_position_intersect.bed'), min_cb_per_pos,
+        os.path.join(input_dir, '4.aggregated_per_position_intersect.bed'), min_cb_per_pos,
         min_mutation_umis, min_total_umis,
         min_mutation_rate)
 
@@ -300,7 +290,7 @@ def run_snp_edit_DB_intersections(input_dir, output_dir, snp_db_path, editing_db
 
     # if ATACseq data if supplied, remove potential SNP sites
     if (atacseq):
-        intersect_with_atacseq(df_agg_intersect, output_dir, atacseq)
+        add_atacseq_data(df_agg_intersect, output_dir, atacseq)
 
 
 def run_step5(args):
@@ -334,7 +324,7 @@ def run_step5(args):
     run_snp_edit_DB_intersections(args.input_dir, args.output_dir, args.snp_db_path, args.editing_db_path,
                                   args.min_cb_per_pos,
                                   args.min_mutation_umis, args.min_total_umis,
-                                  args.min_mutation_rate, args.sname, args.atacseq)
+                                  args.min_mutation_rate, args.sname, args.atacseq_path)
 
     # TODO: remove snp overlaps with editing sites
     # drop_ifs(df)
@@ -360,7 +350,7 @@ def parse_arguments(arguments=None):
                         help='position with less number of mutated + unmutated UMIs will be filtered')
     parser.add_argument('--min_mutation_rate', default=0.1, type=int,
                         help='position with less rate of mutation will be filtered')
-    parser.add_argument('--atacseq', type=str, help='path to atacseq file')
+    parser.add_argument('--atacseq_path', type=str, help='path to atacseq file')
 
     # Meta arguments
     parser.add_argument('--log-file',
