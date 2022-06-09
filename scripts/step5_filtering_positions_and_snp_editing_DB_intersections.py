@@ -99,32 +99,6 @@ def run_venn(df, df_filtered, column_name, db_total_count, labels, input_dir, sn
     plot_venn_diagram(df, [set1, set2, set3], labels, column_name, input_dir, sname)
 
 
-def plot_venn2_diagram(subset_list, labels, output_dir, sname):
-    # create hisrogram without green
-    v = venn2(subsets=subset_list, set_labels=(labels[0], labels[1]))
-    venn2_circles(subsets=subset_list, color='gray', linewidth=1, linestyle='dashed')
-
-    sets = Counter()
-    sets['10'] = v.get_label_by_id('10').get_text()
-    sets['01'] = v.get_label_by_id('01').get_text()
-    sets['11'] = v.get_label_by_id('11').get_text()
-
-    h, l = [], []
-    for i in sets:
-        # remove label by setting them to empty string:
-        v.get_label_by_id(i).set_text("")
-        # append patch to handles list
-        h.append(v.get_patch_by_id(i))
-        # append count to labels list
-        l.append(sets[i])
-
-    # create legend from handles and labels
-    plt.title('Intersection of {} and {} - {}'.format(labels[0], labels[1], sname))
-    plt.legend(handles=h, labels=l, title="counts", bbox_to_anchor=(0.95, 0.7))
-    plt.savefig(os.path.join(output_dir, 'venn2_diagram_{}.png'.format(labels[0])), facecolor='white')
-    plt.clf()
-
-
 def plot_heatmap_mutation_per_base_DB(df_merged, df_merged_filtered, output_dir, sname):
     # def get_min_max(count_matrices):
     #     """helper function to find the common min and max values for color scaling for all heatmaps in figure"""
@@ -265,13 +239,13 @@ def get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_
     Input - mutation table in open form and aggregated form.
     """
     # plot not grouped data
-    plot_cb_occurences_hist(df_merged_open, df_merged_filtered, output_folder, sname)  # no non_mut usage
+    plot_cb_occurences_hist(df_merged_open, df_merged_filtered, output_folder, sname)
     plot_umi_per_reference_base(df_merged_open, df_merged_filtered, output_folder, sname)  # use nonmut data
     plot_heatmap_mutation_per_base(df_merged_open, df_merged_filtered, output_folder, sname)  # use nonmut data
 
     # plot data grouped by position
-    # plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
-    # plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
+    plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
+    plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
 
 
 def run_snp_edit_DB_intersections(input_dir, output_dir, snp_db_path, editing_db_path, min_cb_per_pos,

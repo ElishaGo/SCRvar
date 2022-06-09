@@ -4,10 +4,11 @@ import numpy as np
 import pandas as pd
 from math import ceil
 import seaborn as sns
+from collections import Counter
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from scipy.stats import pearsonr
-
+from matplotlib_venn import venn2, venn2_circles
 warnings.filterwarnings("ignore")
 
 
@@ -418,3 +419,28 @@ def editing_events_vs_number_of_mutated_umis_per_cell(editingsites_per_cb_stats,
     plt.suptitle("Editing events vs. number of mutated umis per cell barcode")
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "editing_events_VS_umi_scatter.png"))
+
+
+def plot_venn2_diagram(subset_list, labels, output_name, sname):
+    v = venn2(subsets=subset_list, set_labels=(labels[0], labels[1]))
+    c = venn2_circles(subsets=subset_list, color='gray', linewidth=1, linestyle='dashed')
+
+    sets = Counter()
+    sets['10'] = v.get_label_by_id('10').get_text()
+    sets['01'] = v.get_label_by_id('01').get_text()
+    sets['11'] = v.get_label_by_id('11').get_text()
+
+    h, l = [], []
+    for i in sets:
+        # remove label by setting them to empty string:
+        v.get_label_by_id(i).set_text("")
+        # append patch to handles list
+        h.append(v.get_patch_by_id(i))
+        # append count to labels list
+        l.append(sets[i])
+
+    # create legend from handles and labels
+    plt.title('{}'.format(sname))
+    plt.legend(handles=h, labels=l, title="counts")
+    plt.tight_layout()
+    plt.savefig(output_name, facecolor='white')
