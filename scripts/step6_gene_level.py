@@ -46,7 +46,6 @@ def get_gene_names(edit_df, gtf_editing_sites_intersection):
     ## We drop the empty records.
     gene_names['gene_name'].replace('', 'None', inplace=True)
     gene_names = gene_names[gene_names['gene_name'] != 'None']
-    #     print("shape after dropping empty records for overlap with genes:", gene_names.shape)
 
     # drop duplicates
     gene_names = gene_names.drop_duplicates()
@@ -213,6 +212,8 @@ def get_open_edit(df_open):
 
 
 def exploratory_data_analysis(df, df_edit, df_open_edit, df_mismatches, reads_per_barcode_path, output_dir, sname):
+    output_dir = os.path.join(output_dir, 'plots')
+    os.makedirs(output_dir, exist_ok=True)
     sc_rna_variants.statistic_plots.non_ref_from_all_cells(df, output_dir)
     sc_rna_variants.statistic_plots.snp_observed_against_mut_UMI_in_position(df, output_dir, sname)
 
@@ -293,7 +294,6 @@ def get_repetetive_cells(df, min_genes_to_occure_in):
     # save filtered matrix
     df_repetetive_cells = df.loc[cells_idx, :]
 
-    # print shapes
     print("original shape:", df.shape)
     print("repetetive shape:", df_repetetive_cells.shape)
 
@@ -314,9 +314,10 @@ def plot_heatmaps(pivot_tables, pt_names, sname, output_dir):
 
 
 def clustering_anlysis(df_open_edit, output_dir, sname):
-    print("starting clustering_analysis")
+    output_dir = os.path.join(output_dir, 'plots_clustering')
+    os.makedirs(output_dir, exist_ok=True)
+
     pts, pt_names = get_pivot_tables(df_open_edit)
-    print("2")
     cells_VS_genes_umis_repetetive_pt = get_repetetive_cells(df=pts[0], min_genes_to_occure_in=2)
 
     sc_rna_variants.statistic_plots.plot_umis_per_gene(pts[1], output_dir)

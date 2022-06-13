@@ -100,40 +100,6 @@ def run_venn(df, df_filtered, column_name, db_total_count, labels, input_dir, sn
 
 
 def plot_heatmap_mutation_per_base_DB(df_merged, df_merged_filtered, output_dir, sname):
-    # def get_min_max(count_matrices):
-    #     """helper function to find the common min and max values for color scaling for all heatmaps in figure"""
-    #     vmin, vmax = np.Inf, np.NINF
-    #     for mat_to_plot in count_matrices:
-    #         if mat_to_plot.min() < vmin:
-    #             vmin = mat_to_plot.min()
-    #         if mat_to_plot.max() > vmax:
-    #             vmax = mat_to_plot.max()
-    #
-    #     return np.floor(np.log10(vmin)), np.ceil(np.log10(vmax))
-
-    # def make_mut_counts_heatmap(count_matrices, out_folder, sname):
-    #     """helper function to plot the heatmap"""
-    #     # get min and max values for plotting color scale
-    #     vmin, vmax = get_min_max(count_matrices)
-    #
-    #     fig, axs = plt.subplots(2, 2, figsize=(10, 8))
-    #     axs = axs.reshape(-1)
-    #     for i, count_matrix in enumerate(count_matrices):
-    #         # add first column of unmut data to the mut data
-    #         mat_to_plot = count_matrix[0]
-    #         axs[i] = sns.heatmap(np.log10(mat_to_plot), linewidth=0.5, annot=np.array(mat_to_plot),
-    #                              cbar_kws={'label': 'log 10'}, ax=axs[i], cmap='brg', vmin=vmin, vmax=vmax,
-    #                              xticklabels=['same_all', 'same_mut', 'transition', 'reverse', 'transversion'],
-    #                              yticklabels=bases)
-    #         axs[i].set_yticklabels(axs[i].get_yticklabels(), rotation=360)
-    #         axs[i].set_xticklabels(axs[i].get_xticklabels(), rotation=30, ha='right')
-    #         axs[i].set_title(
-    #             "Counts of mutations per base - {} reads {} - {}".format(count_matrix[1], count_matrix[2], sname))
-    #         axs[i].set_ylabel("reference base")
-    #         axs[i].set_xlabel("mutation")
-    #     plt.tight_layout()
-    #     plt.savefig(os.path.join(out_folder, "heatmap_mutation_perbase_intersection.png"), bbox_inches='tight')
-
     def make_counts_matrix():
         """helper function to create two matices with counts of different umis, one with unmutated data and one with
         unmutated data"""
@@ -238,6 +204,9 @@ def get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_
     Function to manage all plots creation.
     Input - mutation table in open form and aggregated form.
     """
+    output_folder = os.path.join(output_folder, 'plot_with_and_without_filtering')
+    os.makedirs(output_folder, exist_ok=True)
+
     # plot not grouped data
     plot_cb_occurences_hist(df_merged_open, df_merged_filtered, output_folder, sname)
     plot_umi_per_reference_base(df_merged_open, df_merged_filtered, output_folder, sname)  # use nonmut data
@@ -248,7 +217,7 @@ def get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_
     plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
 
 
-def run_snp_edit_DB_intersections(input_dir, output_dir, snp_db_path, editing_db_path, min_cb_per_pos,
+def run_snp_edit_DB_intersections(input_dir, output_folder, snp_db_path, editing_db_path, min_cb_per_pos,
                                   min_mutation_umis, min_total_umis,
                                   min_mutation_rate, sname, atacseq):
     # get the df with intersections, before and after filtering
@@ -257,14 +226,17 @@ def run_snp_edit_DB_intersections(input_dir, output_dir, snp_db_path, editing_db
         min_mutation_umis, min_total_umis,
         min_mutation_rate)
 
-    # make Venn diagrams of the intersections
-    make_venn_diagrams(df_agg_intersect, df_agg_intrsct_filtered, output_dir, snp_db_path, editing_db_path, sname)
+    output_folder = os.path.join(output_folder, 'plots_after_intersections_with_DB')
+    os.makedirs(output_folder, exist_ok=True)
 
-    plot_heatmap_mutation_per_base_DB(df_agg_intersect, df_agg_intrsct_filtered, output_dir, sname)
+    # make Venn diagrams of the intersections
+    make_venn_diagrams(df_agg_intersect, df_agg_intrsct_filtered, output_folder, snp_db_path, editing_db_path, sname)
+
+    plot_heatmap_mutation_per_base_DB(df_agg_intersect, df_agg_intrsct_filtered, output_folder, sname)
 
     # if ATACseq data if supplied, remove potential SNP sites
     if (atacseq):
-        add_atacseq_data(df_agg_intersect, output_dir, atacseq)
+        add_atacseq_data(df_agg_intersect, output_folder, atacseq)
 
 
 def run_step5(args):
@@ -299,9 +271,6 @@ def run_step5(args):
                                   args.min_cb_per_pos,
                                   args.min_mutation_umis, args.min_total_umis,
                                   args.min_mutation_rate, args.sname, args.atacseq_path)
-
-    # TODO: remove snp overlaps with editing sites
-    # drop_ifs(df)
 
 
 ##################################################################################################################

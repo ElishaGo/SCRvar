@@ -585,8 +585,8 @@ def variants_finder(filtered_bam, genome_fasta, tag_for_umi, tag_for_cell_barcod
         # process_chromosome_chunk(
         #         filtered_bam, chunk,
         #         names_translator.translate_chromosome_name(chunk[0]),
-        #         arguments.genome_fasta, arguments.tag_for_umi,
-        #         arguments.tag_for_cell_barcode, filtered_chunk_tsv_path
+        #         genome_fasta, tag_for_umi,
+        #         tag_for_cell_barcode, filtered_chunk_tsv_path
         #         )
         #######
         result = pool.apply_async(func=process_chromosome_chunk, args=(
