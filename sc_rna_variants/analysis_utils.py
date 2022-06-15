@@ -145,3 +145,17 @@ def get_df_and_filtered_df(df_path, min_cb_per_pos, min_mutation_umis, min_total
                                                min_mutation_rate=min_mutation_rate)
     return df_agg_intrsct, df_agg_intrsct_filtered
 
+
+def write_statistics_numbers(df_merged, df_merged_filtered, output_folder):
+    def write_stats_to_file(file_handler, df):
+        file_handler.write("number of unique (position, CB) in table: %s \n" % str(df.shape[0]))
+        file_handler.write("number of unique positions: %s \n" % str(df['position'].nunique()))
+        file_handler.write("number of unique cell barcodes: %s \n" % str(df['cell barcode'].nunique()))
+
+    with open(os.path.join(output_folder, '5.statistics_log.txt'), 'w') as f:
+        f.write("General numbers information of table in open mode:\n\n")
+        f.write("Before filtering:\n")
+        write_stats_to_file(f, df_merged)
+        f.write("After filtering:\n")
+        write_stats_to_file(f, df_merged_filtered)
+

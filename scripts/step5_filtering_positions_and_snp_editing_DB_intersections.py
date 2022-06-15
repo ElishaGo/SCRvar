@@ -178,14 +178,6 @@ def make_venn_diagrams(df_agg_intrsct, df_filtered, output_dir, snp_db_path, edi
              ['Editing_DB', 'Aggregated data', 'Filtered data'], output_dir, sname)
 
 
-def print_frequencies(df_merged, df_merged_agg, output_folder):
-    with open(os.path.join(output_folder, '5.general_numbers.txt'), 'w') as f:
-        f.write("General numbers information of table in open mode:\n\n")
-        f.write("number of unique (position, CB) in table: %s \n" % str(df_merged.shape[0]))
-        f.write("number of unique positions: %s \n" % str(df_merged['position'].nunique()))
-        f.write("number of unique cell barcodes: %s \n" % str(df_merged['cell barcode'].nunique()))
-
-
 def filter_open_and_agg_tables(df, df_agg, min_mutation_cb_to_filter, min_mutation_umis, min_total_umis,
                                min_mutation_rate):
     # filter aggregated table
@@ -261,12 +253,11 @@ def run_step5(args):
     get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_merged_filtered, df_merged_agg_filtered,
                    args.output_dir, args.sname)
 
-    # write data to text file
-    logger.info("started to make frequency text file")
-    print_frequencies(df_merged_open, df_merged_agg, args.output_dir)
+    # write statistics to text file
+    sc_rna_variants.analysis_utils.write_statistics_numbers(df_merged_open, df_merged_filtered, args.output_dir)
 
     # make intersections with SNP and edit DB
-    logger.info("started to make intersection with SNP and editing data bases")
+    logger.info("started to make intersection with Data Bases")
     run_snp_edit_DB_intersections(args.input_dir, args.output_dir, args.snp_db_path, args.editing_db_path,
                                   args.min_cb_per_pos,
                                   args.min_mutation_umis, args.min_total_umis,
