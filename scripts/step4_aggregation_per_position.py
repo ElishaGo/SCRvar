@@ -8,7 +8,6 @@ from pandarallel import pandarallel
 
 import sys  # for development environments
 from pathlib import Path
-
 sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # for development environments
 
 import sc_rna_variants.analysis_utils
@@ -120,8 +119,6 @@ def aggregate_existing_columns(df):
          'same single reads': 'sum', 'transition single reads': 'sum', 'reverse single reads': 'sum',
          'transvertion single reads': 'sum',
          'mixed reads': 'sum', 'total umi count': 'sum', 'cell barcode': lambda x: ','.join(x),
-         # 'count of unmutated cell barcodes': 'first',  # keep only first occurrence per position of unmutated data
-         # 'unmutated multi reads': 'first', 'unmutated single reads': 'first'
          }
     ).reset_index()
 
@@ -181,7 +178,7 @@ def find_intersections_with_SNP_and_edit_DB(output_dir, snp_db_path, editing_db_
     os.system(f"sed -i '1 s/.*/&\tis_editing/' {df_intersection}")
 
     # remove temp files
-    # os.system(f"rm {snp_temp_path}")
+    os.system(f"rm {snp_temp_path}")
 
 
 def run_step4(args):
