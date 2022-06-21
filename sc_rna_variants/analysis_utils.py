@@ -84,7 +84,7 @@ def merge_dfs(df_mutated, df_unmutated):
     if (df_m.isna().sum().sum()) != na_before_merge:
         logger.debug('Missing values where found after merging mutated and unmutated files, probably becaues there '
                      'are no matching positions for all the mutations. The missing values are transformed to 0')
-        df_m.fillna(0, inplace=True)
+        df_m[['count of unmutated cell barcodes',  'unmutated multi reads',  'unmutated single reads']] = df_m[['count of unmutated cell barcodes',  'unmutated multi reads',  'unmutated single reads']].fillna(0)
     return df_m
 
 
