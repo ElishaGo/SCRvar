@@ -5,6 +5,7 @@ from datetime import datetime
 
 import sys  # for development environments
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # for development environments
 
 from sc_rna_variants.statistic_plots import *
@@ -196,7 +197,7 @@ def get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_
     Function to manage all plots creation.
     Input - mutation table in open form and aggregated form.
     """
-    output_folder = os.path.join(output_folder, 'plot_with_and_without_filtering')
+    output_folder = os.path.join(output_folder, '5.filtering_effect')
     os.makedirs(output_folder, exist_ok=True)
 
     # plot not grouped data
@@ -218,55 +219,57 @@ def run_snp_edit_DB_intersections(input_dir, output_folder, snp_db_path, editing
         min_mutation_umis, min_total_umis,
         min_mutation_rate)
 
-    output_folder = os.path.join(output_folder, 'plots_after_intersections_with_DB')
+    output_folder = os.path.join(output_folder, '5.DB_intersect_effect')
     os.makedirs(output_folder, exist_ok=True)
 
     # make Venn diagrams of the intersections
     make_venn_diagrams(df_agg_intersect, df_agg_intrsct_filtered, output_folder, snp_db_path, editing_db_path, sname)
 
     plot_heatmap_mutation_per_base_DB(df_agg_intersect, df_agg_intrsct_filtered, output_folder, sname)
+    # plot_cb_occurences_hist(df_merged_open, df_merged_filtered, output_folder, sname)
 
     # if ATACseq data if supplied, remove potential SNP sites
     if (atacseq):
         add_atacseq_data(df_agg_intersect, output_folder, atacseq)
 
 
-def run_step5(args):
+def run_step5(input_dir, output_dir, min_cb_per_pos, min_mutation_umis, min_total_umis, min_mutation_rate, snp_db_path,
+              editing_db_path, atacseq_path, sname):
     df_merged_agg = sc_rna_variants.analysis_utils.load_df(
-        os.path.join(args.input_dir, "4.aggregated_per_position.bed"))
+        os.path.join(input_dir, "4.aggregated_per_position.bed"))
     # TODO: instead of loading mut_open and unmutated and merge them, look into the plots function and see how we can avoid this
     df_mut_open = sc_rna_variants.analysis_utils.load_tables(
-        os.path.join(os.path.dirname(args.output_dir), 'step3_mismatch_dictionary', '3.mismatch_dictionary.bed'),
+        os.path.join(os.path.dirname(output_dir), 'step3_mismatch_dictionary', '3.mismatch_dictionary.bed'),
         mutated=True)
     df_unmutated = sc_rna_variants.analysis_utils.load_tables(
-        os.path.join(os.path.dirname(args.output_dir), 'step3_mismatch_dictionary', '3.no_mismatch_dictionary.bed'),
+        os.path.join(os.path.dirname(output_dir), 'step3_mismatch_dictionary', '3.no_mismatch_dictionary.bed'),
         mutated=False)
     df_merged_open = sc_rna_variants.analysis_utils.merge_dfs(df_mut_open, df_unmutated)
 
     # get filtered data for both aggregated and open aggregated df
     df_merged_filtered, df_merged_agg_filtered = filter_open_and_agg_tables(df_merged_open, df_merged_agg,
-                                                                            args.min_cb_per_pos,
-                                                                            args.min_mutation_umis, args.min_total_umis,
-                                                                            args.min_mutation_rate)
+                                                                            min_cb_per_pos,
+                                                                            min_mutation_umis, min_total_umis,
+                                                                            min_mutation_rate)
     # make plots
     logger.info("started to make plots")
     get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_merged_filtered, df_merged_agg_filtered,
-                   args.output_dir, args.sname)
+                   output_dir, sname)
 
     # write statistics to text file
-    sc_rna_variants.analysis_utils.write_statistics_numbers(df_merged_open, df_merged_filtered, args.output_dir)
+    sc_rna_variants.analysis_utils.write_statistics_numbers(df_merged_open, df_merged_filtered, output_dir)
 
     # make intersections with SNP and edit DB
     logger.info("started to make intersection with Data Bases")
-    run_snp_edit_DB_intersections(args.input_dir, args.output_dir, args.snp_db_path, args.editing_db_path,
-                                  args.min_cb_per_pos,
-                                  args.min_mutation_umis, args.min_total_umis,
-                                  args.min_mutation_rate, args.sname, args.atacseq_path)
+    run_snp_edit_DB_intersections(input_dir, output_dir, snp_db_path, editing_db_path,
+                                  min_cb_per_pos,
+                                  min_mutation_umis, min_total_umis,
+                                  min_mutation_rate, sname, atacseq_path)
 
 
 ##################################################################################################################
 def parse_arguments(arguments=None):
-    parser = argparse.ArgumentParser(formatter_class=sc_rna_variants.utils.ArgparserFormater, description="",)
+    parser = argparse.ArgumentParser(formatter_class=sc_rna_variants.utils.ArgparserFormater, description="", )
 
     # positional arguments
     parser.add_argument('input_dir', type=sc_rna_variants.utils.assert_is_directory, help='step 4 output folder')
@@ -307,7 +310,8 @@ if __name__ == '__main__':
         ['%s: %s' % (key, value) for key, value in vars(args).items()]))
 
     # run filtering and create plots
-    run_step5(args)
+    run_step5(args.input_dir, args.output_dir, args.min_cb_per_pos, args.min_mutation_umis, args.min_total_umis,
+              args.min_mutation_rate, args.snp_db_path, args.editing_db_path, args.atacseq_path, args.sname)
 
     print(datetime.now() - startTime)
     logger.info('Step 5 finished')

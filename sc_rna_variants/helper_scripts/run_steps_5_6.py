@@ -9,11 +9,12 @@ import logging
 from datetime import datetime
 
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).parent.parent.parent.absolute()) + os.path.sep)  # for development environments
 
 from sc_rna_variants.utils import assert_is_directory, assert_is_file
 from sc_rna_variants import config_logging
-from sc_rna_variants.general_utils import  save_how_to
+from sc_rna_variants.general_utils import save_how_to
 
 from scripts.step5_filtering_positions_and_snp_editing_DB_intersections import run_step5
 from scripts.step6_gene_level import run_step6
@@ -26,10 +27,14 @@ def makedir(dir_path):
 
 def run_steps_5_6(args):
     # run step 5
-    run_step5(args)
+    run_step5(args.input_dir, args.output_dir, args.min_cb_per_pos, args.min_mutation_umis, args.min_total_umis,
+              args.min_mutation_rate, args.snp_db_path, args.editing_db_path, args.atacseq_path, args.sname)
 
     # run step 6
-    run_step6(args)
+    run_step6(args.input_dir, args.output_dir, args.read_per_barcode_raw_bam, args.min_cb_per_pos,
+              args.min_mutation_umis, args.min_total_umis, args.min_mutation_rate, args.atacseq_path, args.gtf_path,
+              args.mismatch_dict_bed, args.barcode_clusters, args.atacseq_gcoverage_min, args.atacseq_gfrequency_min,
+              args.sname)
 
 
 #########################################################################################################
@@ -57,6 +62,8 @@ def parse_arguments(arguments=None):
     parser.add_argument('--min_mutation_rate', default=0.1, type=int,
                         help='position with less rate of mutation will be filtered')
     parser.add_argument('--atacseq_path', type=str, help='path to atacseq file')
+    parser.add_argument('--atacseq_gcoverage_min', type=int, default=5)
+    parser.add_argument('--atacseq_gfrequency_min', type=float, default=0.2)
     parser.add_argument('--barcode_clusters', type=assert_is_file,
                         help='table with barcodes and associated clusters analysed by Seurat')
 

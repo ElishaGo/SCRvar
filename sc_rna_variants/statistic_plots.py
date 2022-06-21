@@ -252,7 +252,7 @@ def non_ref_from_all_cells(df, output_dir):
     plt.clf()
     plt.hist(df['percent of non ref from all cells'], bins=21)
     plt.title('percent of non ref from all cells')
-    plt.xlabel("percent of mutated UMIs in a position")
+    plt.xlabel("%mutated UMIs from all UMIs in a position per cell")
     plt.ylabel("number of observed positions")
     plt.savefig(os.path.join(output_dir, "6.mut_UMI_in_positions.png"))
 
@@ -264,7 +264,7 @@ def snp_observed_against_mut_UMI_in_position(df, output_dir, sname):
 
     plt.title("Percent of mutated umis from all umis per position, in SNP and non SNP positions \n - {}".format(sname))
     plt.legend(['SNP position', 'No SNP position'])
-    plt.xlabel("percent of mutated UMIs in a position")
+    plt.xlabel("%mutated UMIs from all UMIs in a position per cell")
     plt.ylabel("number of observed positions")
     plt.savefig(os.path.join(output_dir, "6.snp_observed_against_mut_UMI_in_position.png"))
 
