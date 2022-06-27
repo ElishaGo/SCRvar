@@ -2,19 +2,16 @@ import os
 import logging
 import argparse
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 import sys  # for development environments
 from pathlib import Path
-
 sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # for development environments
 
 from sc_rna_variants.statistic_plots import *
 import sc_rna_variants.utils
 import sc_rna_variants.analysis_utils
-import matplotlib.pyplot as plt
-from collections import Counter
-from matplotlib_venn import venn3, venn3_circles, venn2, venn2_circles
-from sc_rna_variants.statistic_plots import get_min_max, make_mut_counts_heatmap
+# from sc_rna_variants.statistic_plots import make_mut_counts_heatmap
 
 pd.set_option('display.max_columns', None)
 logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
@@ -40,56 +37,6 @@ def add_atacseq_data(df_agg_intersect, output_dir, atacseq_file):
     df_merged.to_csv(os.path.join(output_dir, '4.aggregated_per_position_intersect.bed'), sep='\t', index=False)
 
 
-def plot_venn_diagram(df, subset_list, labels, column_name, output_dir, sname):
-    plt.clf()
-    plt.title('Intersection of positions - {} and {}'.format(labels[1], labels[0]))
-
-    v = venn3(subsets=subset_list, set_labels=(labels[0], labels[1], labels[2]))
-    venn3_circles(subsets=subset_list, color='gray', linewidth=1, linestyle='dashed')
-
-    # get the text from the diagram components
-    ids = ['100', '010', '001', '110', '101', '011', '111']
-    sets = Counter()
-    for id in ids:
-        try:
-            sets[id] = v.get_label_by_id(id).get_text()
-        except:
-            continue
-
-    # change the position of the text on the figure
-    h, l = [], []
-    for i in sets:
-        v.get_label_by_id(i).set_text("")  # remove label by setting them to empty string:
-        h.append(v.get_patch_by_id(i))  # append patch to handles list
-        l.append(sets[i])  # append count to labels list
-
-    # create legend from handles and labels, and save figure
-    plt.legend(handles=h, labels=l, title="counts", loc='lower right')  # bbox_to_anchor=(0.95,0.7)
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, '5.venn_diagram_{}.png'.format(labels[0])), facecolor='white')
-
-    # make histogram of mutated CB
-    intrsct_list = df[df[column_name] == 1]['count of mutated cell barcodes']
-
-    # histogram on log scale.
-    # Use non-equal bin sizes, such that they look equal on log scale.
-    plt.clf()
-    hist, bins = np.histogram(intrsct_list, bins=30)
-    logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
-    plt.hist(intrsct_list, bins=logbins)
-    plt.hist([i for i in intrsct_list if i >= 5], bins=logbins, alpha=0.6)
-    plt.xscale('log', base=10)
-    plt.yscale('log', base=10)
-
-    plt.title("Number of mutated cells in intersection positions between table and {} - {}".format(labels[0], sname),
-              fontsize=10)
-    plt.ylabel("number of positions")
-    plt.xlabel("number of mutated cells within position")
-    plt.legend(['Intersection positions - not filtered', 'Intersection positions - filtered'])
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, '5.CB_intersections_histogram_{}.png'.format(labels[0])), facecolor='white')
-
-
 def run_venn(df, df_filtered, column_name, db_total_count, labels, input_dir, sname):
     # DB position set is combination of positions from table, and strings representing non overlaping positions.
     set1 = set(df[df[column_name] != 0].position.to_list() +
@@ -97,7 +44,8 @@ def run_venn(df, df_filtered, column_name, db_total_count, labels, input_dir, sn
     set2 = set(df.position)  # aggregated data
     set3 = set(df_filtered.position)  # filtered aggregated data
 
-    plot_venn_diagram(df, [set1, set2, set3], labels, column_name, input_dir, sname)
+    plot_venn3_diagram([set1, set2, set3], labels, input_dir, sname)
+    plot_mutated_CB_hist(df, column_name, input_dir, labels[0], sname)
 
 
 def plot_heatmap_mutation_per_base_DB(df_merged, df_merged_filtered, output_dir, sname):
@@ -257,7 +205,7 @@ def run_step5(input_dir, output_dir, min_cb_per_pos, min_mutation_umis, min_tota
                    output_dir, sname)
 
     # write statistics to text file
-    sc_rna_variants.analysis_utils.write_statistics_numbers(df_merged_open, df_merged_filtered, output_dir)
+    sc_rna_variants.analysis_utils.write_statistics_numbers(df_merged_open, df_merged_filtered, output_dir, min_cb_per_pos, min_mutation_umis, min_total_umis, min_mutation_rate,)
 
     # make intersections with SNP and edit DB
     logger.info("started to make intersection with Data Bases")
@@ -306,8 +254,8 @@ if __name__ == '__main__':
     sc_rna_variants.config_logging(args.log_file)
     logger = logging.getLogger("positions_filtering_and_plots")
     logger.info('positions_filtering_and_plots started')
-    logger.debug('Running with parameters:\n%s' % '\n'.join(
-        ['%s: %s' % (key, value) for key, value in vars(args).items()]))
+    # logger.debug('Running with parameters:\n%s' % '\n'.join(
+    #     ['%s: %s' % (key, value) for key, value in vars(args).items()]))
 
     # run filtering and create plots
     run_step5(args.input_dir, args.output_dir, args.min_cb_per_pos, args.min_mutation_umis, args.min_total_umis,

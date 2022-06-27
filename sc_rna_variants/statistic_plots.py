@@ -8,7 +8,7 @@ from collections import Counter
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from scipy.stats import pearsonr
-from matplotlib_venn import venn2, venn2_circles
+from matplotlib_venn import venn2, venn2_circles, venn3, venn3_circles
 warnings.filterwarnings("ignore")
 
 
@@ -315,17 +315,10 @@ def mutated_umis_per_cell(umis_per_cb_editing, output_dir, sname):
     plt.savefig(os.path.join(output_dir, "6.umi_per_cell_in_editing_sites.png"))
 
 
-def make_clusters_heatmap(pivot_table, name, min_umi_per_position, min_umi_per_cell, output_dir, chr_genes_pairs):
+def make_clusters_heatmap(df, name, output_dir, chr_genes_pairs):
     plt.clf()
-    # filter rows (positions) and columns (cells)
-    df_temp = pivot_table[
-        pivot_table.sum(axis=1) > min_umi_per_cell]  # keep cells with more than N mutated umis
-    df_temp = df_temp.loc[:,
-              df_temp.sum(axis=0) > min_umi_per_position]  # keep positions with more than N mutetaed umis
-    print("shape of df is:", df_temp.shape)
-
     # define clusters and set color map for rows
-    clusters = df_temp.index.map(lambda x: x.split('_')[0])  # use Seurat clusters - when rows are cells
+    clusters = df.index.map(lambda x: x.split('_')[0])  # use Seurat clusters - when rows are cells
     #     clusters = df_temp.index # use Seurat clusters - when rows are clusters
     print("number of colors on X axis:", clusters.nunique())
     gist_rainbow = cm.get_cmap('tab20c', clusters.nunique())
@@ -336,13 +329,13 @@ def make_clusters_heatmap(pivot_table, name, min_umi_per_position, min_umi_per_c
     gist_rainbow = cm.get_cmap('gist_rainbow', len(set(chr_genes_pairs.values())))
     genes_lut = dict(
         zip(set(chr_genes_pairs.values()), gist_rainbow(np.linspace(0, 1, len(set(chr_genes_pairs.values()))))))
-    genes = df_temp.columns
+    genes = df.columns
     gene_colors = genes.map(chr_genes_pairs).map(genes_lut)  # map genes to chromosomes and chromosomes to colors
 
     # xticklabels=True, yticklabels=True
     # col_colors=cluster_colors,
     # distance metrics jaccard, euclidean
-    cg = sns.clustermap(df_temp.fillna(0).T, metric='jaccard', method='complete', row_cluster=True, col_cluster=True,
+    cg = sns.clustermap(df.fillna(0).T, metric='jaccard', method='complete', row_cluster=True, col_cluster=True,
                         col_colors=cluster_colors,
                         xticklabels=True, yticklabels=True, cmap='rocket_r', figsize=(30, 30))
     cg.ax_row_dendrogram.set_visible(True)
@@ -421,15 +414,17 @@ def editing_events_vs_number_of_mutated_umis_per_cell(editingsites_per_cb_stats,
     plt.savefig(os.path.join(output_dir, "editing_events_VS_umi_scatter.png"))
 
 
-def plot_venn2_diagram(subset_list, labels, output_name, sname):
-    v = venn2(subsets=subset_list, set_labels=(labels[0], labels[1]))
+def plot_venn2_diagram(subset_list, labels, output_name, title):
+    v = venn2(subsets=subset_list, set_labels=(labels[0], labels[1]), )
     c = venn2_circles(subsets=subset_list, color='gray', linewidth=1, linestyle='dashed')
 
+    # format the numbers
     sets = Counter()
-    sets['10'] = v.get_label_by_id('10').get_text()
-    sets['01'] = v.get_label_by_id('01').get_text()
-    sets['11'] = v.get_label_by_id('11').get_text()
+    sets['10'] = format(int(v.get_label_by_id('10').get_text()), ',')
+    sets['01'] = format(int(v.get_label_by_id('01').get_text()), ',')
+    sets['11'] = format(int(v.get_label_by_id('11').get_text()), ',')
 
+    # remove number from inside the circles to show in the legend
     h, l = [], []
     for i in sets:
         # remove label by setting them to empty string:
@@ -439,8 +434,72 @@ def plot_venn2_diagram(subset_list, labels, output_name, sname):
         # append count to labels list
         l.append(sets[i])
 
-    # create legend from handles and labels
-    plt.title('{}'.format(sname))
-    plt.legend(handles=h, labels=l, title="counts")
+    # create legend and align values to the right
+    # get the width of your widest label, since every label will need
+    # to shift by this amount after we align to the right
+    legend = plt.legend(handles=h, labels=l, title="counts")
+    shift = max([t.get_window_extent().width for t in legend.get_texts()])
+    for t in legend.get_texts():
+        t.set_ha('right')  # ha is alias for horizontalalignment
+        t.set_position((shift, 0))
+    plt.title('{}'.format(title))
     plt.tight_layout()
     plt.savefig(output_name, facecolor='white')
+
+
+def plot_venn3_diagram(subset_list, labels, output_dir, sname):
+    plt.clf()
+    v = venn3(subsets=subset_list, set_labels=(labels[0], labels[1], labels[2]))
+    c = venn3_circles(subsets=subset_list, color='gray', linewidth=1, linestyle='dashed')
+
+    # get the text from the diagram components
+    ids = ['100', '010', '001', '110', '101', '011', '111']
+    sets = Counter()
+    for id in ids:
+        try:
+            sets[id] = format(int(v.get_label_by_id(id).get_text()), ',')
+        except:
+            continue
+
+    # change the position of the text on the figure
+    h, l = [], []
+    for i in sets:
+        v.get_label_by_id(i).set_text("")  # remove label by setting them to empty string:
+        h.append(v.get_patch_by_id(i))  # append patch to handles list
+        l.append(sets[i])  # append count to labels list
+
+    # create legend and align values to the right
+    # get the width of your widest label, since every label will need
+    # to shift by this amount after we align to the right
+    legend = plt.legend(handles=h, labels=l, title="counts", loc='lower right')  # bbox_to_anchor=(0.95,0.7)
+    shift = max([t.get_window_extent().width for t in legend.get_texts()])
+    for t in legend.get_texts():
+        t.set_ha('right')  # ha is alias for horizontalalignment
+        t.set_position((shift, 0))
+
+    plt.title('count of positions - {} and {}'.format(labels[1], labels[0]))
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, '5.venn_diagram_{} - {}.png'.format(labels[0], sname)), facecolor='white')
+
+
+def plot_mutated_CB_hist(df, column_name, output_dir, DB_name, sname):
+    # make histogram of mutated CB
+    intrsct_list = df[df[column_name] == 1]['count of mutated cell barcodes']
+
+    # histogram on log scale.
+    # Use non-equal bin sizes, such that they look equal on log scale.
+    plt.clf()
+    hist, bins = np.histogram(intrsct_list, bins=30)
+    logbins = np.logspace(np.log10(bins[0]), np.log10(bins[-1]), len(bins))
+    plt.hist(intrsct_list, bins=logbins)
+    plt.hist([i for i in intrsct_list if i >= 5], bins=logbins, alpha=0.6)
+    plt.xscale('log', base=10)
+    plt.yscale('log', base=10)
+
+    plt.title("Number of mutated cells in intersection positions between table and {} - {}".format(DB_name, sname),
+              fontsize=10)
+    plt.ylabel("number of positions")
+    plt.xlabel("number of mutated cells within position")
+    plt.legend(['Intersection positions - not filtered', 'Intersection positions - filtered'])
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, '5.CB_intersections_histogram_{}.png'.format(DB_name)), facecolor='white')
