@@ -11,37 +11,41 @@ from scipy.stats import pearsonr
 from matplotlib_venn import venn2, venn2_circles, venn3, venn3_circles
 warnings.filterwarnings("ignore")
 
+BASES = ['a', 'c', 'g', 't']
 
 def plot_cb_occurences_hist(df_orig, df_filtered, out_folder, sname):
-    """ This function count the number of each Cb in the table, and then plot the distribution of CB occurences.
+    """ This function count the number of lines with each Cb in the table, and then plot a histogram.
     This can give an insight regarding the representation of different cell in the table.
     Note that the counts in tables can overlap on positions."""
+    has_snp_edit_notations = 'is_snp' in df_orig.columns
 
-    def make_plot(ax, cb_counts, prior_post):
-        ax.hist(cb_counts.values, bins=50)
-        ax.set_title("Number of cell barcodes - {} filtering - {}".format(prior_post, sname))
+    def plot_histogram(ax, cb_counts, bins, prior_post):
+        ax.hist(cb_counts.values, bins=bins)
+        ax.set_title("{} filtering - {}".format(prior_post, sname))
         ax.set_ylabel("count of different cell barcodes")
         ax.set_xlabel("number of mutated positions")
         ax.tick_params(axis='x', reset=True)  # show ticks of x axis on both graphs
 
     fig, axs = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
 
-    for i, df_tuple in enumerate(zip([df_orig, df_filtered], ['prior', 'post'])):
-        df = df_tuple[0]
-        prior_post = df_tuple[1]
-        cb_counts = df['cell barcode'].value_counts()
-        make_plot(axs[i], cb_counts, prior_post)
+    cb_counts = df_orig['cell barcode'].value_counts()
+    cb_counts_filtered = df_filtered['cell barcode'].value_counts()
+    bins = 50
+    bins = np.histogram(np.hstack((cb_counts, cb_counts_filtered)), bins=bins)[1]
+    plt.suptitle("Number of cell barcodes")
+    plot_histogram(axs[0], cb_counts, bins, 'before')
+    plot_histogram(axs[1], cb_counts_filtered, bins, 'after')
+
     plt.savefig(os.path.join(out_folder, "5.cb_distribution.png"), bbox_inches='tight')
 
 
 def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder, sname):
     fig, axs = plt.subplots(2, 4, figsize=(15, 8), sharex=True)
-    bases = ['a', 'c', 'g', 't']
     ref_umi_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
                     'same single reads', 'transition single reads', 'reverse single reads', 'transvertion single reads']
 
     for i, df in enumerate([df_merged, df_merged_filtered]):
-        for j, base in enumerate(bases):
+        for j, base in enumerate(BASES):
             idx = df.loc[df['reference base'] == base].index
             df.loc[idx, ref_umi_cols].sum(axis=0).plot(kind='barh', ax=axs[i][j], sharey=True)
             axs[i][j].set_title('refference base: {0}'.format(base))
@@ -57,7 +61,7 @@ def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder, sname
     ### plot with unmutated data
     fig, axs = plt.subplots(2, 4, figsize=(15, 8), sharex=True)
     for i, df in enumerate([df_merged, df_merged_filtered]):
-        for j, base in enumerate(bases):
+        for j, base in enumerate(BASES):
             idx = df.loc[df['reference base'] == base].index
             df_to_plot = df.loc[idx, ref_umi_cols].sum(axis=0)
             df_by_refbase = df.loc[df['reference base'] == base, :]
@@ -91,10 +95,35 @@ def get_min_max(count_matrices):
     return np.floor(np.log10(vmin)), np.ceil(np.log10(vmax))
 
 
-def make_mut_counts_heatmap(count_matrices, out_folder, sname):
+def make_counts_matrix(df_merged, df_merged_filtered, bases, umi_cols):
+    """helper function to create two matices with counts of different umis, one with unmutated data and one with
+    unmutated data"""
+    count_matrices = []
+    for i, df_tuple in enumerate(zip([df_merged, df_merged_filtered], ['', "- filtered"])):
+        df, df_name = df_tuple[0], df_tuple[1]
+        for j, read_type in enumerate(['single', 'multi']):
+            count_matrix = []
+            ref_umi_cols = [col for col in umi_cols if read_type in col]
+            for base in bases:
+                idx = df[df['reference base'] == base].index
+                df_to_plot = df.loc[idx, ref_umi_cols].sum(axis=0)
+
+                # add count of 'same' unis in both mutated and un mutated
+                df_by_refbase = df.loc[df['reference base'] == base, :]
+                unmuteted_read_count = df_by_refbase.drop_duplicates(subset='position')[
+                    'unmutated {} reads'.format(read_type)].sum()
+                df_to_plot = pd.concat(
+                    [pd.Series(df_to_plot['same {} reads'.format(read_type)] + unmuteted_read_count,
+                               index=['same all single reads']), df_to_plot])
+
+                count_matrix.append(df_to_plot.values)
+            count_matrices.append((np.array(count_matrix), read_type, df_name))
+    return count_matrices
+
+
+def make_mutation_heatmap(count_matrices, out_folder, sname):
     """helper function to plot the heatmap"""
     # get min and max values for plotting color scale
-    bases = ['a', 'c', 'g', 't']
     vmin, vmax = get_min_max(count_matrices)
 
     fig, axs = plt.subplots(2, 2, figsize=(10, 8))
@@ -105,7 +134,7 @@ def make_mut_counts_heatmap(count_matrices, out_folder, sname):
         axs[i] = sns.heatmap(np.log10(mat_to_plot), linewidth=0.5, annot=np.array(mat_to_plot),
                              cbar_kws={'label': 'log 10'}, ax=axs[i], cmap='brg', vmin=vmin, vmax=vmax,
                              xticklabels=['same_all', 'same_mut', 'transition', 'reverse', 'transversion'],
-                             yticklabels=bases)
+                             yticklabels=BASES)
         axs[i].set_yticklabels(axs[i].get_yticklabels(), rotation=360)
         axs[i].set_xticklabels(axs[i].get_xticklabels(), rotation=30, ha='right')
         axs[i].set_title("{} reads {}".format(count_matrix[1], count_matrix[2]))
@@ -116,42 +145,7 @@ def make_mut_counts_heatmap(count_matrices, out_folder, sname):
     plt.savefig(os.path.join(out_folder, "5.heatmap_mutation_perbase.png"), bbox_inches='tight')
 
 
-def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sname):
-    def make_counts_matrix():
-        """helper function to create two matices with counts of different umis, one with unmutated data and one with
-        unmutated data"""
-        umi_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
-                    'same single reads', 'transition single reads', 'reverse single reads', 'transvertion single reads']
-        count_matrices = []
-        for i, df_tuple in enumerate(zip([df_merged, df_merged_filtered], ['', "- filtered"])):
-            df, df_name = df_tuple[0], df_tuple[1]
-            for j, read_type in enumerate(['single', 'multi']):
-                count_matrix = []
-                ref_umi_cols = [col for col in umi_cols if read_type in col]
-                for base in bases:
-                    idx = df[df['reference base'] == base].index
-                    df_to_plot = df.loc[idx, ref_umi_cols].sum(axis=0)
-
-                    # add count of 'same' unis in both mutated and un mutated
-                    df_by_refbase = df.loc[df['reference base'] == base, :]
-                    unmuteted_read_count = df_by_refbase.drop_duplicates(subset='position')[
-                        'unmutated {} reads'.format(read_type)].sum()
-                    df_to_plot = pd.concat(
-                        [pd.Series(df_to_plot['same {} reads'.format(read_type)] + unmuteted_read_count,
-                                   index=['same all single reads']), df_to_plot])
-
-                    count_matrix.append(df_to_plot.values)
-                count_matrices.append((np.array(count_matrix), read_type, df_name))
-        return count_matrices
-
-    bases = ['a', 'c', 'g', 't']
-
-    # create matrix with counts of mutations observed
-    count_matrices = make_counts_matrix()
-
-    # plot and save heatmap
-    make_mut_counts_heatmap(count_matrices, out_folder, sname)
-
+def make_mutation_barplot(count_matrices, bases, out_folder):
     relative_mut_dfs = []
     for count_matrix_set in count_matrices:
         count_matrix = count_matrix_set[0]
@@ -179,6 +173,7 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
     s = sns.barplot(data=relative_mut_dfs, x='variable', y='value', hue='type')
     s.set_yscale("log", base=10)  # set y axis in log scale
     _ = s.set(xlabel="mutated UMIs ratio against non mutated UMIs", ylabel="ratio")  # set axis labels
+
     # reset x labels
     mut_names = ['(a->g)', '(c->t)', '(g->a)', '(t->c)', '(a->t)', '(c->g)', '(g->c)',
                  '(t->a)', '(a->c)', '(c->a)', '(g->t)', '(t->g)']
@@ -186,6 +181,19 @@ def plot_heatmap_mutation_per_base(df_merged, df_merged_filtered, out_folder, sn
     plt.xticks(rotation=30, ha='right')
     plt.title("ratio of mutation out of non mutated UMIs (same column)")
     plt.savefig(os.path.join(out_folder, "5.relative_mutations_barplot.png"), bbox_inches='tight')
+
+
+def plot_heatmap_mutation_per_base(df_merged_open, df_merged_filtered, out_folder, sname):
+    umi_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
+                'same single reads', 'transition single reads', 'reverse single reads', 'transvertion single reads']
+
+    # create matrix with counts of mutations observed
+    count_matrices = make_counts_matrix(df_merged_open, df_merged_filtered, BASES, umi_cols)
+
+    # make plots
+    make_mutation_heatmap(count_matrices, out_folder, sname)
+    make_mutation_barplot(count_matrices, BASES, out_folder)
+
 
 
 def plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, out_folder, sname):
