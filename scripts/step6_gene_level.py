@@ -6,19 +6,17 @@ from datetime import datetime
 
 import sys  # for development environments
 from pathlib import Path
-
 sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # for development environments
 
-import sc_rna_variants.analysis_utils
+from sc_rna_variants.analysis_utils import save_df, load_tables, get_df_and_filtered_df, get_ATACseq, drop_snp_by_atacseq
 import sc_rna_variants.statistic_plots
-import sc_rna_variants.utils
+from sc_rna_variants.utils import ArgparserFormater, assert_is_directory, assert_is_file
 
 pd.set_option('display.max_columns', None)
 
 
 def create_editing_sites_gtf_intersections(editing_df_path, path_to_gtf, out_fpath):
     """use left outer join to add genes information to editing table"""
-    # TODO: find bedtools function that make inner join
     os.system(f"bedtools intersect -s -loj -a {editing_df_path} -b {path_to_gtf} > {out_fpath}")
 
 
@@ -60,8 +58,8 @@ def get_gene_names(edit_df, gtf_editing_sites_intersection):
     return edit_df
 
 
-#  'true values' - drop positions with rare mutations and probably hard to get insights from
 def filter_rare_mut(df, min_mutation_rate):
+    """drop positions with rare mutations and probably hard to get insights from"""
     try:
         df = df[df['percent of non ref from all cells'] > min_mutation_rate]
     except:
@@ -70,7 +68,6 @@ def filter_rare_mut(df, min_mutation_rate):
     return df
 
 
-# get the filtered tables
 def get_filtered_mutation_bias(df, min_mutation_cb, min_mutation_umis, min_total_umis, min_mutation_rate):
     """filtering function for aggregated tables"""
     mutation_umi_counts = df['total mutation umi count']
@@ -98,40 +95,11 @@ def get_filtered(df, min_cb_to_filter, min_total_umis):
     return df[cond_1 & cond_2]
 
 
-# remove overlaps between snp and edit sites
 def drop_ifs(df):
     """remove positions which appear in both editing and snp sites"""
     idx = df[((df['is_editing_non_rep'] == 1) | (df['is_editing_rep'] == 1)) & (df['is_snp'] == 1)].index
     print("number of positin with snp and editing overlap to remove: %d." % len(idx))
     return df.drop(idx)
-
-
-def get_ATACseq(ATACseq_path):
-    columns = ['Region', 'Position', 'Strand', 'gCoverage-q20', 'gFrequency']
-    df_atacseq = pd.read_csv(ATACseq_path, sep='\t', usecols=columns, memory_map=True)
-
-    # replace missing values with 0
-    df_atacseq['gCoverage-q20'] = df_atacseq['gCoverage-q20'].replace('-', 0).astype(int)
-    df_atacseq['gFrequency'] = df_atacseq['gFrequency'].replace('-', 0).astype(float)  # .convert_dtypes()
-
-    # rename column names to be the same as the statistics tables
-    df_atacseq = df_atacseq.rename(
-        columns={'Region': '#chrom', 'Position': 'chromStart', 'Strand': 'Strand (0:-, 1:+, 2:unknown)'})
-    return df_atacseq
-
-
-def drop_snp_by_atacseq(df, df_atacseq, gcoverage_min=5, gfrequency_min=0.2):
-    # left merge the atacseq into the statistics table
-    df_merged = pd.merge(df, df_atacseq, on=['#chrom', 'chromStart'], how='left')
-
-    # replace missing values with 0
-    df_merged['gCoverage-q20'] = df_merged['gCoverage-q20'].replace('-', 0).fillna(0).astype(int)
-    df_merged['gFrequency'] = df_merged['gFrequency'].replace('-', 0).fillna(0).astype(float)
-
-    # remove positions where there is high probabilty to be SNP
-    idx_to_remove = (df_merged[(df_merged['gCoverage-q20'] >= gcoverage_min)]['gFrequency'] >= gfrequency_min).index
-    df_merged = df_merged.drop(idx_to_remove)
-    return df_merged
 
 
 def drop_editing_and_snp_overlap(df):
@@ -142,7 +110,7 @@ def drop_editing_and_snp_overlap(df):
 
 def get_and_process_edit_df(df, output_dir, gtf_path):
     df_edit = df.loc[df['is_editing'] == 1]
-    sc_rna_variants.analysis_utils.save_df(df_edit, output_dir, 'temp_6.editing_sites_df.bed')
+    save_df(df_edit, output_dir, 'temp_6.editing_sites_df.bed')
     df_edit_path = os.path.join(output_dir, 'temp_6.editing_sites_df.bed')
 
     # add gene names
@@ -169,7 +137,7 @@ def load_and_process_mismatch_table(df_edit, mismatches_path, barcodes_clusters_
                              how='left')
 
     # load open tables and add 'is_edit column'
-    df_mismatches = sc_rna_variants.analysis_utils.load_tables(mismatches_path, mutated=True)
+    df_mismatches = load_tables(mismatches_path, mutated=True)
 
     # add 'is_edit' notation to open table
     df_mismatches['is_edit'] = 0
@@ -190,11 +158,13 @@ def get_mismatches_tables(df_edit, mismatch_dict_bed, barcode_clusters):
     # create one colum with counts of mutated umis
     mut_umi_cols = ['transition multi reads', 'reverse multi reads', 'transvertion multi reads',
                     'transition single reads', 'reverse single reads', 'transvertion single reads']
-    df_open_mismatches_editing.loc[:, "mutated umis per cell"] = df_open_mismatches_editing.loc[:, mut_umi_cols].sum(axis=1)
+    df_open_mismatches_editing.loc[:, "mutated umis per cell"] = df_open_mismatches_editing.loc[:, mut_umi_cols].sum(
+        axis=1)
 
     # create one colum with counts of unmutated umis
     unmut_umi_cols = ['same multi reads', 'same single reads']
-    df_open_mismatches_editing.loc[:, "unmutated umis per cell"] = df_open_mismatches_editing.loc[:, unmut_umi_cols].sum(axis=1)
+    df_open_mismatches_editing.loc[:, "unmutated umis per cell"] = df_open_mismatches_editing.loc[:,
+                                                                   unmut_umi_cols].sum(axis=1)
 
     # add gene names to open_edit_df
     df_open_mismatches_editing = df_open_mismatches_editing.merge(df_edit.loc[:, ['position', 'gene_name']],
@@ -206,8 +176,10 @@ def get_mismatches_tables(df_edit, mismatch_dict_bed, barcode_clusters):
 def exploratory_data_analysis(df, df_edit, df_open_edit, df_mismatches, reads_per_barcode_path, output_dir, sname):
     output_dir = os.path.join(output_dir, 'plots')
     os.makedirs(output_dir, exist_ok=True)
+
     sc_rna_variants.statistic_plots.non_ref_from_all_cells(df, output_dir)
     sc_rna_variants.statistic_plots.snp_observed_against_mut_UMI_in_position(df, output_dir, sname)
+    sc_rna_variants.statistic_plots.plot_venn2_diagram()
 
     # editing EDA
     umis_per_cb_editing = df_open_edit.groupby('cell barcode')["mutated umis per cell"].sum()
@@ -223,7 +195,7 @@ def get_pivot_tables(df):
         {'mutated umis per cell': 'sum'}).reset_index().pivot(index='cluster', columns='gene_name',
                                                               values="mutated umis per cell").fillna(0)
     clusters_VS_genes_umis_pt = get_repetetive(df=clusters_VS_genes_umis_pt, by_row=False, min_genes_to_occure_in=2)
-
+    # clusters_VS_genes_umis_pt = filter_pt(clusters_VS_genes_umis_pt, ptmin_umi_per_position=1, min_umi_per_cell=1)
 
     # create heatmap for Seurat clusters VS. Genes - unmutated umis
     clusters_VS_genes_unmutated_umis_pt = df.groupby(['cluster', 'gene_name', 'position']).agg(
@@ -231,8 +203,8 @@ def get_pivot_tables(df):
         {'unmutated umis per cell': 'sum'}).reset_index().pivot(index='cluster', columns='gene_name',
                                                                 values="unmutated umis per cell").fillna(0)
 
-    clusters_VS_genes_unmutated_umis_pt = get_repetetive(df=clusters_VS_genes_unmutated_umis_pt, by_row=False, min_genes_to_occure_in=2)
-
+    clusters_VS_genes_unmutated_umis_pt = get_repetetive(df=clusters_VS_genes_unmutated_umis_pt, by_row=False,
+                                                         min_genes_to_occure_in=2)
 
     # create heatmap for Cells VS. Genes
     cells_VS_genes_umis_pt = df.groupby(['gene_name', 'cluster cell barcode']).agg(
@@ -244,7 +216,8 @@ def get_pivot_tables(df):
     cells_VS_genes_unmutated_umis_pt = df.groupby(['gene_name', 'cluster cell barcode']).agg(
         {'unmutated umis per cell': 'first'}).reset_index().pivot(index='cluster cell barcode', columns='gene_name',
                                                                   values="unmutated umis per cell").fillna(0)
-    cells_VS_genes_unmutated_umis_pt = get_repetetive(df=cells_VS_genes_unmutated_umis_pt, by_row=True, min_genes_to_occure_in=2)
+    cells_VS_genes_unmutated_umis_pt = get_repetetive(df=cells_VS_genes_unmutated_umis_pt, by_row=True,
+                                                      min_genes_to_occure_in=2)
 
     # # create heatmap for Cells VS. Positions
     # cells_VS_position_mutated_umis_pt = df.pivot_table(index='cluster cell barcode', columns='position',
@@ -274,22 +247,28 @@ def get_pivot_tables(df):
     return pts, pt_names
 
 
-def get_repetetive(df, by_row, min_genes_to_occure_in):
+def get_repetetive(df, min_genes_to_occure_in):
     """function to filter the matrix, such that only mutated cells (rows) which occure in more than X genes are kept.\
     X is a given paramter"""
     # convert all UMI counts to 1, so we count each cell/gene one time
-
     # get indices of cells which occures im more than X genes
-    if by_row:
-        df_temp = df.copy()
-        df_temp[df_temp > 1] = 1
-        cells_idx = df_temp[df_temp.sum(axis=1) > min_genes_to_occure_in].index
-        df_repetetive_cells = df.loc[cells_idx, :]
-        return df_repetetive_cells
-    else:
-        return df.loc[:, df.sum(axis=0) > min_genes_to_occure_in]
+    df_temp = df.copy()
+    df_temp[df_temp > 1] = 1
+    cells_idx = df_temp[df_temp.sum(axis=1) > min_genes_to_occure_in].index
+    df_repetetive_cells = df.loc[cells_idx, :]
+    return df_repetetive_cells
 
 
+def filter_by_umi_per_cell(df, min_umi_per_cell):
+    df_temp = df[df.sum(axis=1) > min_umi_per_cell]
+    print("shape of df is:", df_temp.shape)
+    return df_temp
+
+
+def filter_by_umi_per_position(df, min_umi_per_position):
+    df_temp = df.loc[:, df.sum(axis=0) > min_umi_per_position]
+    print("shape of df is:", df_temp.shape)
+    return df_temp
 
 
 def plot_heatmaps(pivot_tables, pt_names, sname, output_dir):
@@ -299,8 +278,6 @@ def plot_heatmaps(pivot_tables, pt_names, sname, output_dir):
         print("name")
         print(pt.shape)
         sc_rna_variants.statistic_plots.make_clusters_heatmap(pivot_table=pt, name=name + str(sname),
-                                                              min_umi_per_position=1,
-                                                              min_umi_per_cell=1,
                                                               output_dir=output_dir,
                                                               chr_genes_pairs=chr_genes_pairs)
 
@@ -356,9 +333,7 @@ def run_step6(input_dir, output_dir, read_per_barcode_raw_bam, min_cb_per_pos, m
               min_mutation_rate, atacseq_path, gtf_path, mismatch_dict_bed, barcode_clusters, gcoverage_min,
               gfrequency_min, sname):
     stats_agg_path = os.path.join(input_dir, "4.aggregated_per_position_intersect.bed")
-    df, df_filtered = sc_rna_variants.analysis_utils.get_df_and_filtered_df(stats_agg_path, min_cb_per_pos,
-                                                                            min_mutation_umis, min_total_umis,
-                                                                            min_mutation_rate)
+    df, df_filtered = get_df_and_filtered_df(stats_agg_path, min_cb_per_pos, min_mutation_umis, min_total_umis, min_mutation_rate)
     print("shape of mutation table:", df.shape)
     print("shape of mutation table after filtering:", df_filtered.shape)
 
@@ -378,8 +353,8 @@ def run_step6(input_dir, output_dir, read_per_barcode_raw_bam, min_cb_per_pos, m
     df_open_mismatches_editing, df_open_mismatches = get_mismatches_tables(df_edit, mismatch_dict_bed, barcode_clusters)
     print("\n shape of open mismatch editing sites table is:", df_open_mismatches_editing.shape)
 
-    exploratory_data_analysis(df_filtered, df_edit, df_open_mismatches_editing, df_open_mismatches, read_per_barcode_raw_bam, output_dir,
-                              sname)
+    exploratory_data_analysis(df_filtered, df_edit, df_open_mismatches_editing, df_open_mismatches,
+                              read_per_barcode_raw_bam, output_dir, sname)
 
     if barcode_clusters:
         clustering_anlysis(df_open_mismatches_editing, output_dir, sname)
@@ -387,20 +362,17 @@ def run_step6(input_dir, output_dir, read_per_barcode_raw_bam, min_cb_per_pos, m
 
 ##################################################################################################################
 def parse_arguments(arguments=None):
-    parser = argparse.ArgumentParser(formatter_class=sc_rna_variants.utils.ArgparserFormater, description="", )
+    parser = argparse.ArgumentParser(formatter_class=ArgparserFormater, description="", )
 
     # positional arguments
-    parser.add_argument('input_dir', type=sc_rna_variants.utils.assert_is_directory, help='step 4 output folder')
-    parser.add_argument('output_dir', type=sc_rna_variants.utils.assert_is_directory, help='folder for outputs')
-    parser.add_argument('mismatch_dict_bed', type=sc_rna_variants.utils.assert_is_file,
-                        help='path to 3.mismatch_dictionary.bed')
-    parser.add_argument('read_per_barcode_raw_bam', type=sc_rna_variants.utils.assert_is_file,
-                        help='count of reads per cell barcode in raw bam file')
-    parser.add_argument('gtf_path', type=sc_rna_variants.utils.assert_is_file, help='path to gtf file')
+    parser.add_argument('input_dir', type=assert_is_directory, help='step 4 output folder')
+    parser.add_argument('output_dir', type=assert_is_directory, help='folder for outputs')
+    parser.add_argument('mismatch_dict_bed', type=assert_is_file, help='path to 3.mismatch_dictionary.bed')
+    parser.add_argument('read_per_barcode_raw_bam', type=assert_is_file, help='count of reads per CB in raw bam file')
+    parser.add_argument('gtf_path', type=assert_is_file, help='path to gtf file')
 
     # optional arguments
-    parser.add_argument('--barcode_clusters', type=sc_rna_variants.utils.assert_is_file,
-                        help='table with barcodes and associated clusters analysed by Seurat')
+    parser.add_argument('--barcode_clusters', type=assert_is_file, help='barcodes and clusters analysed by Seurat')
     parser.add_argument('--min_cb_per_pos', default=5, type=int,
                         help='position with less cell barcodes will be filtered')
     parser.add_argument('--min_mutation_umis', default=10, type=int,
@@ -430,8 +402,6 @@ if __name__ == '__main__':
     sc_rna_variants.config_logging(args.log_file)
     logger = logging.getLogger("positions_filtering_and_plots")
     logger.info('positions_filtering_and_plots started')
-    logger.debug('Running with parameters:\n%s' % '\n'.join(
-        ['%s: %s' % (key, value) for key, value in vars(args).items()]))
 
     # run step
     run_step6(args.input_dir, args.output_dir, args.read_per_barcode_raw_bam, args.min_cb_per_pos,

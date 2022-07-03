@@ -8,33 +8,14 @@ import sys  # for development environments
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # for development environments
 
+from sc_rna_variants.analysis_utils import load_tables, merge_dfs, get_df_and_filtered_df, write_statistics_numbers
+from sc_rna_variants.utils import assert_is_file, assert_is_directory, ArgparserFormater
 from sc_rna_variants.statistic_plots import *
-import sc_rna_variants.utils
-import sc_rna_variants.analysis_utils
-# from sc_rna_variants.statistic_plots import make_mut_counts_heatmap
+
 
 pd.set_option('display.max_columns', None)
 logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
 logger = logging.getLogger(__name__)
-
-
-def add_atacseq_data(df_agg_intersect, output_dir, atacseq_file):
-    """function to add 'gCoverage-q20' and 'gFrequency' columns from atackseq to the position table"""
-    df_atacseq = pd.read_csv(atacseq_file, sep='\t')
-
-    # rename columns name like the bed file
-    df_atacseq = df_atacseq.rename(
-        columns={'Region': '#chrom', 'Position': 'chromStart', 'Strand': 'Strand (0:-, 1:+, 2:unknown)'})
-
-    # merge the files
-    df_merged = pd.merge(df_agg_intersect, df_atacseq, on=['#chrom', 'chromStart'], how='left')
-    df_merged_temp = df_merged[df_merged['gFrequency'].notnull()]
-
-    # replace missing values with 0
-    df_merged_temp['gCoverage-q20'] = df_merged_temp['gCoverage-q20'].replace('-', 0).astype(int)
-    df_merged_temp['gFrequency'] = df_merged_temp['gFrequency'].replace('-', 0).astype(float)
-
-    df_merged.to_csv(os.path.join(output_dir, '4.aggregated_per_position_intersect.bed'), sep='\t', index=False)
 
 
 def run_venn(df, df_filtered, column_name, db_total_count, labels, input_dir, sname):
@@ -49,44 +30,12 @@ def run_venn(df, df_filtered, column_name, db_total_count, labels, input_dir, sn
 
 
 def plot_heatmap_mutation_per_base_DB(df_merged, df_merged_filtered, output_dir, sname):
-    def make_counts_matrix():
-        """helper function to create two matices with counts of different umis, one with unmutated data and one with
-        unmutated data"""
-        umi_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
-                    'same single reads', 'transition single reads', 'reverse single reads', 'transvertion single reads']
-        count_matrices = []
-        for i, df_tuple in enumerate(zip([df_merged, df_merged_filtered], ['', "- filtered"])):
-            df, df_name = df_tuple[0], df_tuple[1]
-            for j, read_type in enumerate(['single', 'multi']):
-                count_matrix = []
-                ref_umi_cols = [col for col in umi_cols if read_type in col]
-                for base in bases:
-                    idx = df[(df['is_editing'] == 1) & (df['reference base'] == base)].index
-                    # idx = df[((df['is_editing_rep'] == 1) | (df['is_editing_non_rep'] == 1)) & (
-                    #         df['reference base'] == base)].index
-                    df_to_plot = df.loc[idx, ref_umi_cols].sum(axis=0)
-
-                    # add count of 'same' umis in both mutated and un mutated
-                    df_by_refbase = df[(df['is_editing'] == 1) & (df['reference base'] == base)]
-                    # df_by_refbase = df[((df['is_editing_rep'] == 1) | (df['is_editing_non_rep'] == 1)) & (
-                    #         df['reference base'] == base)]
-                    unmuteted_read_count = df_by_refbase.drop_duplicates(subset='position')[
-                        'unmutated {} reads'.format(read_type)].sum()
-                    df_to_plot = pd.concat(
-                        [pd.Series(df_to_plot['same {} reads'.format(read_type)] + unmuteted_read_count,
-                                   index=['same all single reads']), df_to_plot])
-
-                    count_matrix.append(df_to_plot.values)
-                count_matrices.append((np.array(count_matrix), read_type, df_name))
-        return count_matrices
-
     bases = ['a', 'c', 'g', 't']
+    umi_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
+                'same single reads', 'transition single reads', 'reverse single reads', 'transvertion single reads']
 
     # create matrix with counts of mutations observed
-    count_matrices = make_counts_matrix()
-
-    # plot and save heatmap
-    make_mut_counts_heatmap(count_matrices, output_dir, sname)
+    count_matrices = make_counts_matrix(df_merged, df_merged_filtered, bases, umi_cols)
 
     # plot only A base mutations
     plt.clf()
@@ -127,16 +76,22 @@ def make_venn_diagrams(df_agg_intrsct, df_filtered, output_dir, snp_db_path, edi
              ['Editing_DB', 'Aggregated data', 'Filtered data'], output_dir, sname)
 
 
-def filter_open_and_agg_tables(df, df_agg, min_mutation_cb_to_filter, min_mutation_umis, min_total_umis,
-                               min_mutation_rate):
-    # filter aggregated table
-    df_agg_filt = sc_rna_variants.analysis_utils.filter_positions(df_agg, min_mutation_cb_to_filter, min_mutation_umis,
-                                                                  min_total_umis, min_mutation_rate)
+def combine_data_from_agg_to_open_table(df_merged_open, df_merged_agg, df_merged_agg_filtered):
+    def add_snp_and_editig_notations(df, df_agg_intersect):
+        df['is_snp'] = 0
+        df.loc[df['position'].isin(df_agg_intersect.loc[df_agg_intersect['is_snp'] == 1, 'position']), 'is_snp'] = 1
+        df['is_editing'] = 0
+        df.loc[df['position'].isin(
+        df_agg_intersect.loc[df_agg_intersect['is_editing'] == 1, 'position']), 'is_editing'] = 1
+        return df
+
+    # add snp and editing notations
+    df_merged_open = add_snp_and_editig_notations(df_merged_open, df_merged_agg)
 
     # filter the open table by the position which were filtered in the aggregated df
-    filter_idx = df_agg_filt['position'].values
-    df_filt = df[df['position'].isin(filter_idx)]
-    return df_filt, df_agg_filt
+    filter_idx = df_merged_agg_filtered['position'].values
+    df_filt = df_merged_open[df_merged_open['position'].isin(filter_idx)]
+    return df_merged_open, df_filt
 
 
 def get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_merged_filtered, df_merged_agg_filtered,
@@ -158,15 +113,7 @@ def get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_
     plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
 
 
-def run_snp_edit_DB_intersections(input_dir, output_folder, snp_db_path, editing_db_path, min_cb_per_pos,
-                                  min_mutation_umis, min_total_umis,
-                                  min_mutation_rate, sname, atacseq):
-    # get the df with intersections, before and after filtering
-    df_agg_intersect, df_agg_intrsct_filtered = sc_rna_variants.analysis_utils.get_df_and_filtered_df(
-        os.path.join(input_dir, '4.aggregated_per_position_intersect.bed'), min_cb_per_pos,
-        min_mutation_umis, min_total_umis,
-        min_mutation_rate)
-
+def run_snp_edit_DB_intersections(df_agg_intersect, df_agg_intrsct_filtered, df_merged_open, df_merged_open_filtered, output_folder, snp_db_path, editing_db_path, sname):
     output_folder = os.path.join(output_folder, '5.DB_intersect_effect')
     os.makedirs(output_folder, exist_ok=True)
 
@@ -174,57 +121,53 @@ def run_snp_edit_DB_intersections(input_dir, output_folder, snp_db_path, editing
     make_venn_diagrams(df_agg_intersect, df_agg_intrsct_filtered, output_folder, snp_db_path, editing_db_path, sname)
 
     plot_heatmap_mutation_per_base_DB(df_agg_intersect, df_agg_intrsct_filtered, output_folder, sname)
-    # plot_cb_occurences_hist(df_merged_open, df_merged_filtered, output_folder, sname)
 
-    # if ATACseq data if supplied, remove potential SNP sites
-    if (atacseq):
-        add_atacseq_data(df_agg_intersect, output_folder, atacseq)
+    # plot mutations per cell with snp and edit notation
+    plot_cb_occurences_hist(df_merged_open, df_merged_open_filtered, output_folder, sname)
+
+
+def get_open_table(dir_path):
+    df_mut_open = load_tables(os.path.join(os.path.dirname(dir_path), 'step3_mismatch_dictionary', '3.mismatch_dictionary.bed'),
+        mutated=True)
+    df_unmutated = load_tables( os.path.join(os.path.dirname(dir_path), 'step3_mismatch_dictionary', '3.no_mismatch_dictionary.bed'),
+        mutated=False)
+    df_merged_open = merge_dfs(df_mut_open, df_unmutated)
+    return df_mut_open, df_unmutated, df_merged_open
 
 
 def run_step5(input_dir, output_dir, min_cb_per_pos, min_mutation_umis, min_total_umis, min_mutation_rate, snp_db_path,
-              editing_db_path, atacseq_path, sname):
-    df_merged_agg = sc_rna_variants.analysis_utils.load_df(
-        os.path.join(input_dir, "4.aggregated_per_position.bed"))
-    # TODO: instead of loading mut_open and unmutated and merge them, look into the plots function and see how we can avoid this
-    df_mut_open = sc_rna_variants.analysis_utils.load_tables(
-        os.path.join(os.path.dirname(output_dir), 'step3_mismatch_dictionary', '3.mismatch_dictionary.bed'),
-        mutated=True)
-    df_unmutated = sc_rna_variants.analysis_utils.load_tables(
-        os.path.join(os.path.dirname(output_dir), 'step3_mismatch_dictionary', '3.no_mismatch_dictionary.bed'),
-        mutated=False)
-    df_merged_open = sc_rna_variants.analysis_utils.merge_dfs(df_mut_open, df_unmutated)
+              editing_db_path, sname):
+    # get agg position tables
+    df_merged_agg, df_merged_agg_filtered = get_df_and_filtered_df(os.path.join(input_dir, '4.aggregated_per_position_intersect.bed'), min_cb_per_pos, min_mutation_umis, min_total_umis, min_mutation_rate)
 
-    # get filtered data for both aggregated and open aggregated df
-    df_merged_filtered, df_merged_agg_filtered = filter_open_and_agg_tables(df_merged_open, df_merged_agg,
-                                                                            min_cb_per_pos,
-                                                                            min_mutation_umis, min_total_umis,
-                                                                            min_mutation_rate)
+    # get open tables and filter them
+    df_mut_open, df_unmutated, df_merged_open = get_open_table(output_dir)
+    df_merged_open, df_merged_open_filtered = combine_data_from_agg_to_open_table(df_merged_open, df_merged_agg, df_merged_agg_filtered)
+
     # make plots
     logger.info("started to make plots")
-    get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_merged_filtered, df_merged_agg_filtered,
+    get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_merged_open_filtered, df_merged_agg_filtered,
                    output_dir, sname)
 
     # write statistics to text file
-    sc_rna_variants.analysis_utils.write_statistics_numbers(df_merged_open, df_merged_filtered, output_dir, min_cb_per_pos, min_mutation_umis, min_total_umis, min_mutation_rate,)
+    write_statistics_numbers(df_merged_open, df_merged_open_filtered, output_dir, min_cb_per_pos, min_mutation_umis, min_total_umis, min_mutation_rate)
 
     # make intersections with SNP and edit DB
     logger.info("started to make intersection with Data Bases")
-    run_snp_edit_DB_intersections(input_dir, output_dir, snp_db_path, editing_db_path,
-                                  min_cb_per_pos,
-                                  min_mutation_umis, min_total_umis,
-                                  min_mutation_rate, sname, atacseq_path)
+    run_snp_edit_DB_intersections(df_merged_agg, df_merged_agg_filtered, df_merged_open, df_merged_open_filtered, output_dir, snp_db_path, editing_db_path,
+                                  sname)
+
 
 
 ##################################################################################################################
 def parse_arguments(arguments=None):
-    parser = argparse.ArgumentParser(formatter_class=sc_rna_variants.utils.ArgparserFormater, description="", )
+    parser = argparse.ArgumentParser(formatter_class=ArgparserFormater, description="", )
 
     # positional arguments
-    parser.add_argument('input_dir', type=sc_rna_variants.utils.assert_is_directory, help='step 4 output folder')
-    parser.add_argument('output_dir', type=sc_rna_variants.utils.assert_is_directory, help='folder for outputs')
-    parser.add_argument('snp_db_path', type=sc_rna_variants.utils.assert_is_file, help='path to known SNP sites file')
-    parser.add_argument('editing_db_path', type=sc_rna_variants.utils.assert_is_file,
-                        help='path to known editing sites file')
+    parser.add_argument('input_dir', type=assert_is_directory, help='step 4 output folder')
+    parser.add_argument('output_dir', type=assert_is_directory, help='folder for outputs')
+    parser.add_argument('snp_db_path', type=assert_is_file, help='path to known SNP sites file')
+    parser.add_argument('editing_db_path', type=assert_is_file, help='path to known editing sites file')
 
     # optional arguments
     parser.add_argument('--min_cb_per_pos', default=5, type=int,
@@ -235,7 +178,6 @@ def parse_arguments(arguments=None):
                         help='position with less number of mutated + unmutated UMIs will be filtered')
     parser.add_argument('--min_mutation_rate', default=0.1, type=int,
                         help='position with less rate of mutation will be filtered')
-    parser.add_argument('--atacseq_path', type=str, help='path to atacseq file')
 
     # Meta arguments
     parser.add_argument('--log-file',
@@ -259,7 +201,7 @@ if __name__ == '__main__':
 
     # run filtering and create plots
     run_step5(args.input_dir, args.output_dir, args.min_cb_per_pos, args.min_mutation_umis, args.min_total_umis,
-              args.min_mutation_rate, args.snp_db_path, args.editing_db_path, args.atacseq_path, args.sname)
+              args.min_mutation_rate, args.snp_db_path, args.editing_db_path, args.sname)
 
     print(datetime.now() - startTime)
     logger.info('Step 5 finished')

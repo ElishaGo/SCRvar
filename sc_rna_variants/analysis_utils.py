@@ -36,6 +36,7 @@ def load_tables(path, mutated=True):
     """Load and preprocess the data of unmutated cells from raw_stats_unmutated.tsv.
     TODO: Change renames in source funtions
     """
+    logger.info("Loading and preprocessing data frame")
     df = load_df(path)
     df.rename(
         columns={'chromosome': '#chrom', 'start': 'chromStart', 'end': 'chromEnd', 'same multi': 'same multi reads',
@@ -75,6 +76,7 @@ def save_df(df, output_folder, name):
 def merge_dfs(df_mutated, df_unmutated):
     """Merge open mutation table and aggregated unmutetated table.
     NOTICE - the unmutated data is aggregated, so you should only look at one line per each position"""
+    logger.info("started to merge the files")
     # merge aggregated mutations and non mutations tables
     df_m = df_mutated.merge(df_unmutated.drop(['#chrom', 'chromStart', 'chromEnd', 'strand'], axis=1), how='left',
                             on='position')
@@ -115,27 +117,12 @@ def filter_positions(df_agg, min_mutation_cb_to_filter, min_mutation_umis, min_t
 
 def get_df_and_filtered_df(df_path, min_cb_per_pos, min_mutation_umis, min_total_umis, min_mutation_rate):
     """function to load the df and filter it"""
-    def get_edit_intersections(df, colname):
-        """helper function to keep only editing sites which intersect witht the DB,
-        with 'a' base as reference, or with other references but in the '-' strand"""
-        temp = df.loc[df_agg_intrsct[colname] > 0, :]
-        temp = temp[(temp['reference base'] == 'a') & (temp['strand'] == '+') |
-                    ((temp['reference base'] == 't') & (temp['strand'] == '-'))]
-
-        # set all sites to 0, except those we found as editing sites
-        df.loc[:, colname] = 0
-        df.loc[temp.index, colname] = 1
-        return df
-
     # load df with intersections notations
     df_agg_intrsct = pd.read_csv(df_path, sep='\t')
 
     # define intersections to be binary (1 - if any overlap with db occured, 0 otherwise)
     df_agg_intrsct.loc[df_agg_intrsct['is_snp'] > 0, 'is_snp'] = 1
     df_agg_intrsct.loc[df_agg_intrsct['is_editing'] > 0, 'is_editing'] = 1
-
-    # # save df
-    # df_agg_intrsct.to_csv(df_intersection_path, sep='\t', index=False)
 
     # get filtered df
     df_agg_intrsct_filtered = filter_positions(df_agg=df_agg_intrsct,
@@ -164,3 +151,31 @@ def write_statistics_numbers(df_merged, df_merged_filtered, output_folder, min_c
         write_stats_to_file(f, df_merged)
         f.write("\nAfter filtering:\n")
         write_stats_to_file(f, df_merged_filtered)
+
+
+def get_ATACseq(ATACseq_path):
+    columns = ['Region', 'Position', 'Strand', 'gCoverage-q20', 'gFrequency']
+    df_atacseq = pd.read_csv(ATACseq_path, sep='\t', usecols=columns, memory_map=True)
+
+    # replace missing values with 0
+    df_atacseq['gCoverage-q20'] = df_atacseq['gCoverage-q20'].replace('-', 0).astype(int)
+    df_atacseq['gFrequency'] = df_atacseq['gFrequency'].replace('-', 0).astype(float)  # .convert_dtypes()
+
+    # rename column names to be the same as the statistics tables
+    df_atacseq = df_atacseq.rename(
+        columns={'Region': '#chrom', 'Position': 'chromStart', 'Strand': 'Strand (0:-, 1:+, 2:unknown)'})
+    return df_atacseq
+
+
+def drop_snp_by_atacseq(df, df_atacseq, gcoverage_min=5, gfrequency_min=0.2):
+    # left merge the atacseq into the statistics table
+    df_merged = pd.merge(df, df_atacseq, on=['#chrom', 'chromStart'], how='left')
+
+    # replace missing values with 0
+    df_merged['gCoverage-q20'] = df_merged['gCoverage-q20'].replace('-', 0).fillna(0).astype(int)
+    df_merged['gFrequency'] = df_merged['gFrequency'].replace('-', 0).fillna(0).astype(float)
+
+    # remove positions where there is high probabilty to be SNP
+    idx_to_remove = (df_merged[(df_merged['gCoverage-q20'] >= gcoverage_min)]['gFrequency'] >= gfrequency_min).index
+    df_merged = df_merged.drop(idx_to_remove)
+    return df_merged

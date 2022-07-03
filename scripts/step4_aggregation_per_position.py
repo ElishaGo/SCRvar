@@ -10,8 +10,8 @@ import sys  # for development environments
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # for development environments
 
-import sc_rna_variants.analysis_utils
-from sc_rna_variants.utils import assert_is_directory, ArgparserFormater
+from sc_rna_variants.analysis_utils import load_tables, merge_dfs, save_df
+from sc_rna_variants.utils import assert_is_directory, assert_is_file, ArgparserFormater
 
 # logger = logging.getLogger(__name__)
 logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
@@ -19,6 +19,7 @@ logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
 
 def reorder_and_sort_agg_df(df):
     # reorder columns
+    logger.info("reorder and save file")
     cols = ["#chrom", "chromStart", "chromEnd", 'position', 'percent of non ref from all cells', 'strand',
             'count of unmutated cell barcodes', 'count of mutated cell barcodes',
             'percent of non ref only from mutated cells', 'reference base',
@@ -51,10 +52,10 @@ def get_non_ref_percent(line, cols_no_unmutated, cols_all_umi_counts):
 
 
 def add_counts_of_umis(df):
-    """
-    From aggreagted tsv, add a columns with percent of UMIs in cells
+    """ From aggreagted tsv, add a columns with percent of UMIs in cells
     add two columns with counts of UMIs to table
     """
+    logger.info("started to count UMIs in aggregated file")
     all_umi_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
                     'same single reads', 'transition single reads', 'reverse single reads', 'transvertion single reads',
                     'unmutated multi reads', 'unmutated single reads']
@@ -141,6 +142,7 @@ def aggregate_df(df):
     Aggregate the mutated dataframe on the position column.
     In addition, add count of cells in each position.
     """
+    logger.info("started to aggregate mismatch_dictionary table")
     df_agg = aggregate_existing_columns(df)
 
     # get additional statistics per position
@@ -153,7 +155,7 @@ def aggregate_df(df):
     return df_agg
 
 
-def find_intersections_with_SNP_and_edit_DB(output_dir, snp_db_path, editing_db_path):
+def add_intersections_with_SNP_and_edit_DB(output_dir, snp_db_path, editing_db_path):
     """add column for intersection with SNP and editing DB.
     Note, we use here intersect with -c flag which add column of counts, instead of -u flag which only returns the
     intersected entries."""
@@ -182,66 +184,39 @@ def find_intersections_with_SNP_and_edit_DB(output_dir, snp_db_path, editing_db_
 
 
 def run_step4(args):
-
     # load the mutated and unmutated data frames
-    logger.info("Loading and preprocessing the data frames")
-    df_mutated = sc_rna_variants.analysis_utils.load_tables(os.path.join(args.input_dir, "3.mismatch_dictionary.bed"),
-                                                            mutated=True)
-    df_unmutated = sc_rna_variants.analysis_utils.load_tables(
-        os.path.join(args.input_dir, "3.no_mismatch_dictionary.bed"), mutated=False)
-
-    # merge mutated and unmutated files to one file
-    # TODO : don't merge the open file. merge only the aggregated table
-    # df_merged = merge_dfs(df_mutated, df_unmutated)
+    df_mutated = load_tables(os.path.join(args.input_dir, "3.mismatch_dictionary.bed"), mutated=True)
+    df_unmutated = load_tables(os.path.join(args.input_dir, "3.no_mismatch_dictionary.bed"), mutated=False)
 
     # create aggregated file of data
-    logger.info("started to aggregate mismatch_dictionary table")
     df_mutated_agg = aggregate_df(df_mutated)
 
     # merge aggregated mutated and (aggregated) unmutated table
-    logger.info("started to merge the files")
-    df_merged_agg = sc_rna_variants.analysis_utils.merge_dfs(df_mutated_agg, df_unmutated)
+    df_merged_agg = merge_dfs(df_mutated_agg, df_unmutated)
 
     # initialize pandarallel for parallel pandas apply. used in the following function
     pandarallel.initialize(nb_workers=args.threads)
-    logger.info("started to count UMIs in aggregated file")
     df_merged_agg = add_counts_of_umis(df_merged_agg)
 
     # reorder and save the aggregated file
-    logger.info("reorder and save file")
     df_merged_agg = reorder_and_sort_agg_df(df_merged_agg)
-    sc_rna_variants.analysis_utils.save_df(df_merged_agg, args.output_dir,
-                                           "4.aggregated_per_position.bed")
+    save_df(df_merged_agg, args.output_dir, "4.aggregated_per_position.bed")
 
     # find intersection between df and databases
-    find_intersections_with_SNP_and_edit_DB(args.output_dir, args.snp_db_path, args.editing_db_path)
-
-
-def make_output_dir(string):
-    assert_is_directory(string)
-    output_path = os.path.join(string, "step4_outputs")
-    os.makedirs(output_path, exist_ok=True)
-    return output_path
+    add_intersections_with_SNP_and_edit_DB(args.output_dir, args.snp_db_path, args.editing_db_path)
 
 
 def parse_arguments(arguments=None):
     """argument parsing wrapper function
     helper functions and classes are found in sc_rna_variants.utils
-    # TODO explain more the 'epilog
     """
-    parser = argparse.ArgumentParser(
-        formatter_class=ArgparserFormater,
-        description="""This script aggregates and learns statistics on the output files from 'step3_mismatch_dictionary.py'.""",
-        epilog='''Outputs aggregated tsv, figures and statistics.'''
-    )
+    parser = argparse.ArgumentParser()
 
     # positional arguments
-    parser.add_argument('input_dir', type=assert_is_directory,
-                        help='folder with raw_stats.tsv and raw_umutated_stats.tsv files from step3_mismatch_dictionary.py')
+    parser.add_argument('input_dir', type=assert_is_directory, help='folder with mismatch_dictionaries (step 3)')
     parser.add_argument('output_dir', help='folder for step outputs', type=assert_is_directory)
-    parser.add_argument('snp_db_path', type=sc_rna_variants.utils.assert_is_file, help='path to known SNP sites file')
-    parser.add_argument('editing_db_path', type=sc_rna_variants.utils.assert_is_file,
-                        help='path to known editing sites file')
+    parser.add_argument('snp_db_path', type=assert_is_file, help='path to known SNP sites file')
+    parser.add_argument('editing_db_path', type=assert_is_file, help='path to known editing sites file')
 
     # optional arguments
     parser.add_argument('--min_cb_per_pos', default=5, type=int,
@@ -252,6 +227,9 @@ def parse_arguments(arguments=None):
                         help='position with less number of mutated + unmutated UMIs will be filtered')
     parser.add_argument('--min_mutation_rate', default=0.1, type=int,
                         help='position with less rate of mutation will be filtered')
+    parser.add_argument('--atacseq_path', type=str, help='path to atacseq file')
+    parser.add_argument('--atacseq_gcoverage_min', type=int, default=5)
+    parser.add_argument('--atacseq_gfrequency_min', type=float, default=0.2)
 
     # Meta arguments
     parser.add_argument('--threads', type=int,
