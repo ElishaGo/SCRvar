@@ -179,7 +179,7 @@ def exploratory_data_analysis(df, df_edit, df_open_edit, df_mismatches, reads_pe
 
     sc_rna_variants.statistic_plots.non_ref_from_all_cells(df, output_dir)
     sc_rna_variants.statistic_plots.snp_observed_against_mut_UMI_in_position(df, output_dir, sname)
-    sc_rna_variants.statistic_plots.plot_venn2_diagram()
+    # sc_rna_variants.statistic_plots.plot_venn2_diagram()
 
     # editing EDA
     umis_per_cb_editing = df_open_edit.groupby('cell barcode')["mutated umis per cell"].sum()
@@ -194,30 +194,26 @@ def get_pivot_tables(df):
     clusters_VS_genes_umis_pt = df.groupby(['cluster', 'gene_name']).agg(
         {'mutated umis per cell': 'sum'}).reset_index().pivot(index='cluster', columns='gene_name',
                                                               values="mutated umis per cell").fillna(0)
-    clusters_VS_genes_umis_pt = get_repetetive(df=clusters_VS_genes_umis_pt, by_row=False, min_genes_to_occure_in=2)
-    # clusters_VS_genes_umis_pt = filter_pt(clusters_VS_genes_umis_pt, ptmin_umi_per_position=1, min_umi_per_cell=1)
+    clusters_VS_genes_umis_pt = filter_columns_with_less_than_value(clusters_VS_genes_umis_pt, min_counts_in_col=2)
 
     # create heatmap for Seurat clusters VS. Genes - unmutated umis
     clusters_VS_genes_unmutated_umis_pt = df.groupby(['cluster', 'gene_name', 'position']).agg(
         {'unmutated umis per cell': 'first'}).groupby(['cluster', 'gene_name']).agg(
         {'unmutated umis per cell': 'sum'}).reset_index().pivot(index='cluster', columns='gene_name',
                                                                 values="unmutated umis per cell").fillna(0)
-
-    clusters_VS_genes_unmutated_umis_pt = get_repetetive(df=clusters_VS_genes_unmutated_umis_pt, by_row=False,
-                                                         min_genes_to_occure_in=2)
+    clusters_VS_genes_umis_pt = filter_columns_with_less_than_value(clusters_VS_genes_umis_pt, min_counts_in_col=2)
 
     # create heatmap for Cells VS. Genes
     cells_VS_genes_umis_pt = df.groupby(['gene_name', 'cluster cell barcode']).agg(
         {'mutated umis per cell': 'sum'}).reset_index().pivot(index='cluster cell barcode', columns='gene_name',
                                                               values="mutated umis per cell").fillna(0)
-    cells_VS_genes_umis_pt = get_repetetive(df=cells_VS_genes_umis_pt, by_row=True, min_genes_to_occure_in=2)
+    cells_VS_genes_umis_pt = get_repetetive(df=cells_VS_genes_umis_pt, min_genes_to_occure_in=2)
 
     # create heatmap for Cells VS. Genes- unmutated umis
     cells_VS_genes_unmutated_umis_pt = df.groupby(['gene_name', 'cluster cell barcode']).agg(
         {'unmutated umis per cell': 'first'}).reset_index().pivot(index='cluster cell barcode', columns='gene_name',
                                                                   values="unmutated umis per cell").fillna(0)
-    cells_VS_genes_unmutated_umis_pt = get_repetetive(df=cells_VS_genes_unmutated_umis_pt, by_row=True,
-                                                      min_genes_to_occure_in=2)
+    cells_VS_genes_unmutated_umis_pt = get_repetetive(df=cells_VS_genes_unmutated_umis_pt, min_genes_to_occure_in=2)
 
     # # create heatmap for Cells VS. Positions
     # cells_VS_position_mutated_umis_pt = df.pivot_table(index='cluster cell barcode', columns='position',
@@ -259,14 +255,14 @@ def get_repetetive(df, min_genes_to_occure_in):
     return df_repetetive_cells
 
 
-def filter_by_umi_per_cell(df, min_umi_per_cell):
-    df_temp = df[df.sum(axis=1) > min_umi_per_cell]
+def filter_rows_with_less_than_value(df, min_counts_in_row):
+    df_temp = df[df.sum(axis=1) > min_counts_in_row]
     print("shape of df is:", df_temp.shape)
     return df_temp
 
 
-def filter_by_umi_per_position(df, min_umi_per_position):
-    df_temp = df.loc[:, df.sum(axis=0) > min_umi_per_position]
+def filter_columns_with_less_than_value(df, min_counts_in_col):
+    df_temp = df.loc[:, df.sum(axis=0) > min_counts_in_col]
     print("shape of df is:", df_temp.shape)
     return df_temp
 

@@ -12,6 +12,7 @@ sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # f
 
 from sc_rna_variants.analysis_utils import load_tables, merge_dfs, save_df
 from sc_rna_variants.utils import assert_is_directory, assert_is_file, ArgparserFormater
+import sc_rna_variants
 
 # logger = logging.getLogger(__name__)
 logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
@@ -210,7 +211,7 @@ def parse_arguments(arguments=None):
     """argument parsing wrapper function
     helper functions and classes are found in sc_rna_variants.utils
     """
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(ArgparserFormater)
 
     # positional arguments
     parser.add_argument('input_dir', type=assert_is_directory, help='folder with mismatch_dictionaries (step 3)')
