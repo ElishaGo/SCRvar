@@ -13,33 +13,42 @@ warnings.filterwarnings("ignore")
 
 BASES = ['a', 'c', 'g', 't']
 
-def plot_cb_occurences_hist(df_orig, df_filtered, out_folder, sname):
+def plot_cb_occurences_hist(df_orig, df_filtered, out_folder, sname, fig_name):
     """ This function count the number of lines with each Cb in the table, and then plot a histogram.
     This can give an insight regarding the representation of different cell in the table.
     Note that the counts in tables can overlap on positions."""
-    has_snp_edit_notations = 'is_snp' in df_orig.columns
-
-    def plot_histogram(ax, cb_counts, bins, prior_post):
-        ax.hist(cb_counts.values, bins=bins)
-        ax.set_title("{} filtering - {}".format(prior_post, sname))
+    def plot_histogram(ax, cb_counts, bins, alpha=None, title=None):
+        ax.hist(cb_counts.values, bins=bins, alpha=alpha)
+        ax.set_title("{} - {}".format(title, sname))
         ax.set_ylabel("count of different cell barcodes")
         ax.set_xlabel("number of mutated positions")
         ax.tick_params(axis='x', reset=True)  # show ticks of x axis on both graphs
 
-    fig, axs = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
-
-    cb_counts = df_orig['cell barcode'].value_counts()
-    cb_counts_filtered = df_filtered['cell barcode'].value_counts()
     bins = 50
-    bins = np.histogram(np.hstack((cb_counts, cb_counts_filtered)), bins=bins)[1]
+    if 'is_snp' in df_orig.columns:
+        ax = plt.subplot()
+        df_snp = df_orig[df_orig['is_snp'] > 0]
+        cb_counts_snp = df_snp['cell barcode'].value_counts()
+        cb_counts_all = df_orig['cell barcode'].value_counts()
+        bins = np.histogram(np.hstack((cb_counts_snp, cb_counts_all)), bins=bins)[1]
+        plot_histogram(ax, cb_counts_all, bins)
+        plot_histogram(ax, cb_counts_snp, bins, alpha=0.5, title='SNP cell bacodes')
+        plt.legend(['all_cells', 'SNP_cells'])
+        fig_name = fig_name + "snp"
+
+    else:
+        fig, axs = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
+        cb_counts = df_orig['cell barcode'].value_counts()
+        cb_counts_filtered = df_filtered['cell barcode'].value_counts()
+        bins = np.histogram(np.hstack((cb_counts, cb_counts_filtered)), bins=bins)[1]
+        plot_histogram(axs[0], cb_counts, bins, title='before filtering')
+        plot_histogram(axs[1], cb_counts_filtered, bins, title='after filtering')
+
     plt.suptitle("Number of cell barcodes")
-    plot_histogram(axs[0], cb_counts, bins, 'before')
-    plot_histogram(axs[1], cb_counts_filtered, bins, 'after')
-
-    plt.savefig(os.path.join(out_folder, "5.cb_distribution.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, fig_name + ".png"), bbox_inches='tight')
 
 
-def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder, sname):
+def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder, sname, with_unmut, figname):
     fig, axs = plt.subplots(2, 4, figsize=(15, 8), sharex=True)
     ref_umi_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
                     'same single reads', 'transition single reads', 'reverse single reads', 'transvertion single reads']
@@ -47,7 +56,19 @@ def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder, sname
     for i, df in enumerate([df_merged, df_merged_filtered]):
         for j, base in enumerate(BASES):
             idx = df.loc[df['reference base'] == base].index
-            df.loc[idx, ref_umi_cols].sum(axis=0).plot(kind='barh', ax=axs[i][j], sharey=True)
+            df_to_plot = df.loc[idx, ref_umi_cols].sum(axis=0)
+            plt.suptitle(f"UMI per reference base - {sname}")
+            if with_unmut:
+                df_by_refbase = df.loc[df['reference base'] == base, :]
+                unmuteted_multi_read_count = df_by_refbase.drop_duplicates(subset='position')[
+                    'unmutated multi reads'].sum()
+                unmuteted_single_read_count = df_by_refbase.drop_duplicates(subset='position')[
+                    'unmutated single reads'].sum()
+                df_to_plot['same multi reads'] += unmuteted_multi_read_count
+                df_to_plot['same single reads'] += unmuteted_single_read_count
+                plt.suptitle(f"UMI per reference base with unmutated - {sname}")
+
+            df_to_plot.plot(kind='barh', ax=axs[i][j], sharey=True)
             axs[i][j].set_title('refference base: {0}'.format(base))
             axs[i][j].set_xlabel("Umi counts")
             axs[i][j].set_xscale('log', base=10)
@@ -55,31 +76,8 @@ def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder, sname
                 axs[i][j].text(z.get_width() + .09, z.get_y() + .3, str(round((z.get_width()), 1)), fontsize=8)
     fig.text(0, 0.65, 'Before filtering', ha='center', rotation='vertical', style='italic')
     fig.text(0, 0.25, 'After filtering', ha='center', rotation='vertical', style='italic')
-    plt.suptitle(f"UMI per reference base - {sname}")
-    plt.savefig(os.path.join(out_folder, "5.umi_per_reference_base.png"), bbox_inches='tight')
 
-    ### plot with unmutated data
-    fig, axs = plt.subplots(2, 4, figsize=(15, 8), sharex=True)
-    for i, df in enumerate([df_merged, df_merged_filtered]):
-        for j, base in enumerate(BASES):
-            idx = df.loc[df['reference base'] == base].index
-            df_to_plot = df.loc[idx, ref_umi_cols].sum(axis=0)
-            df_by_refbase = df.loc[df['reference base'] == base, :]
-            unmuteted_multi_read_count = df_by_refbase.drop_duplicates(subset='position')[
-                'unmutated multi reads'].sum()
-            unmuteted_single_read_count = df_by_refbase.drop_duplicates(subset='position')[
-                'unmutated single reads'].sum()
-            df_to_plot['same multi reads'] += unmuteted_multi_read_count
-            df_to_plot['same single reads'] += unmuteted_single_read_count
-            df_to_plot.plot(kind='barh', ax=axs[i][j], sharey=True)
-            axs[i][j].set_title('refference base: {0}'.format(base))
-            axs[i][j].set_xscale('log', base=10)
-            for z in axs[i][j].patches:
-                axs[i][j].text(z.get_width() + .09, z.get_y() + .3, str(round((z.get_width()), 1)), fontsize=8)
-    fig.text(0, 0.65, 'Before filtering', ha='center', rotation='vertical', style='italic')
-    fig.text(0, 0.25, 'After filtering', ha='center', rotation='vertical', style='italic')
-    plt.suptitle(f"UMI per reference base with unmutated - {sname}")
-    plt.savefig(os.path.join(out_folder, "5.umi_per_reference_base_with_unmutated.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, figname + ".png"), bbox_inches='tight')
 
 
 def get_min_max(count_matrices):
@@ -220,40 +218,37 @@ def plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, out_folder, sna
     plt.savefig(os.path.join(out_folder, "5.cb_count_not_unique_per_position.png"), bbox_inches='tight')
 
 
-def plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, out_folder, sname):
-    def make_plot(ax, cb_counts, df_name):
-        """helper function to plot the histogram"""
+def plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, out_folder, sname, with_unmut):
+    def make_plot(ax, cb_counts, title):
         bins = [2 ** n for n in list(range(0, ceil(np.log2(max(cb_counts))) + 1))]
         arr = ax.hist(cb_counts.values, bins=bins, weights=np.ones(len(cb_counts.values)) / len(cb_counts.values))
-        ax.set_title("{} filtering".format(df_name))
+        ax.set_title(title)
         ax.set_ylabel("count of positions%")
         ax.set_xlabel("number of different Cell Barcodes per position")
         ax.set_xscale('log', base=2)
         ax.set_ylim([0, 1])
-        vals = ax.get_yticks()
-        ax.set_yticklabels(['{:,.0%}'.format(x) for x in vals])
+        vals_y = ax.get_yticks()
+        vals_x = ax.get_xticks()
+        ax.set_yticklabels(['{:,.0%}'.format(x) for x in vals_y])
+        ax.set_xticklabels([int(x) for x in vals_x])  # show numbers instead of log scale format
         ax.tick_params(axis='x', reset=True)  # show ticks of x axis on both graphs
-        bin_length = len(bins)
+        bin_length = len(bins)  # add values on top of bars
         for j in range(bin_length - 1):
             ax.text((arr[1][j] + arr[1][j + 1]) / 2.5, arr[0][j] + 0.01, str(int((arr[0][j] * 100).round())) + '%')
 
-    # plot mutated data
     fig, axs = plt.subplots(2, 1, sharex=True, figsize=(10, 12))
-    for i, df_tuple in enumerate(zip([df_merged_agg, df_merged_agg_filtered], ['Before', 'After'])):
-        df, df_name = df_tuple[0], df_tuple[1]
-        cb_counts = df['count of mutated cell barcodes']
-        make_plot(axs[i], cb_counts, df_name)
-    plt.savefig(os.path.join(out_folder, "5.cb_count_per_position.png"), bbox_inches='tight')
-
-    # plot with unmutated data
-    fig, axs = plt.subplots(2, 1, sharex=True, figsize=(10, 12))
-    for i, df_tuple in enumerate(zip([df_merged_agg, df_merged_agg_filtered], ['Before', 'After'])):
-        df, df_name = df_tuple[0], df_tuple[1]
-        cb_counts = df['count of mutated cell barcodes']  # mutated counts
-        unmutated_cb_counts = df['count of unmutated cell barcodes']  # unmutated counts
-        cb_counts = cb_counts.combine(unmutated_cb_counts, np.add, fill_value=0)  # sum mutated and unmutated counts
-        make_plot(axs[i], cb_counts, df_name)
-    plt.savefig(os.path.join(out_folder, "5.cb_count_per_position_with_unmutated.png"), bbox_inches='tight')
+    for i, df_tuple in enumerate(zip([df_merged_agg, df_merged_agg_filtered], ['Before filtering', 'After filtering'])):
+        df, sub_title = df_tuple[0], df_tuple[1]
+        if not with_unmut:
+            cb_counts = df['count of mutated cell barcodes']
+            name = "5.cb_count_per_position"
+        else:
+            unmutated_cb_counts = df['count of unmutated cell barcodes']  # unmutated counts
+            cb_counts = cb_counts.combine(unmutated_cb_counts, np.add, fill_value=0)  # sum mutated and unmutated counts
+            name = "5.cb_count_per_position_with_unmutated"
+        make_plot(axs[i], cb_counts, sub_title)
+    plt.suptitle("CB counts per positions - {}".format(sname))
+    plt.savefig(os.path.join(out_folder, name + ".png"), bbox_inches='tight')
 
 
 def non_ref_from_all_cells(df, output_dir):
@@ -421,9 +416,18 @@ def editing_events_vs_number_of_mutated_umis_per_cell(editingsites_per_cb_stats,
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "editing_events_VS_umi_scatter.png"))
 
+# plot_venn2_diagram((10000000,250000,38000), ('SNP DB positions','aligned positions', ''), 'test_venn.png', 'count of positions on gene - SAMPLE')
+# plot_venn2_diagram((1000,250000,3800), ('SNP DB positions','aligned positions', ''), 'test_venn.png', 'count of positions on gene - SAMPLE')
+
+def try_this(subset_list, labels, output_name, title):
+    try:
+        plot_venn2_diagram(subset_list, labels, output_name, title)
+    except RuntimeError:
+        plot_venn2_diagram(subset_list, labels, output_name, title)
+
 
 def plot_venn2_diagram(subset_list, labels, output_name, title):
-    v = venn2(subsets=subset_list, set_labels=(labels[0], labels[1]), )
+    v = venn2(subsets=subset_list, set_labels=(labels[0], labels[1]))
     c = venn2_circles(subsets=subset_list, color='gray', linewidth=1, linestyle='dashed')
 
     # format the numbers
@@ -445,11 +449,14 @@ def plot_venn2_diagram(subset_list, labels, output_name, title):
     # create legend and align values to the right
     # get the width of your widest label, since every label will need
     # to shift by this amount after we align to the right
+    # plt.legend(handles=h, labels=l, title="counts")
     legend = plt.legend(handles=h, labels=l, title="counts")
+    plt.savefig(output_name, facecolor='white')  # needed to activate renderer for next line t.get_window_extent()
     shift = max([t.get_window_extent().width for t in legend.get_texts()])
     for t in legend.get_texts():
-        t.set_ha('right')  # ha is alias for horizontalalignment
-        t.set_position((shift, 0))
+       t.set_ha('right')  # ha is alias for horizontalalignment
+       t.set_position((shift, 0))
+
     plt.title('{}'.format(title))
     plt.tight_layout()
     plt.savefig(output_name, facecolor='white')
@@ -480,6 +487,7 @@ def plot_venn3_diagram(subset_list, labels, output_dir, sname):
     # get the width of your widest label, since every label will need
     # to shift by this amount after we align to the right
     legend = plt.legend(handles=h, labels=l, title="counts", loc='lower right')  # bbox_to_anchor=(0.95,0.7)
+    plt.savefig(os.path.join(output_dir, '5.venn_diagram_{} - {}.png'.format(labels[0], sname)), facecolor='white')
     shift = max([t.get_window_extent().width for t in legend.get_texts()])
     for t in legend.get_texts():
         t.set_ha('right')  # ha is alias for horizontalalignment

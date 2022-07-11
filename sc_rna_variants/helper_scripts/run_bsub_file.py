@@ -46,7 +46,6 @@ def write_meta_commands(f, args):
 
 def write_pipelines_scripts_execution_commands(f, args):
     code_dir = "/home/labs/bioservices/shared/rarevar/scrarevar/"
-    # TODO: ask what step to put this
     f.write("# count number of reads per barcode\n")
     f.write(
         f"{code_dir}/sc_rna_variants/count_reads_per_barcode_in_bam.sh {args.bam_file} {args.sample_output_dir} {args.sname} {args.n}\n\n")
