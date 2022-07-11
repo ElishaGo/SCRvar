@@ -11,7 +11,7 @@ sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # f
 from sc_rna_variants.analysis_utils import load_tables, merge_dfs, get_df_and_filtered_df, write_statistics_numbers
 from sc_rna_variants.utils import assert_is_file, assert_is_directory, ArgparserFormater
 from sc_rna_variants.statistic_plots import *
-
+import sc_rna_variants
 
 pd.set_option('display.max_columns', None)
 logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
@@ -104,13 +104,16 @@ def get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_
     os.makedirs(output_folder, exist_ok=True)
 
     # plot not grouped data
-    plot_cb_occurences_hist(df_merged_open, df_merged_filtered, output_folder, sname)
-    plot_umi_per_reference_base(df_merged_open, df_merged_filtered, output_folder, sname)  # use nonmut data
+    plot_cb_occurences_hist(df_merged_open, df_merged_filtered, output_folder, sname, "5.cb_distribution.png")
+    plot_umi_per_reference_base(df_merged_open, df_merged_filtered, output_folder, sname, with_unmut=False, figname="5.umi_per_reference_base")
+    plot_umi_per_reference_base(df_merged_open, df_merged_filtered, output_folder, sname, with_unmut=True,
+                                figname="5.umi_per_reference_base_with_unmutated")
     plot_heatmap_mutation_per_base(df_merged_open, df_merged_filtered, output_folder, sname)  # use nonmut data
 
     # plot data grouped by position
     plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
-    plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
+    plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, output_folder, sname, with_unmut=True)
+    plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, output_folder, sname, with_unmut=False)
 
 
 def run_snp_edit_DB_intersections(df_agg_intersect, df_agg_intrsct_filtered, df_merged_open, df_merged_open_filtered, output_folder, snp_db_path, editing_db_path, sname):
@@ -123,14 +126,13 @@ def run_snp_edit_DB_intersections(df_agg_intersect, df_agg_intrsct_filtered, df_
     plot_heatmap_mutation_per_base_DB(df_agg_intersect, df_agg_intrsct_filtered, output_folder, sname)
 
     # plot mutations per cell with snp and edit notation
-    plot_cb_occurences_hist(df_merged_open, df_merged_open_filtered, output_folder, sname)
+    plot_cb_occurences_hist(df_merged_open, df_merged_open_filtered, output_folder, sname, "5.cb_distribution_snp.png")
 
 
 def get_open_table(dir_path):
-    df_mut_open = load_tables(os.path.join(os.path.dirname(dir_path), 'step3_mismatch_dictionary', '3.mismatch_dictionary.bed'),
-        mutated=True)
-    df_unmutated = load_tables( os.path.join(os.path.dirname(dir_path), 'step3_mismatch_dictionary', '3.no_mismatch_dictionary.bed'),
-        mutated=False)
+    dir3_outputs = os.path.join(os.path.dirname(dir_path), 'step3_mismatch_dictionary')
+    df_mut_open = load_tables(os.path.join(dir3_outputs, '3.mismatch_dictionary.bed'), mutated=True)
+    df_unmutated = load_tables(os.path.join(dir3_outputs, '3.no_mismatch_dictionary.bed'),mutated=False)
     df_merged_open = merge_dfs(df_mut_open, df_unmutated)
     return df_mut_open, df_unmutated, df_merged_open
 

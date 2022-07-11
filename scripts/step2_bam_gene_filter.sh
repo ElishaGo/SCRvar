@@ -25,11 +25,11 @@ LOGFILE=${OUTPUT_DIR}/step2.log
     rm ${OUTPUT_FILE}.sam
     mv ${OUTPUT_FILE}_temp.sam ${OUTPUT_FILE}.sam
 
-    # get statistics on file
-    samtools flagstat -@ ${N} ${OUTPUT_FILE}.sam > ${OUTPUT_DIR}/2.${SNAME}_flagstat.txt
-
     # keep only gene sites
     grep -v "__" ${OUTPUT_FILE}.sam | samtools view -@ ${N} -Sb - > ${OUTPUT_FILE}.bam;samtools sort -@ ${N} ${OUTPUT_FILE}.bam -o ${OUTPUT_FILE}.bam;samtools index ${OUTPUT_FILE}.bam
+
+    # get statistics on filtered file
+    samtools flagstat -@ ${N} ${OUTPUT_FILE}.bam > ${OUTPUT_DIR}/2.${SNAME}_flagstat.txt
 
     # remove sam files
     rm ${OUTPUT_FILE}.sam
@@ -41,14 +41,16 @@ LOGFILE=${OUTPUT_DIR}/step2.log
     bedtools intersect -u -header -a ${SNP_GTF_INTERSECT} -b ${OUTPUT_FILE}.bam > ${OUTPUT_DIR}/2.snp.genecode.${SNAME}_intersect.vcf
 
     # make venn diagram for editing and bam file
-    bam_positions_count=$(samtools coverage ${OUTPUT_FILE}.bam | grep chr | awk '{print $5}' | paste -sd+ - | bc)
-    EDITING_GTF_INTERSECT_count=$(wc -l < ${EDITING_GTF_INTERSECT})
-    EDITING_GTF_INTERSECT_output_bam_intersect=$(wc -l < ${OUTPUT_DIR}/2.${SNAME}.editing.genecode.bam_intersect.bed)
+    bedtools genomecov -max 1 -split -ibam ${OUTPUT_FILE}.bam > ${OUTPUT_DIR}/2.${SNAME}_genomecov.txt
+    bam_positions_count=$(tail -n 1 ${OUTPUT_DIR}/2.${SNAME}_genomecov.txt | awk '{print $3}')
+#    bam_positions_count=$(samtools coverage ${OUTPUT_FILE}.bam | grep chr | awk '{print $5}' | paste -sd+ - | bc)
+    EDITING_GTF_INTERSECT_count=$(grep -v "#" ${EDITING_GTF_INTERSECT} | cut -f 1,4,5 | sort |  uniq | wc -l)
+    EDITING_GTF_INTERSECT_output_bam_intersect=$(grep -v "#" ${OUTPUT_DIR}/2.${SNAME}.editing.genecode.bam_intersect.bed | cut -f 1,2,3 | sort |  uniq | wc -l)
     python -c "import sys;sys.path.append('/home/labs/bioservices/shared/rarevar/scrarevar');import sc_rna_variants.statistic_plots as sp; sp.plot_venn2_diagram((${EDITING_GTF_INTERSECT_count},${bam_positions_count},${EDITING_GTF_INTERSECT_output_bam_intersect}), ('editing DB positions','aligned positions', ''), '${OUTPUT_DIR}/2.editing_gtf.bam_gtf.venn.png', 'count of positions on gene - ${SNAME}')"
 
     # make venn diagram for snp and bam file
-    SNP_GTF_INTERSECT_count=$(wc -l < ${SNP_GTF_INTERSECT})
-    SNP_GTF_INTERSECT_output_bam_intersect=$(wc -l < ${OUTPUT_DIR}/2.${SNAME}.snp.genecode.bam_intersect.vcf)
+    SNP_GTF_INTERSECT_count=$(grep -v "#" ${SNP_GTF_INTERSECT} | cut -f 1,2 | sort | uniq | wc -l)
+    SNP_GTF_INTERSECT_output_bam_intersect=$(grep -v "#" ${OUTPUT_DIR}/2.${SNAME}.snp.genecode.bam_intersect.vcf | cut -f 1,2 | sort | uniq | wc -l)
     python -c "import sys;sys.path.append('/home/labs/bioservices/shared/rarevar/scrarevar');import sc_rna_variants.statistic_plots as sp; sp.plot_venn2_diagram((${SNP_GTF_INTERSECT_count},${bam_positions_count},${SNP_GTF_INTERSECT_output_bam_intersect}), ('SNP DB positions','aligned positions', ''), '${OUTPUT_DIR}/2.snp_gtf.bam_gtf.venn.png', 'count of positions on gene - ${SNAME}')"
 
     echo end_of_log_file 1>&2
