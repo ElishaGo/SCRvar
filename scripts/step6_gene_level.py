@@ -8,30 +8,30 @@ import sys  # for development environments
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # for development environments
 
-from sc_rna_variants.analysis_utils import save_df, load_tables, get_df_and_filtered_df, get_ATACseq, drop_snp_by_atacseq
+from sc_rna_variants.analysis_utils import save_df, load_tables, get_df_and_filtered_df, get_REDItools_data, drop_high_prob_snp
 import sc_rna_variants.statistic_plots
 from sc_rna_variants.utils import ArgparserFormater, assert_is_directory, assert_is_file
 
 pd.set_option('display.max_columns', None)
 
 
-def create_editing_sites_gtf_intersections(editing_df_path, path_to_gtf, out_fpath):
+def create_mismatches_gtf_intersections(df_path, path_to_gtf, out_fpath):
     """use left outer join to add genes information to editing table"""
-    os.system(f"bedtools intersect -s -loj -a {editing_df_path} -b {path_to_gtf} > {out_fpath}")
+    os.system(f"bedtools intersect -s -loj -a {df_path} -b {path_to_gtf} > {out_fpath}")
 
 
-def get_gene_names(edit_df, gtf_editing_sites_intersection):
+def add_gene_names(df, genecode_gtf_file):
     """function to add column of gene names.
-    input:  -aggregated editing sites dataframe
-            -path to intersections of editing sites with gtf file
-    output: aggregated editing file with aditional column for gene names.
-    Notice that the gtf_editing_sites_intersection contains multiple lines per each position. However, the gene name
+    input:  -aggregated mismatches by posotion dataframe
+            -path to gtf file
+    output: aggregated file with aditional column for gene names.
+    Notice that the gtf file contains multiple lines per each position. However, the gene name
     should be consistent in all the position duplicate lines. Therfore we drop duplicates in some stage here.
+    Positions which didn't apper in the gtf file are removed
     """
 
     # load df with gene names
-    gene_names = pd.read_csv(gtf_editing_sites_intersection, header=None, sep='\t')
-
+    gene_names = pd.read_csv(genecode_gtf_file, header=None, sep='\t')
     # extract the gene names
     gene_names = gene_names.loc[:, [3, gene_names.shape[1] - 1]]  # get 'postion' and last columnt
     gene_names.columns = ['position', 'gene_name']
@@ -53,9 +53,9 @@ def get_gene_names(edit_df, gtf_editing_sites_intersection):
     gene_names = gene_names.drop_duplicates()
 
     # merge df with gene names
-    edit_df = edit_df.merge(gene_names, on='position', how='inner')
+    df = df.merge(gene_names, on='position', how='inner')
 
-    return edit_df
+    return df
 
 
 def filter_rare_mut(df, min_mutation_rate):
@@ -108,34 +108,32 @@ def drop_editing_and_snp_overlap(df):
     return df.drop(idx_to_drop)
 
 
-def get_and_process_edit_df(df, output_dir, gtf_path):
-    df_edit = df.loc[df['is_editing'] == 1]
-    save_df(df_edit, output_dir, 'temp_6.editing_sites_df.bed')
-    df_edit_path = os.path.join(output_dir, 'temp_6.editing_sites_df.bed')
-
+def step6_1_add_gene_name_from_gtf(df, output_dir, gtf_path):
     # add gene names
-    editing_intersect_gtf_path = os.path.join(output_dir, "temp_6.editing_sites.genecode_intersect.bed")
-    create_editing_sites_gtf_intersections(editing_df_path=df_edit_path, path_to_gtf=gtf_path,
-                                           out_fpath=editing_intersect_gtf_path)
-    df_edit = get_gene_names(df_edit, editing_intersect_gtf_path)
+    df_path = os.path.join(output_dir, 'temp_6.df.bed')
+    df.to_csv(df_path, index=False, sep='\t')
+    intersections_gtf_path = os.path.join(output_dir, "temp_6.genecode_intersect.bed")
+    create_mismatches_gtf_intersections(df_path=df_path, path_to_gtf=gtf_path, out_fpath=intersections_gtf_path)
+    df = add_gene_names(df, intersections_gtf_path)
+    os.remove(df_path)
+    os.remove(intersections_gtf_path)
 
-    os.remove(df_edit_path)
-    os.remove(editing_intersect_gtf_path)
-    return df_edit
+    df.to_csv(os.path.join(output_dir, "6.1.aggregated_with_gene_name.bed"), index=False, sep='\t')
+    return df
+
+
+def add_clusters(df_open, clusters_path):
+    """helper function to add clusters notations to open table"""
+    cb_clusters = pd.read_csv(clusters_path, sep='\t', names=['sample', 'cell barcode', 'cluster'])
+    cb_clusters['cluster'] = cb_clusters.apply(lambda x: 'c' + str(x['cluster']), axis=1)
+    cb_clusters['cluster cell barcode'] = cb_clusters.apply(lambda x: x['cluster'] + '_' + x['cell barcode'], axis=1)
+
+    # add clusters to cells in open table
+    return df_open.merge(cb_clusters.loc[:, ['cell barcode', 'cluster', 'cluster cell barcode']], on='cell barcode',
+                         how='left')
 
 
 def load_and_process_mismatch_table(df_edit, mismatches_path, barcodes_clusters_path):
-    def add_clusters(df_open, clusters_path):
-        """helper function to add clusters notations to open table"""
-        cb_clusters = pd.read_csv(clusters_path, sep='\t', names=['sample', 'cell barcode', 'cluster'])
-        cb_clusters['cluster'] = cb_clusters.apply(lambda x: 'c' + str(x['cluster']), axis=1)
-        cb_clusters['cluster cell barcode'] = cb_clusters.apply(lambda x: x['cluster'] + '_' + x['cell barcode'],
-                                                                axis=1)
-
-        # add clusters to cells in open table
-        return df_open.merge(cb_clusters.loc[:, ['cell barcode', 'cluster', 'cluster cell barcode']], on='cell barcode',
-                             how='left')
-
     # load open tables and add 'is_edit column'
     df_mismatches = load_tables(mismatches_path, mutated=True)
 
@@ -167,14 +165,15 @@ def get_mismatches_tables(df_edit, mismatch_dict_bed, barcode_clusters):
                                                                    unmut_umi_cols].sum(axis=1)
 
     # add gene names to open_edit_df
-    df_open_mismatches_editing = df_open_mismatches_editing.merge(df_edit.loc[:, ['position', 'gene_name']],
-                                                                  on='position', how='left')
+    if 'gene_name' in df_edit.columns:
+        df_open_mismatches_editing = df_open_mismatches_editing.merge(df_edit.loc[:, ['position', 'gene_name']],
+                                                                      on='position', how='left')
 
     return df_open_mismatches_editing, df_open_mismatches
 
 
 def exploratory_data_analysis(df, df_edit, df_open_edit, df_mismatches, reads_per_barcode_path, output_dir, sname):
-    output_dir = os.path.join(output_dir, 'plots')
+    output_dir = os.path.join(output_dir, '6.plots')
     os.makedirs(output_dir, exist_ok=True)
 
     sc_rna_variants.statistic_plots.non_ref_from_all_cells(df, output_dir)
@@ -267,25 +266,25 @@ def filter_columns_with_less_than_value(df, min_counts_in_col):
     return df_temp
 
 
-def plot_heatmaps(pivot_tables, pt_names, sname, output_dir):
+def plot_clustering_heatmaps(pivot_tables, pt_names, sname, output_dir):
     chr_genes_pairs = pivot_tables.pop(-1)
 
     for pt, name in zip(pivot_tables, pt_names):
         print("name")
         print(pt.shape)
-        sc_rna_variants.statistic_plots.make_clusters_heatmap(pivot_table=pt, name=name + str(sname),
+        sc_rna_variants.statistic_plots.make_clusters_heatmap(pt, name=name + str(sname),
                                                               output_dir=output_dir,
                                                               chr_genes_pairs=chr_genes_pairs)
 
 
-def clustering_anlysis(df_open_edit, output_dir, sname):
-    output_dir = os.path.join(output_dir, 'plots_clustering')
+def interactions_anlysis(df_open, output_dir, sname):
+    output_dir = os.path.join(output_dir, '6.ANALYSIS_interactions_analysis')
     os.makedirs(output_dir, exist_ok=True)
 
-    pts, pt_names = get_pivot_tables(df_open_edit)
+    pts, pt_names = get_pivot_tables(df_open)
 
     sc_rna_variants.statistic_plots.plot_umis_per_gene(pts[1], output_dir)
-    plot_heatmaps(pts, pt_names, sname, output_dir)
+    plot_clustering_heatmaps(pts, pt_names, sname, output_dir)
 
 
 def get_reads_per_cell(rpc_fpath):
@@ -325,35 +324,58 @@ def more_analysis(df_mismatches, umis_per_cb_editing, reads_per_barcode_path, mi
                                                                                       umis_per_cb_editing, output_dir)
 
 
+def merge_REDItools_data(df, df_reditools):
+    """left merge the atacseq into the statistics table"""
+    df_merged = pd.merge(df, df_reditools, on=['#chrom', 'chromStart'], how='left')
+
+    # replace missing values with 0
+    df_merged['REDItools_gCoverage-q20'] = df_merged['REDItools_gCoverage-q20'].replace('-', 0).fillna(0)
+    df_merged['REDItools_gFrequency'] = df_merged['REDItools_gFrequency'].replace('-', 0).fillna(0)
+    return df_merged
+
+
 def run_step6(input_dir, output_dir, read_per_barcode_raw_bam, min_cb_per_pos, min_mutation_umis, min_total_umis,
-              min_mutation_rate, atacseq_path, gtf_path, mismatch_dict_bed, barcode_clusters, gcoverage_min,
+              min_mutation_rate, reditools_data, gtf_path, mismatch_dict_bed, barcode_clusters, gcoverage_min,
               gfrequency_min, sname):
-    stats_agg_path = os.path.join(input_dir, "4.aggregated_per_position_intersect.bed")
+    stats_agg_path = os.path.join(input_dir, "4.aggregated_per_position.bed")
     df, df_filtered = get_df_and_filtered_df(stats_agg_path, min_cb_per_pos, min_mutation_umis, min_total_umis, min_mutation_rate)
     print("shape of mutation table:", df.shape)
     print("shape of mutation table after filtering:", df_filtered.shape)
 
-    if (atacseq_path):
-        atacseq_df = get_ATACseq(atacseq_path)
-        df_filtered = drop_snp_by_atacseq(df_filtered, atacseq_df, gcoverage_min, gfrequency_min)
-        print(
-            f"shape after filtering position by ATACseq: {df_filtered.shape} gCoverage>={gcoverage_min}, gFrequency>={gfrequency_min}:")
+    # step 6.1 - add gene names, and fing interactions
+    df_filtered = step6_1_add_gene_name_from_gtf(df_filtered, output_dir, gtf_path)  # df_filtered
 
-    df_filtered = drop_editing_and_snp_overlap(df_filtered)
-    print("shape of mutation table after drop position with edit and SNP overlaps:", df_filtered.shape)
+    # TODO ask what to include if no editing and snp DB are given
+    # analysis of editing sites
+    if 'is_editing' in df_filtered.columns:
+        df_filtered = drop_editing_and_snp_overlap(df_filtered)
+        print("shape of mutation table after drop position with edit and SNP overlaps:", df_filtered.shape)
 
-    df_edit = get_and_process_edit_df(df_filtered, output_dir, gtf_path)
-    print("\n shape of aggregated editing sites table is:", df_edit.shape)
+        df_edit = df_filtered.loc[df_filtered['is_editing'] == 1]
+        print("shape of aggregated editing sites table is:", df_edit.shape)
 
-    # get open mismatch table of editing sites
-    df_open_mismatches_editing, df_open_mismatches = get_mismatches_tables(df_edit, mismatch_dict_bed, barcode_clusters)
-    print("\n shape of open mismatch editing sites table is:", df_open_mismatches_editing.shape)
+        # get open mismatch table of editing sites
+        df_open_mismatches_editing, df_open_mismatches = get_mismatches_tables(df_edit, mismatch_dict_bed, barcode_clusters)
+        print("shape of open mismatch editing sites table is:", df_open_mismatches_editing.shape)
 
-    exploratory_data_analysis(df_filtered, df_edit, df_open_mismatches_editing, df_open_mismatches,
-                              read_per_barcode_raw_bam, output_dir, sname)
+        exploratory_data_analysis(df_filtered, df_edit, df_open_mismatches_editing, df_open_mismatches,
+                                  read_per_barcode_raw_bam, output_dir, sname)
 
+    # Analysis
+    # TODO: ask where should the output go
     if barcode_clusters:
-        clustering_anlysis(df_open_mismatches_editing, output_dir, sname)
+        interactions_anlysis(df_open_mismatches_editing, output_dir, sname)
+
+    # Analysis
+    # TODO: ask where should the output go
+    if (reditools_data):
+        # merge REDItools data to our data
+        df_reditools = get_REDItools_data(reditools_data)
+        df_filtered = merge_REDItools_data(df_filtered, df_reditools)
+        df_filtered = drop_high_prob_snp(df_filtered, gcoverage_min, gfrequency_min)
+        df_filtered.to_csv(os.path.join(output_dir, "6_ANALYSIS_with_REDItools_data.bed"), index=False, sep='\t')
+        print(
+            f"shape after filtering position with REDItools genomic information: {df_filtered.shape} gCoverage>={gcoverage_min}, gFrequency>={gfrequency_min}:")
 
 
 ##################################################################################################################
@@ -377,7 +399,7 @@ def parse_arguments(arguments=None):
                         help='position with less number of mutated + unmutated UMIs will be filtered')
     parser.add_argument('--min_mutation_rate', default=0.1, type=int,
                         help='position with less rate of mutation will be filtered')
-    parser.add_argument('--atacseq_path', type=str, help='path to atacseq file')
+    parser.add_argument('--reditools_data', type=str, help='path to atacseq file')
     parser.add_argument('--atacseq_gcoverage_min', type=int, default=5)
     parser.add_argument('--atacseq_gfrequency_min', type=float, default=0.2)
 
@@ -401,7 +423,7 @@ if __name__ == '__main__':
 
     # run step
     run_step6(args.input_dir, args.output_dir, args.read_per_barcode_raw_bam, args.min_cb_per_pos,
-              args.min_mutation_umis, args.min_total_umis, args.min_mutation_rate, args.atacseq_path, args.gtf_path,
+              args.min_mutation_umis, args.min_total_umis, args.min_mutation_rate, args.reditools_data, args.gtf_path,
               args.mismatch_dict_bed, args.barcode_clusters, args.atacseq_gcoverage_min, args.atacseq_gfrequency_min,
               args.sname)
 
