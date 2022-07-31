@@ -10,31 +10,33 @@ from matplotlib import cm
 from scipy.stats import pearsonr
 from matplotlib_venn import venn2, venn2_circles, venn3, venn3_circles
 warnings.filterwarnings("ignore")
+import logging
 
+logging.getLogger('matplotlib').setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
 BASES = ['a', 'c', 'g', 't']
 
-def plot_cb_occurences_hist(df_orig, df_filtered, out_folder, sname, fig_name):
+def plot_cb_occurences_hist(df_orig, df_filtered, fig_path, sname, is_snp):
     """ This function count the number of lines with each Cb in the table, and then plot a histogram.
     This can give an insight regarding the representation of different cell in the table.
     Note that the counts in tables can overlap on positions."""
-    def plot_histogram(ax, cb_counts, bins, alpha=None, title=None):
+    def plot_histogram(ax, cb_counts, bins, title, alpha=None):
         ax.hist(cb_counts.values, bins=bins, alpha=alpha)
-        ax.set_title("{} - {}".format(title, sname))
+        ax.set_title(title)
         ax.set_ylabel("count of different cell barcodes")
         ax.set_xlabel("number of mutated positions")
         ax.tick_params(axis='x', reset=True)  # show ticks of x axis on both graphs
 
     bins = 50
-    if 'is_snp' in df_orig.columns:
-        ax = plt.subplot()
+    if is_snp:
+        fig, axs = plt.subplots(1, 1, figsize=(10, 12))
         df_snp = df_orig[df_orig['is_snp'] > 0]
         cb_counts_snp = df_snp['cell barcode'].value_counts()
         cb_counts_all = df_orig['cell barcode'].value_counts()
         bins = np.histogram(np.hstack((cb_counts_snp, cb_counts_all)), bins=bins)[1]
-        plot_histogram(ax, cb_counts_all, bins)
-        plot_histogram(ax, cb_counts_snp, bins, alpha=0.5, title='SNP cell bacodes')
+        plot_histogram(axs, cb_counts_all, bins, sname)
+        plot_histogram(axs, cb_counts_snp, bins, f'SNP cell bacodes - {sname}', alpha=0.5)
         plt.legend(['all_cells', 'SNP_cells'])
-        fig_name = fig_name + "snp"
 
     else:
         fig, axs = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
@@ -45,14 +47,13 @@ def plot_cb_occurences_hist(df_orig, df_filtered, out_folder, sname, fig_name):
         plot_histogram(axs[1], cb_counts_filtered, bins, title='after filtering')
 
     plt.suptitle("Number of cell barcodes")
-    plt.savefig(os.path.join(out_folder, fig_name + ".png"), bbox_inches='tight')
+    plt.savefig(fig_path, bbox_inches='tight')
 
 
 def plot_umi_per_reference_base(df_merged, df_merged_filtered, out_folder, sname, with_unmut, figname):
     fig, axs = plt.subplots(2, 4, figsize=(15, 8), sharex=True)
     ref_umi_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
                     'same single reads', 'transition single reads', 'reverse single reads', 'transvertion single reads']
-
     for i, df in enumerate([df_merged, df_merged_filtered]):
         for j, base in enumerate(BASES):
             idx = df.loc[df['reference base'] == base].index
@@ -239,10 +240,9 @@ def plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, out_folder
     fig, axs = plt.subplots(2, 1, sharex=True, figsize=(10, 12))
     for i, df_tuple in enumerate(zip([df_merged_agg, df_merged_agg_filtered], ['Before filtering', 'After filtering'])):
         df, sub_title = df_tuple[0], df_tuple[1]
-        if not with_unmut:
-            cb_counts = df['count of mutated cell barcodes']
-            name = "5.cb_count_per_position"
-        else:
+        cb_counts = df['count of mutated cell barcodes']
+        name = "5.cb_count_per_position"
+        if with_unmut:
             unmutated_cb_counts = df['count of unmutated cell barcodes']  # unmutated counts
             cb_counts = cb_counts.combine(unmutated_cb_counts, np.add, fill_value=0)  # sum mutated and unmutated counts
             name = "5.cb_count_per_position_with_unmutated"
@@ -366,7 +366,7 @@ def plot_umis_per_gene(clusters_VS_genes_umis_pt, output_dir):
     plt.ylabel("observed genes")
     fig.suptitle("number of mutated UMI's in genes in known editing sites")
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "6.umi_per_gene_in_editing_sites.png"))
+    plt.savefig(os.path.join(output_dir, "6.UMIs_per_gene_in_editing_sites.png"))
 
 
 def editing_events_vs_number_of_reads(df_scatter, output_dir):
@@ -427,6 +427,8 @@ def try_this(subset_list, labels, output_name, title):
 
 
 def plot_venn2_diagram(subset_list, labels, output_name, title):
+    """venn2 recieve a list of 2 set object and calculate the intersections automtically.
+        otherwise it recieves a list or dictionaly with 3 numbers and use them"""
     v = venn2(subsets=subset_list, set_labels=(labels[0], labels[1]))
     c = venn2_circles(subsets=subset_list, color='gray', linewidth=1, linestyle='dashed')
 
@@ -462,7 +464,9 @@ def plot_venn2_diagram(subset_list, labels, output_name, title):
     plt.savefig(output_name, facecolor='white')
 
 
-def plot_venn3_diagram(subset_list, labels, output_dir, sname):
+def plot_venn3_diagram(subset_list, labels, output_name, title):
+    """venn3 recieve a list of 3 set object and calculate the intersections automtically.
+        otherwise it recieves a list or dictionaly with 7 numbers and use them"""
     plt.clf()
     v = venn3(subsets=subset_list, set_labels=(labels[0], labels[1], labels[2]))
     c = venn3_circles(subsets=subset_list, color='gray', linewidth=1, linestyle='dashed')
@@ -487,15 +491,17 @@ def plot_venn3_diagram(subset_list, labels, output_dir, sname):
     # get the width of your widest label, since every label will need
     # to shift by this amount after we align to the right
     legend = plt.legend(handles=h, labels=l, title="counts", loc='lower right')  # bbox_to_anchor=(0.95,0.7)
-    plt.savefig(os.path.join(output_dir, '5.venn_diagram_{} - {}.png'.format(labels[0], sname)), facecolor='white')
+    plt.savefig(output_name, facecolor='white')
+    # plt.savefig(os.path.join(output_dir, '5.venn_diagram_{} - {}.png'.format(labels[0], sname)), facecolor='white')
     shift = max([t.get_window_extent().width for t in legend.get_texts()])
     for t in legend.get_texts():
-        t.set_ha('right')  # ha is alias for horizontalalignment
+        t.set_ha('right')  # ha is alias for horizontal alignment
         t.set_position((shift, 0))
 
-    plt.title('count of positions - {} and {}'.format(labels[1], labels[0]))
+    plt.title('{}'.format(title))
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, '5.venn_diagram_{} - {}.png'.format(labels[0], sname)), facecolor='white')
+    plt.savefig(output_name, facecolor='white')
+    # plt.savefig(os.path.join(output_dir, '5.venn_diagram_{} - {}.png'.format(labels[0], sname)), facecolor='white')
 
 
 def plot_mutated_CB_hist(df, column_name, output_dir, DB_name, sname):

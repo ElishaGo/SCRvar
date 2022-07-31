@@ -156,6 +156,33 @@ def aggregate_df(df):
     return df_agg
 
 
+# def add_DB_intersection_column(DB_path, mismatch_table_path, out_path, col_name, is_vcf):
+#     """find intersection with snp db"""
+#     # create temp copy file
+#     temp_out_path = mismatch_table_path[:mismatch_table_path.rfind('.')] + '_temp' + mismatch_table_path[mismatch_table_path.rfind('.'):]
+#     os.system(f"cp {mismatch_table_path} {temp_out_path}")
+#
+#     # add intersections column
+#     if is_vcf:
+#         # both files must be sorted if you use '-sorted' which reduce memory usage
+#         os.system(f"bedtools intersect -c -header -sorted -a {mismatch_table_path} -b {DB_path} > {temp_out_path}")
+#     else:
+#         os.system(f"bedtools intersect -s -c -header -a {mismatch_table_path} -b {DB_path} > {temp_out_path}")
+#
+#     # add column name 'is_snp'
+#     os.system(f"sed -i '1 s/.*/&\t{col_name}/' {temp_out_path}")
+#
+#     # replace new file and old file
+#     os.system(f"mv {temp_out_path} {mismatch_table_path}")
+#
+# def add_intersections_with_SNP_and_edit_DB(output_dir, snp_db_path, editing_db_path):
+#     agg_mismatch_table_path = os.path.join(output_dir, '4.aggregated_per_position.bed')
+#     out_path = os.path.join(output_dir, '4.aggregated_per_position_intersect.bed')
+#     if snp_db_path:
+#         add_DB_intersection_column(snp_db_path, agg_mismatch_table_path, out_path, 'is_snp', is_vcf=True)
+#     if editing_db_path:
+#         add_DB_intersection_column(editing_db_path, agg_mismatch_table_path, out_path, 'is_editing', is_vcf=False)
+
 def add_intersections_with_SNP_and_edit_DB(output_dir, snp_db_path, editing_db_path):
     """add column for intersection with SNP and editing DB.
     Note, we use here intersect with -c flag which add column of counts, instead of -u flag which only returns the
@@ -182,6 +209,13 @@ def add_intersections_with_SNP_and_edit_DB(output_dir, snp_db_path, editing_db_p
 
     # remove temp files
     os.system(f"rm {snp_temp_path}")
+    os.system(f"mv {df_intersection} {agg_df_path}")
+
+    # define intersections to be binary (1 - if any overlap with db occured, 0 otherwise)
+    df = pd.read_csv(agg_df_path, sep='\t')
+    df.loc[df['is_snp'] > 0, 'is_snp'] = 1
+    df.loc[df['is_editing'] > 0, 'is_editing'] = 1
+    df.to_csv(df_intersection, index=False, sep='\t')
 
 
 def run_step4(args):
@@ -204,7 +238,8 @@ def run_step4(args):
     save_df(df_merged_agg, args.output_dir, "4.aggregated_per_position.bed")
 
     # find intersection between df and databases
-    add_intersections_with_SNP_and_edit_DB(args.output_dir, args.snp_db_path, args.editing_db_path)
+    if args.editing_db_path != None:
+        add_intersections_with_SNP_and_edit_DB(args.output_dir, args.snp_db_path, args.editing_db_path)
 
 
 def parse_arguments(arguments=None):
@@ -216,8 +251,8 @@ def parse_arguments(arguments=None):
     # positional arguments
     parser.add_argument('input_dir', type=assert_is_directory, help='folder with mismatch_dictionaries (step 3)')
     parser.add_argument('output_dir', help='folder for step outputs', type=assert_is_directory)
-    parser.add_argument('snp_db_path', type=assert_is_file, help='path to known SNP sites file')
     parser.add_argument('editing_db_path', type=assert_is_file, help='path to known editing sites file')
+    parser.add_argument('snp_db_path', type=assert_is_file, help='path to known SNP sites file')
 
     # optional arguments
     parser.add_argument('--min_cb_per_pos', default=5, type=int,

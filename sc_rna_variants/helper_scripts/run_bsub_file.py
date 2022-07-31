@@ -17,8 +17,8 @@ def write_bsub_execution_parameters(f, args):
     """write LSF system parameters"""
     f.write("#BSUB -q {}\n".format(args.q))
     f.write("#BSUB -J {}\n".format(args.sname))
-    f.write("#BSUB -oo serverlog_files/{}_%J.out\n".format(args.J))
-    f.write("#BSUB -eo serverlog_files/{}_%J.err\n".format(args.J))
+    f.write("#BSUB -oo serverlog_files/{}.out\n".format(args.J))
+    f.write("#BSUB -eo serverlog_files/{}.err\n".format(args.J))
     f.write('#BSUB -R "rusage[mem={}] span[hosts={}]"\n'.format(args.rusage, args.hosts))
     f.write("#BSUB -n {}\n".format(args.n))
     f.write("#BSUB -cwd {}\n".format(args.sample_output_dir))
@@ -41,7 +41,7 @@ def write_meta_commands(f, args):
     # load environment and modules
     f.write("# load environment and modules\n")
     f.write(
-        ". /home/labs/bioservices/services/miniconda2/etc/profile.d/conda.sh;conda activate rarevar;module load SAMtools;module load bamtools;module load bedtools\n\n")
+        ". /home/labs/bioservices/services/miniconda2/etc/profile.d/conda.sh;conda activate scvar;module load SAMtools;module load bedtools\n\n")
 
 
 def write_pipelines_scripts_execution_commands(f, args):
@@ -64,12 +64,16 @@ def write_pipelines_scripts_execution_commands(f, args):
 
     # step 2 - keep only reads from genes with htseq
     step2_output_dir = 'step2_bam_gene_filter'
-    editing_gtf_intersect = os.path.join(args.editing_DB_dir, '0.editing_A_I.genecode_intersect.bed')
-    snp_gtf_intersect = os.path.join(args.snp_vcf_dir, '0.snp.gencode_intersect.vcf')
+    editing_gtf_bam_intersect = None
+    snp_gtf_bam_intersect = None
+    if args.editing_DB_dir:
+        editing_gtf_bam_intersect = os.path.join(step2_output_dir, f'2.editing.genecode.{args.sname}_intersect.bed')
+    if args.snp_vcf_dir:
+        snp_gtf_bam_intersect = os.path.join(step2_output_dir, f'2.snp.genecode.{args.sname}_intersect.vcf')
     f.write("# STEP 2 - bam genes filter\n")
     f.write(f"mkdir {step2_output_dir}\n")
     f.write(
-        f"sh {code_dir}/scripts/step2_bam_gene_filter.sh {filtered_bam_path} {step2_output_dir} {args.annotation_gtf} {editing_gtf_intersect} {snp_gtf_intersect} {args.sname} {args.n}\n\n")
+        f"sh {code_dir}/scripts/step2_bam_gene_filter.sh {filtered_bam_path} {step2_output_dir} {args.annotation_gtf} {args.editing_DB_dir} {args.snp_vcf_dir} {editing_gtf_bam_intersect} {snp_gtf_bam_intersect} {args.sname} {args.n}\n\n")
 
     # step 3 - create mismatch dictionary
     step3_output_dir = 'step3_mismatch_dictionary'
@@ -80,12 +84,10 @@ def write_pipelines_scripts_execution_commands(f, args):
 
     # step 4 - Aggregation per position + statistics
     step4_output_dir = 'step4_aggregation_per_position_and_statistics'
-    editing_gtf_bam_intersect = os.path.join(step2_output_dir, f'2.{args.sname}.editing.genecode.bam_intersect.bed')
-    snp_gtf_bam_intersect = os.path.join(step2_output_dir, f'2.{args.sname}.snp.genecode.bam_intersect.vcf')
     f.write('# STEP 4 - aggregation per position + statistics\n')
     f.write(f"mkdir {step4_output_dir}\n")
     f.write(
-        f"python {code_dir}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} {snp_gtf_bam_intersect} {editing_gtf_bam_intersect} --sname {args.sname} --threads {args.n}\n\n")
+        f"python {code_dir}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} {editing_gtf_bam_intersect} {snp_gtf_bam_intersect} --sname {args.sname} --threads {args.n}\n\n")
 
     # step 5 - filtering positions and SNP/editing DB intersections
     step5_output_dir = 'step5_filtering_positions_and_SNP_editing_DB_intersections'
@@ -125,6 +127,14 @@ def parse_arguments(arguments=None):
 
     parser.add_argument('bam_file', help='Input bam file')
 
+    parser.add_argument('genome_ref',
+                        # default="/home/labs/bioservices/services/expression_references/refdata-gex-GRCh38-2020-A/fasta/genome.fa",
+                        help='genome reference')
+
+    parser.add_argument('annotation_gtf',
+                        # default="/home/labs/bioservices/shared/rarevar/data/DataBases/genecode_gtf/0.gencode.v37.annotation.gtf",
+                        help='gtf annotation file to find gene sites')
+
     # optional arguments
     parser.add_argument('--q', default='bio', help='''queue to run on WEXAC''')
 
@@ -138,20 +148,12 @@ def parse_arguments(arguments=None):
 
     parser.add_argument('--filter_list_bam', help='List of cell barcodes to use in format as in  the bam file')
 
-    parser.add_argument('--genome_ref',
-                        default="/home/labs/bioservices/services/expression_references/refdata-gex-GRCh38-2020-A/fasta/genome.fa",
-                        help='genome reference')
-
-    parser.add_argument('--annotation_gtf',
-                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/genecode_gtf/0.gencode.v37.annotation.gtf",
-                        help='gtf annotation file to find gene sites')
-
     parser.add_argument('--editing_DB_dir',
-                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/editing",
+                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/editing/0.editing_A_I.genecode_intersect.bed",
                         help='Editing sites data base in bed format')
 
     parser.add_argument('--snp_vcf_dir',
-                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/snp_vcf",
+                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/snp_vcf/0.snp.gencode_intersect.vcf",
                         help='Known SNP sites data base in vcf format')
 
     parser.add_argument('--barcode_clusters', help='table with barcodes and associated clusters analysed by Seurat')

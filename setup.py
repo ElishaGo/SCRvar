@@ -7,7 +7,7 @@ setuptools.setup(
     name="scRNAvariants",
     version="2.0.0",
     author="Refael Kohen, Yotam Constantini & Elisha Goldstein",
-    author_email="elishagoldstein0308gmail.com",
+    author_email="elishagoldstein0308@gmail.com",
     description="A script to help you locate cases of RNA modifications in single cell RNAseq data.",
     long_description=long_description,
     long_description_content_type="text/markdown",

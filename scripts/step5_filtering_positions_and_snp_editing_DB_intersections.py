@@ -9,9 +9,9 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # for development environments
 
 from sc_rna_variants.analysis_utils import load_tables, merge_dfs, get_df_and_filtered_df, write_statistics_numbers
-from sc_rna_variants.utils import assert_is_file, assert_is_directory, ArgparserFormater
+# from sc_rna_variants.utils import assert_is_file, assert_is_directory, ArgparserFormater
 from sc_rna_variants.statistic_plots import *
-import sc_rna_variants
+import sc_rna_variants.utils
 
 pd.set_option('display.max_columns', None)
 logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
@@ -25,11 +25,13 @@ def run_venn(df, df_filtered, column_name, db_total_count, labels, input_dir, sn
     set2 = set(df.position)  # aggregated data
     set3 = set(df_filtered.position)  # filtered aggregated data
 
-    plot_venn3_diagram([set1, set2, set3], labels, input_dir, sname)
+    plot_venn3_diagram([set1, set2, set3], labels,
+                       output_name=os.path.join(input_dir, f'5.venn_diagram_{labels[0]}.png'),
+                       title=f'count of positions on gene - {sname}')
     plot_mutated_CB_hist(df, column_name, input_dir, labels[0], sname)
 
 
-def plot_heatmap_mutation_per_base_DB(df_merged, df_merged_filtered, output_dir, sname):
+def plot_heatmap_mutation_A_base(df_merged, df_merged_filtered, output_dir, sname):
     bases = ['a', 'c', 'g', 't']
     umi_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
                 'same single reads', 'transition single reads', 'reverse single reads', 'transvertion single reads']
@@ -70,10 +72,10 @@ def make_venn_diagrams(df_agg_intrsct, df_filtered, output_dir, snp_db_path, edi
     snp_total_count, editing_total_count = int(snp_total_count), int(editing_total_count)
 
     # make Venn diagrams for snp, editing rep and editing non_rep intersections
-    run_venn(df_agg_intrsct, df_filtered, 'is_snp', snp_total_count, ['SNP_DB', 'Aggregated data', 'Filtered data'],
+    run_venn(df_agg_intrsct, df_filtered, 'is_snp', snp_total_count, ['SNP DB positions', 'aligned positions', 'aligned positions filtered'],
              output_dir, sname)
     run_venn(df_agg_intrsct, df_filtered, 'is_editing', editing_total_count,
-             ['Editing_DB', 'Aggregated data', 'Filtered data'], output_dir, sname)
+             ['editing DB positions', 'aligned positions', 'aligned positions filtered'], output_dir, sname)
 
 
 def combine_data_from_agg_to_open_table(df_merged_open, df_merged_agg, df_merged_agg_filtered):
@@ -104,11 +106,12 @@ def get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_
     os.makedirs(output_folder, exist_ok=True)
 
     # plot not grouped data
-    plot_cb_occurences_hist(df_merged_open, df_merged_filtered, output_folder, sname, "5.cb_distribution.png")
+    plot_cb_occurences_hist(df_merged_open, df_merged_filtered, fig_path=os.path.join(output_folder, "5.cb_distribution.png"), sname=sname, is_snp=False)
     plot_umi_per_reference_base(df_merged_open, df_merged_filtered, output_folder, sname, with_unmut=False, figname="5.umi_per_reference_base")
     plot_umi_per_reference_base(df_merged_open, df_merged_filtered, output_folder, sname, with_unmut=True,
                                 figname="5.umi_per_reference_base_with_unmutated")
     plot_heatmap_mutation_per_base(df_merged_open, df_merged_filtered, output_folder, sname)  # use nonmut data
+    plot_heatmap_mutation_A_base(df_merged_agg, df_merged_filtered, output_folder, sname)
 
     # plot data grouped by position
     plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, output_folder, sname)
@@ -123,11 +126,9 @@ def run_snp_edit_DB_intersections(df_agg_intersect, df_agg_intrsct_filtered, df_
     # make Venn diagrams of the intersections
     make_venn_diagrams(df_agg_intersect, df_agg_intrsct_filtered, output_folder, snp_db_path, editing_db_path, sname)
 
-    plot_heatmap_mutation_per_base_DB(df_agg_intersect, df_agg_intrsct_filtered, output_folder, sname)
-
     # plot mutations per cell with snp and edit notation
-    plot_cb_occurences_hist(df_merged_open, df_merged_open_filtered, output_folder, sname, "5.cb_distribution_snp.png")
-
+    plot_cb_occurences_hist(df_merged_open, df_merged_open_filtered,
+                            fig_path=os.path.join(output_folder, "5.cb_distribution_snp.png"), sname=sname, is_snp=True)
 
 def get_open_table(dir_path):
     dir3_outputs = os.path.join(os.path.dirname(dir_path), 'step3_mismatch_dictionary')
@@ -140,7 +141,7 @@ def get_open_table(dir_path):
 def run_step5(input_dir, output_dir, min_cb_per_pos, min_mutation_umis, min_total_umis, min_mutation_rate, snp_db_path,
               editing_db_path, sname):
     # get agg position tables
-    df_merged_agg, df_merged_agg_filtered = get_df_and_filtered_df(os.path.join(input_dir, '4.aggregated_per_position_intersect.bed'), min_cb_per_pos, min_mutation_umis, min_total_umis, min_mutation_rate)
+    df_merged_agg, df_merged_agg_filtered = get_df_and_filtered_df(os.path.join(input_dir, '4.aggregated_per_position.bed'), min_cb_per_pos, min_mutation_umis, min_total_umis, min_mutation_rate)
 
     # get open tables and filter them
     df_mut_open, df_unmutated, df_merged_open = get_open_table(output_dir)
@@ -155,21 +156,22 @@ def run_step5(input_dir, output_dir, min_cb_per_pos, min_mutation_umis, min_tota
     write_statistics_numbers(df_merged_open, df_merged_open_filtered, output_dir, min_cb_per_pos, min_mutation_umis, min_total_umis, min_mutation_rate)
 
     # make intersections with SNP and edit DB
-    logger.info("started to make intersection with Data Bases")
-    run_snp_edit_DB_intersections(df_merged_agg, df_merged_agg_filtered, df_merged_open, df_merged_open_filtered, output_dir, snp_db_path, editing_db_path,
-                                  sname)
+    if editing_db_path != None:
+        logger.info("started to make intersection with Data Bases")
+        run_snp_edit_DB_intersections(df_merged_agg, df_merged_agg_filtered, df_merged_open, df_merged_open_filtered, output_dir, snp_db_path, editing_db_path,
+                                      sname)
 
 
 
 ##################################################################################################################
 def parse_arguments(arguments=None):
-    parser = argparse.ArgumentParser(formatter_class=ArgparserFormater, description="", )
+    parser = argparse.ArgumentParser(formatter_class=sc_rna_variants.utils.ArgparserFormater, description="", )
 
     # positional arguments
-    parser.add_argument('input_dir', type=assert_is_directory, help='step 4 output folder')
-    parser.add_argument('output_dir', type=assert_is_directory, help='folder for outputs')
-    parser.add_argument('snp_db_path', type=assert_is_file, help='path to known SNP sites file')
-    parser.add_argument('editing_db_path', type=assert_is_file, help='path to known editing sites file')
+    parser.add_argument('input_dir', type=sc_rna_variants.utils.assert_is_directory, help='step 4 output folder')
+    parser.add_argument('output_dir', type=sc_rna_variants.utils.assert_is_directory, help='folder for outputs')
+    parser.add_argument('snp_db_path', help='path to known SNP sites file')
+    parser.add_argument('editing_db_path', help='path to known editing sites file')
 
     # optional arguments
     parser.add_argument('--min_cb_per_pos', default=5, type=int,

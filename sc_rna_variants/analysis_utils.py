@@ -118,19 +118,15 @@ def filter_positions(df_agg, min_mutation_cb_to_filter, min_mutation_umis, min_t
 def get_df_and_filtered_df(df_path, min_cb_per_pos, min_mutation_umis, min_total_umis, min_mutation_rate):
     """function to load the df and filter it"""
     # load df with intersections notations
-    df_agg_intrsct = pd.read_csv(df_path, sep='\t')
-
-    # define intersections to be binary (1 - if any overlap with db occured, 0 otherwise)
-    df_agg_intrsct.loc[df_agg_intrsct['is_snp'] > 0, 'is_snp'] = 1
-    df_agg_intrsct.loc[df_agg_intrsct['is_editing'] > 0, 'is_editing'] = 1
+    df = pd.read_csv(df_path, sep='\t')
 
     # get filtered df
-    df_agg_intrsct_filtered = filter_positions(df_agg=df_agg_intrsct,
+    df_filtered = filter_positions(df_agg=df,
                                                min_mutation_cb_to_filter=min_cb_per_pos,
                                                min_mutation_umis=min_mutation_umis,
                                                min_total_umis=min_total_umis,
                                                min_mutation_rate=min_mutation_rate)
-    return df_agg_intrsct, df_agg_intrsct_filtered
+    return df, df_filtered
 
 
 def write_statistics_numbers(df_merged, df_merged_filtered, output_folder, min_cb_per_pos, min_mutation_umis, min_total_umis, min_mutation_rate,):
@@ -153,29 +149,31 @@ def write_statistics_numbers(df_merged, df_merged_filtered, output_folder, min_c
         write_stats_to_file(f, df_merged_filtered)
 
 
-def get_ATACseq(ATACseq_path):
-    columns = ['Region', 'Position', 'Strand', 'gCoverage-q20', 'gFrequency']
-    df_atacseq = pd.read_csv(ATACseq_path, sep='\t', usecols=columns, memory_map=True)
+def get_REDItools_data(ATACseq_path):
+    # ON LOCAL SYSTEM
+    # columns = ['Region', 'Position', 'Strand', 'gCoverage-q20', 'gFrequency']
+    # df_atacseq = pd.read_csv(ATACseq_path, sep='\t', usecols=columns, memory_map=True)
+    df_atacseq = pd.read_csv(ATACseq_path, sep='\t', memory_map=True)
+    df_atacseq.columns = df_atacseq.columns.map(lambda x: "REDItools_" + x)
 
     # replace missing values with 0
-    df_atacseq['gCoverage-q20'] = df_atacseq['gCoverage-q20'].replace('-', 0).astype(int)
-    df_atacseq['gFrequency'] = df_atacseq['gFrequency'].replace('-', 0).astype(float)  # .convert_dtypes()
+    df_atacseq['REDItools_gCoverage-q20'] = df_atacseq['REDItools_gCoverage-q20'].replace('-', 0).astype('int32')
+    df_atacseq['REDItools_gFrequency'] = df_atacseq['REDItools_gFrequency'].replace('-', 0).astype('float32')  # .convert_dtypes()
+
+    # transform column types to reduce memory
+    df_atacseq['REDItools_Position'] = df_atacseq['REDItools_Position'].astype('int32')
+    df_atacseq['REDItools_Strand'] = df_atacseq['REDItools_Strand'].astype('int8')
+    df_atacseq['REDItools_gCoverage-q20'] = df_atacseq['REDItools_gCoverage-q20'].astype('int32')
+    df_atacseq['REDItools_MeanQ'] = df_atacseq['REDItools_MeanQ'].astype('float32')
+    df_atacseq['REDItools_Frequency'] = df_atacseq['REDItools_Frequency'].astype('float32')
 
     # rename column names to be the same as the statistics tables
     df_atacseq = df_atacseq.rename(
-        columns={'Region': '#chrom', 'Position': 'chromStart', 'Strand': 'Strand (0:-, 1:+, 2:unknown)'})
+        columns={'REDItools_Region': '#chrom', 'REDItools_Position': 'chromStart', 'REDItools_Strand': 'REDItools_Strand (0:-, 1:+, 2:unknown)'})
     return df_atacseq
 
 
-def drop_snp_by_atacseq(df, df_atacseq, gcoverage_min=5, gfrequency_min=0.2):
-    # left merge the atacseq into the statistics table
-    df_merged = pd.merge(df, df_atacseq, on=['#chrom', 'chromStart'], how='left')
-
-    # replace missing values with 0
-    df_merged['gCoverage-q20'] = df_merged['gCoverage-q20'].replace('-', 0).fillna(0).astype(int)
-    df_merged['gFrequency'] = df_merged['gFrequency'].replace('-', 0).fillna(0).astype(float)
-
-    # remove positions where there is high probabilty to be SNP
-    idx_to_remove = (df_merged[(df_merged['gCoverage-q20'] >= gcoverage_min)]['gFrequency'] >= gfrequency_min).index
-    df_merged = df_merged.drop(idx_to_remove)
-    return df_merged
+def drop_high_prob_snp(df, gcov_min=5, gfreq_min=0.2):
+    """remove positions where there is high probabilty to be SNP"""
+    idx_to_remove = (df[(df['REDItools_gCoverage-q20'] >= gcov_min)]['REDItools_gFrequency'] >= gfreq_min).index
+    return df.drop(idx_to_remove)
