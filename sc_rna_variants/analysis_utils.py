@@ -143,7 +143,7 @@ def write_statistics_numbers(df_merged, df_merged_filtered, output_folder, min_c
         f.write("min_total_umis: {}\n".format(min_total_umis))
         f.write("min_mutation_rate_per_umi: {}\n".format(min_mutation_rate))
 
-        f.write("Before filtering:\n")
+        f.write("\nBefore filtering:\n")
         write_stats_to_file(f, df_merged)
         f.write("\nAfter filtering:\n")
         write_stats_to_file(f, df_merged_filtered)

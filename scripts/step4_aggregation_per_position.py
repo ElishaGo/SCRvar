@@ -215,7 +215,7 @@ def add_intersections_with_SNP_and_edit_DB(output_dir, snp_db_path, editing_db_p
     df = pd.read_csv(agg_df_path, sep='\t')
     df.loc[df['is_snp'] > 0, 'is_snp'] = 1
     df.loc[df['is_editing'] > 0, 'is_editing'] = 1
-    df.to_csv(df_intersection, index=False, sep='\t')
+    df.to_csv(agg_df_path, index=False, sep='\t')
 
 
 def run_step4(args):

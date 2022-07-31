@@ -41,7 +41,7 @@ def write_meta_commands(f, args):
     # load environment and modules
     f.write("# load environment and modules\n")
     f.write(
-        ". /home/labs/bioservices/services/miniconda2/etc/profile.d/conda.sh;conda activate scvar;module load SAMtools;module load bedtools\n\n")
+        ". /home/labs/bioservices/services/miniconda2/etc/profile.d/conda.sh;conda activate scvar;module load SAMtools;module load bedtools;module load bamtools\n\n")
 
 
 def write_pipelines_scripts_execution_commands(f, args):
@@ -122,6 +122,7 @@ def parse_arguments(arguments=None):
     """argument parsing wrapper function"""
     parser = argparse.ArgumentParser(description="""A script to set parameter to a bsub file and send to bsub""", )
 
+    # TODO see how to make this explicit arguments but still mandatory
     # positional arguments
     parser.add_argument('sample_output_dir', type=assert_is_directory, help='the directory to run file and get outputs')
 
@@ -136,6 +137,21 @@ def parse_arguments(arguments=None):
                         help='gtf annotation file to find gene sites')
 
     # optional arguments
+    parser.add_argument('--filter_list_bam', help='List of cell barcodes to use in format as in  the bam file')
+
+    parser.add_argument('--editing_DB_dir', help='Editing sites data base in bed format'
+                        # , '/home/labs/bioservices/shared/rarevar/data/DataBases/editing/0.editing_A_I.genecode_intersect.bed'
+                        )
+
+    parser.add_argument('--snp_vcf_dir', help='Known SNP sites data base in vcf format'
+                        # , '/home/labs/bioservices/shared/rarevar/data/DataBases/snp_vcf/0.snp.gencode_intersect.vcf'
+                        )
+
+    parser.add_argument('--barcode_clusters', help='table with barcodes and associated clusters analysed by Seurat')
+
+    parser.add_argument('--sname', default='', help='File name. Will be used in inputs and outputs')
+
+    # LSF system arguments
     parser.add_argument('--q', default='bio', help='''queue to run on WEXAC''')
 
     parser.add_argument('--J', default='jobfile_scrarv', help='job name on WEXAC')
@@ -145,20 +161,6 @@ def parse_arguments(arguments=None):
     parser.add_argument('--hosts', type=int, default=1, help='Number of hosts to use')
 
     parser.add_argument('--n', type=int, default=1, help='Number of cores to use')
-
-    parser.add_argument('--filter_list_bam', help='List of cell barcodes to use in format as in  the bam file')
-
-    parser.add_argument('--editing_DB_dir',
-                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/editing/0.editing_A_I.genecode_intersect.bed",
-                        help='Editing sites data base in bed format')
-
-    parser.add_argument('--snp_vcf_dir',
-                        default="/home/labs/bioservices/shared/rarevar/data/DataBases/snp_vcf/0.snp.gencode_intersect.vcf",
-                        help='Known SNP sites data base in vcf format')
-
-    parser.add_argument('--barcode_clusters', help='table with barcodes and associated clusters analysed by Seurat')
-
-    parser.add_argument('--sname', default='', help='File name. Will be used in inputs and outputs')
 
     return parser.parse_args(arguments)
 
