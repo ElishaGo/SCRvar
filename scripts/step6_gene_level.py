@@ -15,47 +15,48 @@ from sc_rna_variants.utils import ArgparserFormater, assert_is_directory, assert
 pd.set_option('display.max_columns', None)
 
 
-def create_mismatches_gtf_intersections(df_path, path_to_gtf, out_fpath):
-    """use left outer join to add genes information to editing table"""
-    os.system(f"bedtools intersect -s -loj -a {df_path} -b {path_to_gtf} > {out_fpath}")
-
-
-def add_gene_names(df, genecode_gtf_file):
-    """function to add column of gene names.
-    input:  -aggregated mismatches by posotion dataframe
-            -path to gtf file
-    output: aggregated file with aditional column for gene names.
-    Notice that the gtf file contains multiple lines per each position. However, the gene name
-    should be consistent in all the position duplicate lines. Therfore we drop duplicates in some stage here.
-    Positions which didn't apper in the gtf file are removed
-    """
-
-    # load df with gene names
-    gene_names = pd.read_csv(genecode_gtf_file, header=None, sep='\t')
-    # extract the gene names
-    gene_names = gene_names.loc[:, [3, gene_names.shape[1] - 1]]  # get 'postion' and last columnt
-    gene_names.columns = ['position', 'gene_name']
-
-    # parse the gene name
-    gene_names['gene_name'] = gene_names['gene_name'].map(lambda x: x[x.find("gene_name") + 11:])
-    gene_names['gene_name'] = gene_names['gene_name'].map(lambda x: x[:x.find("\"")])
-
-    ## NOTE: In early stage of the analysis we check intersection between the bam file and the sampe .gtf to get only reads from genes, by using htseq.
-    ## Thus, we would expexct all the positions in our table to be on genes.
-    ## However, when we look for intersections between the mutation table and the gtf file, we get some empty records returned.
-    ## The reason is the htseq looks on reads, and some reads overlap the gene area and the none gene area.
-    ## However now, we look on a position, which is not on the gene, even though the read it came from had some overlap with a gene
-    ## We drop the empty records.
-    gene_names['gene_name'].replace('', 'None', inplace=True)
-    gene_names = gene_names[gene_names['gene_name'] != 'None']
-
-    # drop duplicates
-    gene_names = gene_names.drop_duplicates()
-
-    # merge df with gene names
-    df = df.merge(gene_names, on='position', how='inner')
-
-    return df
+# def create_mismatches_gtf_intersections(df_path, path_to_gtf, out_fpath):
+#     """use left outer join to add genes information to editing table"""
+#     os.system(f"bedtools intersect -s -loj -a {df_path} -b {path_to_gtf} > {out_fpath}")
+#
+#
+# def add_gene_names(df, genecode_gtf_file):
+#     """function to add column of gene names.
+#     input:  -aggregated mismatches by posotion dataframe
+#             -path to gtf file
+#     output: aggregated file with aditional column for gene names.
+#     Notice that the gtf file contains multiple lines per each position. However, the gene name
+#     should be consistent in all the position duplicate lines. Therfore we drop duplicates in some stage here.
+#     Positions which didn't apper in the gtf file are removed
+#     """
+#
+#     # load df with gene names
+#     gene_names = pd.read_csv(genecode_gtf_file, header=None, sep='\t')
+#     # extract the gene names
+#     # TODO find more robust way to extract positon and gene names. check fot gtf file convention
+#     gene_names = gene_names.loc[:, [3, gene_names.shape[1] - 1]]  # get 'postion' and last columnt
+#     gene_names.columns = ['position', 'gene_name']
+#
+#     # parse the gene name
+#     gene_names['gene_name'] = gene_names['gene_name'].map(lambda x: x[x.find("gene_name") + 11:])
+#     gene_names['gene_name'] = gene_names['gene_name'].map(lambda x: x[:x.find("\"")])
+#
+#     ## NOTE: In early stage of the analysis we check intersection between the bam file and the sampe .gtf to get only reads from genes, by using htseq.
+#     ## Thus, we would expexct all the positions in our table to be on genes.
+#     ## However, when we look for intersections between the mutation table and the gtf file, we get some empty records returned.
+#     ## The reason is the htseq looks on reads, and some reads overlap the gene area and the none gene area.
+#     ## However now, we look on a position, which is not on the gene, even though the read it came from had some overlap with a gene
+#     ## We drop the empty records.
+#     gene_names['gene_name'].replace('', 'None', inplace=True)
+#     gene_names = gene_names[gene_names['gene_name'] != 'None']
+#
+#     # drop duplicates
+#     gene_names = gene_names.drop_duplicates()
+#
+#     # merge df with gene names
+#     df = df.merge(gene_names, on='position', how='inner')
+#
+#     return df
 
 
 def filter_rare_mut(df, min_mutation_rate):
@@ -108,23 +109,23 @@ def drop_editing_and_snp_overlap(df):
     return df.drop(idx_to_drop)
 
 
-def step6_1_add_gene_name_from_gtf(df, output_dir, gtf_path):
-    # add gene names
-    df_path = os.path.join(output_dir, 'temp_6.df.bed')
-    df.to_csv(df_path, index=False, sep='\t')
-    intersections_gtf_path = os.path.join(output_dir, "temp_6.genecode_intersect.bed")
-    create_mismatches_gtf_intersections(df_path=df_path, path_to_gtf=gtf_path, out_fpath=intersections_gtf_path)
-    df = add_gene_names(df, intersections_gtf_path)
-    os.remove(df_path)
-    os.remove(intersections_gtf_path)
-
-    df.to_csv(os.path.join(output_dir, "6.1.aggregated_with_gene_name.bed"), index=False, sep='\t')
-    return df
+# def step6_1_add_gene_name_from_gtf(df, output_dir, gtf_path):
+#     # add gene names
+#     df_path = os.path.join(output_dir, 'temp_6.df.bed')
+#     df.to_csv(df_path, index=False, sep='\t')
+#     intersections_gtf_path = os.path.join(output_dir, "temp_6.genecode_intersect.bed")
+#     create_mismatches_gtf_intersections(df_path=df_path, path_to_gtf=gtf_path, out_fpath=intersections_gtf_path)
+#     df = add_gene_names(df, intersections_gtf_path)
+#     os.remove(df_path)
+#     os.remove(intersections_gtf_path)
+#
+#     df.to_csv(os.path.join(output_dir, "6.1.aggregated_with_gene_name.bed"), index=False, sep='\t')
+#     return df
 
 
 def add_clusters(df_open, clusters_path):
     """helper function to add clusters notations to open table"""
-    cb_clusters = pd.read_csv(clusters_path, sep='\t', names=['sample', 'cell barcode', 'cluster'])
+    cb_clusters = pd.read_csv(clusters_path, sep='\t', names=['cell barcode', 'cluster'])
     cb_clusters['cluster'] = cb_clusters.apply(lambda x: 'c' + str(x['cluster']), axis=1)
     cb_clusters['cluster cell barcode'] = cb_clusters.apply(lambda x: x['cluster'] + '_' + x['cell barcode'], axis=1)
 
@@ -343,7 +344,7 @@ def run_step6(input_dir, output_dir, read_per_barcode_raw_bam, min_cb_per_pos, m
     print("shape of mutation table after filtering:", df_filtered.shape)
 
     # step 6.1 - add gene names, and fing interactions
-    df_filtered = step6_1_add_gene_name_from_gtf(df_filtered, output_dir, gtf_path)  # df_filtered
+    # df_filtered = step6_1_add_gene_name_from_gtf(df_filtered, output_dir, gtf_path)  # df_filtered
 
     # TODO ask what to include if no editing and snp DB are given
     # analysis of editing sites

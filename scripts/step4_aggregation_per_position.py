@@ -18,6 +18,64 @@ import sc_rna_variants
 logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
 
 
+def create_mismatches_gtf_intersections(df_path, path_to_gtf, out_fpath):
+    """use left outer join to add genes information to editing table"""
+    os.system(f"bedtools intersect -s -loj -a {df_path} -b {path_to_gtf} > {out_fpath}")
+
+
+def add_gene_names(df, genecode_gtf_file):
+    """function to add column of gene names.
+    input:  -aggregated mismatches by posotion dataframe
+            -path to gtf file
+    output: aggregated file with aditional column for gene names.
+    Notice that the gtf file contains multiple lines per each position. However, the gene name
+    should be consistent in all the position duplicate lines. Therfore we drop duplicates in some stage here.
+    Positions which didn't apper in the gtf file are removed
+    """
+
+    # load df with gene names
+    gene_names = pd.read_csv(genecode_gtf_file, header=None, sep='\t')
+    # extract the gene names
+    # TODO find more robust way to extract positon and gene names. check fot gtf file convention
+    gene_names = gene_names.loc[:, [3, gene_names.shape[1] - 1]]  # get 'postion' and last columnt
+    gene_names.columns = ['position', 'gene_name']
+
+    # parse the gene name
+    gene_names['gene_name'] = gene_names['gene_name'].map(lambda x: x[x.find("gene_name") + 11:])
+    gene_names['gene_name'] = gene_names['gene_name'].map(lambda x: x[:x.find("\"")])
+
+    ## NOTE: In early stage of the analysis we check intersection between the bam file and the sampe .gtf to get only reads from genes, by using htseq.
+    ## Thus, we would expexct all the positions in our table to be on genes.
+    ## However, when we look for intersections between the mutation table and the gtf file, we get some empty records returned.
+    ## The reason is the htseq looks on reads, and some reads overlap the gene area and the none gene area.
+    ## However now, we look on a position, which is not on the gene, even though the read it came from had some overlap with a gene
+    ## We drop the empty records.
+    gene_names['gene_name'].replace('', 'None', inplace=True)
+    gene_names = gene_names[gene_names['gene_name'] != 'None']
+
+    # drop duplicates
+    gene_names = gene_names.drop_duplicates()
+
+    # merge df with gene names
+    df = df.merge(gene_names, on='position', how='inner')
+
+    return df
+
+
+def add_gene_name_from_gtf(df, output_dir, gtf_path):
+    # add gene names
+    df_path = os.path.join(output_dir, 'temp_6.df.bed')
+    df.to_csv(df_path, index=False, sep='\t')
+    intersections_gtf_path = os.path.join(output_dir, "temp_6.genecode_intersect.bed")
+    create_mismatches_gtf_intersections(df_path=df_path, path_to_gtf=gtf_path, out_fpath=intersections_gtf_path)
+    df = add_gene_names(df, intersections_gtf_path)
+    os.remove(df_path)
+    os.remove(intersections_gtf_path)
+
+    # df.to_csv(os.path.join(output_dir, "6.1.aggregated_with_gene_name.bed"), index=False, sep='\t')
+    return df
+
+
 def reorder_and_sort_agg_df(df):
     # reorder columns
     logger.info("reorder and save file")
@@ -233,6 +291,9 @@ def run_step4(args):
     pandarallel.initialize(nb_workers=args.threads)
     df_merged_agg = add_counts_of_umis(df_merged_agg)
 
+    # add gene names
+    add_gene_name_from_gtf(df_merged_agg, args.output_dir, args.gtf_path)
+
     # reorder and save the aggregated file
     df_merged_agg = reorder_and_sort_agg_df(df_merged_agg)
     save_df(df_merged_agg, args.output_dir, "4.aggregated_per_position.bed")
@@ -253,6 +314,7 @@ def parse_arguments(arguments=None):
     parser.add_argument('output_dir', help='folder for step outputs', type=assert_is_directory)
     parser.add_argument('editing_db_path', type=assert_is_file, help='path to known editing sites file')
     parser.add_argument('snp_db_path', type=assert_is_file, help='path to known SNP sites file')
+    parser.add_argument('gtf_path', type=assert_is_file, help='path to transcriptome gtf file')
 
     # optional arguments
     parser.add_argument('--min_cb_per_pos', default=5, type=int,
