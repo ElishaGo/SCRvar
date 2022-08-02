@@ -16,35 +16,23 @@ export OUTPUT_FILE=${OUTPUT_DIR}/2.${SNAME}.gene_filter
 LOGFILE=${OUTPUT_DIR}/step2.log
 
 (
-    # run htseq to filter non gene reads
-    # TODO ask: how to handle if there are REF file already. the OUT_NAMES causes problem
+    # run HTseq to annotate non-gene reads
     BAM_DIR=$(dirname $FILTERED_BAM_PATH)
-    bamtools split -in ${FILTERED_BAM_PATH} -reference
+    bamtools split -in ${FILTERED_BAM_PATH} -reference  # split bam so we can run HTseq in parallel
     OUT_NAMES=$(for f in $BAM_DIR/*REF*.bam; do echo -n "-o ${f}_temp_htseq_out.bam "; done)
-    htseq-count -f bam -i gene_name -t gene -m union -s yes -n ${N} ${OUT_NAMES} -c ${OUTPUT_DIR}/2.${SNAME}_gene_counts_htseq.tsv $BAM_DIR/*REF*.bam ${ANNOTATION_GTF}
-    samtools merge -@ ${N} -O SAM ${OUTPUT_FILE}.sam $BAM_DIR/*REF*temp_htseq_out.bam
-#    rm ${BAM_DIR}/*REF*.bam
-#    rm ${OUT_NAMES}
+    htseq-count -f bam -i gene_name -t gene -m union -s yes -n ${N} -p bam ${OUT_NAMES} -c ${OUTPUT_DIR}/2.${SNAME}_gene_counts_htseq.tsv $BAM_DIR/*REF*.bam ${ANNOTATION_GTF}
 
-#    htseq-count -f bam -i gene_name -t gene -m union -s yes -n ${N} -o ${OUTPUT_FILE}.sam -c ${OUTPUT_DIR}/2.${SNAME}_gene_counts_htseq.tsv ${FILTERED_BAM_PATH} ${ANNOTATION_GTF}
-
-    # add header to the sam file
-#    samtools view -H ${FILTERED_BAM_PATH} | cat - ${OUTPUT_FILE}.sam > ${OUTPUT_FILE}_temp.sam
-
-    # replace reheadered (temp) file with previous file
-#    mv ${OUTPUT_FILE}_temp.sam ${OUTPUT_FILE}.sam
-
-    # keep only gene sites and save into a bam file
-    grep -v "__" ${OUTPUT_FILE}.sam | samtools sort -@ ${N} - -o ${OUTPUT_FILE}.bam
+    # keep only gene sites reads and save into a bam file
+    samtools merge -@ ${N} -O SAM - $BAM_DIR/*REF*temp_htseq_out.bam | grep -v "__" - | samtools sort -@ ${N} - -o ${OUTPUT_FILE}.bam
+#    samtools merge -@ ${N} -O SAM ${OUTPUT_FILE}.sam $BAM_DIR/*REF*temp_htseq_out.sam
+#    grep -v "__" ${OUTPUT_FILE}.sam | samtools sort -@ ${N} - -o ${OUTPUT_FILE}.bam
     samtools index ${OUTPUT_FILE}.bam
+
+    rm ${BAM_DIR}/*REF*.bam
 
     # get statistics on filtered file
     samtools flagstat -@ ${N} ${OUTPUT_FILE}.bam > ${OUTPUT_DIR}/2.${SNAME}_flagstat.txt
 
-    # remove sam files
-#    rm ${OUTPUT_FILE}.sam
-
-    #TODO Run without these files
     # RUN INTERSECTIONS WITH EDITING DB ANALYSIS
     if [ ! -z "$EDITING_GTF_INTERSECT" ]
     then
