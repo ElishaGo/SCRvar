@@ -79,6 +79,7 @@ def make_venn_diagrams(df_agg_intrsct, df_filtered, output_dir, snp_db_path, edi
 
 
 def combine_data_from_agg_to_open_table(df_merged_open, df_merged_agg, df_merged_agg_filtered):
+    # TODO check if df are changed inside function. if so, you dont need to return
     def add_snp_and_editig_notations(df, df_agg_intersect):
         df['is_snp'] = 0
         df.loc[df['position'].isin(df_agg_intersect.loc[df_agg_intersect['is_snp'] == 1, 'position']), 'is_snp'] = 1
@@ -170,8 +171,8 @@ def parse_arguments(arguments=None):
     # positional arguments
     parser.add_argument('input_dir', type=sc_rna_variants.utils.assert_is_directory, help='step 4 output folder')
     parser.add_argument('output_dir', type=sc_rna_variants.utils.assert_is_directory, help='folder for outputs')
-    parser.add_argument('snp_db_path', help='path to known SNP sites file')
     parser.add_argument('editing_db_path', help='path to known editing sites file')
+    parser.add_argument('snp_db_path', help='path to known SNP sites file')
 
     # optional arguments
     parser.add_argument('--min_cb_per_pos', default=5, type=int,

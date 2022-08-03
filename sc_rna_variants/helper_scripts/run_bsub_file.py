@@ -48,7 +48,7 @@ def write_pipelines_scripts_execution_commands(f, args):
     code_dir = "/home/labs/bioservices/shared/rarevar/scrarevar/"
     f.write("# count number of reads per barcode\n")
     f.write(
-        f"{code_dir}/sc_rna_variants/count_reads_per_barcode_in_bam.sh {args.bam_file} {args.sample_output_dir} {args.sname} {args.n}\n\n")
+        f"#{code_dir}/sc_rna_variants/count_reads_per_barcode_in_bam.sh {args.bam_file} {args.sample_output_dir} {args.sname} {args.n}\n\n")
 
     # step1 - filter bam file
     step1_output_dir = 'step1_filtered_bam_files'
@@ -87,14 +87,14 @@ def write_pipelines_scripts_execution_commands(f, args):
     f.write('# STEP 4 - aggregation per position + statistics\n')
     f.write(f"mkdir {step4_output_dir}\n")
     f.write(
-        f"python {code_dir}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} {editing_gtf_bam_intersect} {snp_gtf_bam_intersect} --sname {args.sname} --threads {args.n}\n\n")
+        f"python {code_dir}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} {editing_gtf_bam_intersect} {snp_gtf_bam_intersect} {args.annotation_gtf} --sname {args.sname} --threads {args.n}\n\n")
 
     # step 5 - filtering positions and SNP/editing DB intersections
-    step5_output_dir = 'step5_filtering_positions_and_SNP_editing_DB_intersections'
+    step5_output_dir = 'step5_filtering_and_DB_intersections_effects'
     f.write('# STEP 5 - filtering positions and SNP/editing DB intersections\n')
     f.write(f"mkdir {step5_output_dir}\n")
     f.write(
-        f'python {code_dir}/scripts/step5_filtering_positions_and_snp_editing_DB_intersections.py {step4_output_dir} {step5_output_dir} {snp_gtf_bam_intersect} {editing_gtf_bam_intersect} --sname {args.sname}\n\n')
+        f'python {code_dir}/scripts/step5_filtering_and_DB_intersections_effects.py {step4_output_dir} {step5_output_dir} {editing_gtf_bam_intersect} {snp_gtf_bam_intersect} --sname {args.sname}\n\n')
 
     # step 6 - gene level analysis
     step6_output_dir = 'step6_gene_level'

@@ -15,7 +15,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent.absolute()) + os.path.se
 from sc_rna_variants.utils import assert_is_directory, assert_is_file
 from sc_rna_variants import config_logging
 
-from scripts.step5_filtering_positions_and_snp_editing_DB_intersections import run_step5
+from scripts.step5_filtering_and_DB_intersections_effects import run_step5
 from scripts.step6_gene_level import run_step6
 
 

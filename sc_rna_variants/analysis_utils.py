@@ -92,12 +92,6 @@ def merge_dfs(df_mutated, df_unmutated):
 
 def filter_positions(df_agg, min_mutation_cb_to_filter, min_mutation_umis, min_total_umis, min_mutation_rate):
     """filtering function for aggregated tables and open table by the same positions from aggregated filtered table."""
-
-    #  'true values' - drop positions tations and probably hard to get insights from
-    def filter_rare_mut(df, min_mutation_rate):
-        df = df[df['percent of non ref from all cells'] > min_mutation_rate]
-        return df
-
     # first condition to filter by
     cond_1 = (df_agg['count of mutated cell barcodes'] >= min_mutation_cb_to_filter)
 
@@ -109,8 +103,10 @@ def filter_positions(df_agg, min_mutation_cb_to_filter, min_mutation_umis, min_t
     cond_2 = ((mutation_umi_counts >= min_mutation_umis) & (total_umi_count >= min_total_umis))
 
     # filter the aggregated df
-    df_agg_filt = df_agg[cond_1 & cond_2]
-    df_agg_filt = filter_rare_mut(df_agg_filt, min_mutation_rate)
+    df_agg_filt = df_agg[cond_1 & cond_2].copy()
+
+    #  'true values' - drop positions tations and probably hard to get insights from
+    df_agg_filt = df_agg_filt[df_agg_filt['percent of non ref from all cells'] > min_mutation_rate]
 
     return df_agg_filt
 
@@ -122,10 +118,10 @@ def get_df_and_filtered_df(df_path, min_cb_per_pos, min_mutation_umis, min_total
 
     # get filtered df
     df_filtered = filter_positions(df_agg=df,
-                                               min_mutation_cb_to_filter=min_cb_per_pos,
-                                               min_mutation_umis=min_mutation_umis,
-                                               min_total_umis=min_total_umis,
-                                               min_mutation_rate=min_mutation_rate)
+                                   min_mutation_cb_to_filter=min_cb_per_pos,
+                                   min_mutation_umis=min_mutation_umis,
+                                   min_total_umis=min_total_umis,
+                                   min_mutation_rate=min_mutation_rate)
     return df, df_filtered
 
 
