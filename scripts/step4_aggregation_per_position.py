@@ -5,21 +5,21 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 from pandarallel import pandarallel
-
 import sys  # for development environments
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # for development environments
 
+import sc_rna_variants
 from sc_rna_variants.analysis_utils import load_tables, merge_dfs, save_df
 from sc_rna_variants.utils import assert_is_directory, assert_is_file, ArgparserFormater
-import sc_rna_variants
 
 # logger = logging.getLogger(__name__)
 logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
 
 
 def create_mismatches_gtf_intersections(df_path, path_to_gtf, out_fpath):
-    """creates a temp table with each intersection in A including information from B"""
+    """creates a temporary table with each intersection in A including information from B"""
     # TODO: check if 'sorted' gives the same output
     os.system(f"bedtools intersect -s -wo -sorted -a {df_path} -b {path_to_gtf} > {out_fpath}")
 
@@ -55,9 +55,7 @@ def add_gene_names(df, genecode_gtf_file):
     gene_names = gene_names.drop_duplicates()
 
     # merge df with gene names
-    df = df.merge(gene_names, on='position', how='inner')
-
-    return df
+    return df.merge(gene_names, on='position', how='inner')
 
 
 def add_gene_name_from_gtf(df, output_dir, gtf_path):
@@ -69,8 +67,6 @@ def add_gene_name_from_gtf(df, output_dir, gtf_path):
     df = add_gene_names(df, intersections_gtf_path)
     os.remove(df_path)
     os.remove(intersections_gtf_path)
-
-    # df.to_csv(os.path.join(output_dir, "6.1.aggregated_with_gene_name.bed"), index=False, sep='\t')
     return df
 
 
@@ -85,44 +81,36 @@ def reorder_and_sort_agg_df(df):
             'mixed reads', 'total mutation umi count', 'unmutated single reads',
             'unmutated multi reads', 'bin of 1 UMI per cell - #cell with mut',
             'bin of 1 UMI per cell - #median % non ref umis per barcode',
-            'bin of 2 UMI per cell - #cell with mut', 'bin of 2 UMI per cell - #median % non ref umis per barcode'
-        , 'bin of 3 UMI per cell - #cell with mut', 'bin of 3 UMI per cell - #median % non ref umis per barcode'
-        , 'bin of 4+ UMI per cell - #cell with mut', 'bin of 4+ UMI per cell - #median % non ref umis per barcode'
-        , 'aggregated cell barcodes']
+            'bin of 2 UMI per cell - #cell with mut', 'bin of 2 UMI per cell - #median % non ref umis per barcode',
+            'bin of 3 UMI per cell - #cell with mut', 'bin of 3 UMI per cell - #median % non ref umis per barcode',
+            'bin of 4+ UMI per cell - #cell with mut', 'bin of 4+ UMI per cell - #median % non ref umis per barcode',
+            'aggregated cell barcodes']
     df = df[cols]
 
-    df.sort_values(by=['#chrom', 'chromStart'], inplace=True)  # sort by position?
+    df.sort_values(by=['#chrom', 'chromStart'], inplace=True)
     return df
 
 
-def get_non_ref_percent(line, cols_no_unmutated, cols_all_umi_counts):
-    """helper function to calculate the fraction of mutated UMIs from UMIs in mutated cells,
-    and fraction of mutated UMIs from all UMIs including not mutated cells
+def add_fractions_of_mutated_umis(df):
     """
-    mutation_umi_count = line[
-        ~line.index.str.startswith(('same', 'unmutated', 'reference'))].sum()
-    umi_count_no_unmutated = line[cols_no_unmutated].sum()
-    all_umi_count = line[cols_all_umi_counts].sum()
-    percent_of_non_ref_total = round(mutation_umi_count / all_umi_count * 100, ndigits=2)
-    percent_of_non_ref_mutated = round(mutation_umi_count / umi_count_no_unmutated * 100, ndigits=2)
-    return percent_of_non_ref_mutated, percent_of_non_ref_total
-
-
-def add_counts_of_umis(df):
-    """ From aggreagted tsv, add a columns with percent of UMIs in cells
-    add two columns with counts of UMIs to table
+    calculate the fraction of mutated UMIs from UMIs in mutated cells,
+    and the fraction of mutated UMIs from all UMIs (including not mutated cells)
     """
-    logger.info("started to count UMIs in aggregated file")
+    logger.info("Adding fractions of mutated UMIs")
     all_umi_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
                     'same single reads', 'transition single reads', 'reverse single reads', 'transvertion single reads',
                     'unmutated multi reads', 'unmutated single reads']
-    df_umi_cols = df[(['reference base'] + all_umi_cols)]
-    cols_no_unmutated = df_umi_cols.columns[
-        ~df_umi_cols.columns.str.startswith(('unmutated', 'reference'))]  # not sure if this is faster that way
-    cols_all_umi_counts = df_umi_cols.columns[~df_umi_cols.columns.str.startswith('reference')]
-    df[['percent of non ref only from mutated cells', 'percent of non ref from all cells']] = \
-        df_umi_cols.parallel_apply(get_non_ref_percent, args=(cols_no_unmutated, cols_all_umi_counts),
-                                   result_type='expand', axis=1)
+    cols_mutated_umis = [x for x in all_umi_cols if not x.startswith(('same', 'unmutated'))]
+    cols_no_unmutated_umis = [x for x in all_umi_cols if not x.startswith('unmutated')]
+
+    mutation_umi_count = df.loc[:, cols_mutated_umis].sum(axis=1)
+    no_muatation_umi_count = df.loc[:, cols_no_unmutated_umis].sum(axis=1)
+    all_umi_count = df.loc[:, all_umi_cols].sum(axis=1)
+    percent_of_non_ref_mutated = round(mutation_umi_count / no_muatation_umi_count * 100, ndigits=2)
+    percent_of_non_ref_total = round(mutation_umi_count / all_umi_count * 100, ndigits=2)
+    df['percent of non ref only from mutated cells'] = percent_of_non_ref_mutated
+    df['percent of non ref from all cells'] = percent_of_non_ref_total
+
     return df
 
 
@@ -169,16 +157,13 @@ def per_position_statistics(df):
 
 
 def aggregate_existing_columns(df):
-    df_grouped = df.groupby('position')
-    df_agg = df_grouped.agg(
+    df_agg = df.groupby('position').agg(
         {'#chrom': 'first', 'chromStart': 'first', 'chromEnd': 'first', 'strand': 'first', 'reference base': 'first',
          'same multi reads': 'sum', 'transition multi reads': 'sum', 'reverse multi reads': 'sum',
-         'transvertion multi reads': 'sum',
-         'same single reads': 'sum', 'transition single reads': 'sum', 'reverse single reads': 'sum',
-         'transvertion single reads': 'sum',
-         'mixed reads': 'sum', 'total umi count': 'sum', 'cell barcode': lambda x: ','.join(x),
-         }
-    ).reset_index()
+         'transvertion multi reads': 'sum', 'same single reads': 'sum', 'transition single reads': 'sum',
+         'reverse single reads': 'sum', 'transvertion single reads': 'sum', 'mixed reads': 'sum',
+         'total umi count': 'sum', 'cell barcode': lambda x: ','.join(x)
+         }).reset_index()
 
     # rename columns
     df_agg.rename(columns={"cell barcode": "aggregated cell barcodes",
@@ -247,21 +232,18 @@ def add_intersections_with_SNP_and_edit_DB(output_dir, snp_db_path, editing_db_p
     snp_temp_path = os.path.join(output_dir, 'temp_4.snp_intersect.bed')
     df_intersection = os.path.join(output_dir, '4.aggregated_per_position_intersect.bed')
 
-    # add '#' to header of df_aggregated
-    os.system(f"head -c 1 {agg_df_path} | grep -q '#' || sed -i '1s/^/#/' {agg_df_path}")
-
     # both files must be sorted if you use '-sorted' which reduce memory usage
     # find intersection with snp db
     os.system(f"bedtools intersect -c -header -sorted -a {agg_df_path} -b {snp_db_path} > {snp_temp_path}")
 
     # add column name 'is_snp'
-    os.system(f"sed -i '1 s/.*/&\tis_snp/' {snp_temp_path}")
+    # os.system(f"sed -i '1 s/.*/&\tis_snp/' {snp_temp_path}")
 
     # find intersection with editing non rep db
     os.system(f"bedtools intersect -s -c -header -a {snp_temp_path} -b {editing_db_path} > {df_intersection}")
 
     # add column name 'is_editing_non_rep'
-    os.system(f"sed -i '1 s/.*/&\tis_editing/' {df_intersection}")
+    # os.system(f"sed -i '1 s/.*/&\tis_editing/' {df_intersection}")
 
     # remove temp files
     os.system(f"rm {snp_temp_path}")
@@ -269,15 +251,19 @@ def add_intersections_with_SNP_and_edit_DB(output_dir, snp_db_path, editing_db_p
 
     # define intersections to be binary (1 - if any overlap with db occured, 0 otherwise)
     df = pd.read_csv(agg_df_path, sep='\t')
+    # add columns names to new columns
+    cols = df.columns.to_list() + ['is_snp', 'is_editing']
+    df = df.reset_index()
+    df.columns = cols
     df.loc[df['is_snp'] > 0, 'is_snp'] = 1
     df.loc[df['is_editing'] > 0, 'is_editing'] = 1
     df.to_csv(agg_df_path, index=False, sep='\t')
 
 
-def run_step4(args):
+def run_step4(input_dir, output_dir, gtf_path, snp_db_path, editing_db_path):
     # load the mutated and unmutated data frames
-    df_mutated = load_tables(os.path.join(args.input_dir, "3.mismatch_dictionary.bed"), mutated=True)
-    df_unmutated = load_tables(os.path.join(args.input_dir, "3.no_mismatch_dictionary.bed"), mutated=False)
+    df_mutated = load_tables(os.path.join(input_dir, "3.mismatch_dictionary.bed"), mutated=True)
+    df_unmutated = load_tables(os.path.join(input_dir, "3.no_mismatch_dictionary.bed"), mutated=False)
 
     # create aggregated file of data
     df_mutated_agg = aggregate_df(df_mutated)
@@ -285,28 +271,24 @@ def run_step4(args):
     # merge aggregated mutated and (aggregated) unmutated table
     df_merged_agg = merge_dfs(df_mutated_agg, df_unmutated)
 
-    # initialize pandarallel for parallel pandas apply. used in the following function
-    pandarallel.initialize(nb_workers=args.threads)
-    df_merged_agg = add_counts_of_umis(df_merged_agg)
+    # add columns of percentage of mutated UMIs from mutated umis and from total umis
+    df_merged_agg = add_fractions_of_mutated_umis(df_merged_agg)
 
     # reorder the aggregated file
     df_merged_agg = reorder_and_sort_agg_df(df_merged_agg)
 
     # add gene names
-    df_merged_agg = add_gene_name_from_gtf(df_merged_agg, args.output_dir, args.gtf_path)
+    df_merged_agg = add_gene_name_from_gtf(df_merged_agg, output_dir, gtf_path)
 
     # save the aggregated file
-    save_df(df_merged_agg, args.output_dir, "4.aggregated_per_position.bed")
+    save_df(df_merged_agg, output_dir, "4.aggregated_per_position.bed")
 
     # find intersection between df and databases
-    if args.editing_db_path != None:
-        add_intersections_with_SNP_and_edit_DB(args.output_dir, args.snp_db_path, args.editing_db_path)
+    if editing_db_path != None:
+        add_intersections_with_SNP_and_edit_DB(output_dir, snp_db_path, editing_db_path)
 
 
 def parse_arguments(arguments=None):
-    """argument parsing wrapper function
-    helper functions and classes are found in sc_rna_variants.utils
-    """
     parser = argparse.ArgumentParser(ArgparserFormater)
 
     # positional arguments
@@ -330,8 +312,6 @@ def parse_arguments(arguments=None):
     parser.add_argument('--atacseq_gfrequency_min', type=float, default=0.2)
 
     # Meta arguments
-    parser.add_argument('--threads', type=int,
-                        help='number of available threads', default=1)
     parser.add_argument('--log-file',
                         default=os.path.join(sys.argv[2], '4.aggregated_per_position_and_statisitcs.log'),
                         help='a log file for tracking the program\'s progress')
@@ -352,7 +332,7 @@ if __name__ == '__main__':
         ['%s: %s' % (key, value) for key, value in vars(args).items()]))
 
     # run statistics analysis
-    run_step4(args)
+    run_step4(args.input_dir, args.output_dir, args.gtf_path, args.snp_db_path, args.editing_db_path)
 
     print(datetime.now() - startTime)
     logger.info('Step 4 finished')
