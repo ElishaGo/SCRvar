@@ -119,7 +119,8 @@ def transform_to_bed(editing_DB_df):
                        'GeneDetail.knownGene', 'ExonicFunc.knownGene', 'AAChange.knownGene', 'phastConsElements100way']
     editing_DB_bed_df = editing_DB_df[columns_reorder]
 
-    editing_DB_bed_df.insert(4, 'score', np.int8(0))  # add numeric column to keep bed format
+    # add numeric column to keep bed format
+    editing_DB_bed_df.insert(4, 'score', np.int8(0))
 
     return editing_DB_bed_df
 
@@ -134,7 +135,7 @@ def bedtools_sort(to_sort, f_sorted):
     with open(temp, "w") as outfile:
         subprocess.run(['bedtools', 'sort', '-i', to_sort], stdout=outfile)
 
-    # bedtools sort drop the header, so we add it manually
+    # bedtools sort drops the header, so we add it manually
     with open(f_sorted, "w") as outfile:
         subprocess.run([f"grep '#' {to_sort} | cat - {temp}"], stdout=outfile, shell=True)
     os.remove(temp)
@@ -146,6 +147,7 @@ def add_chr_to_vcf(snp_DB_path, f_with_chr):
 
 
 def process_editing_DB(editing_DB_path, output_dir, fasta_path, gtf_path):
+    # TODO: what input should we expect?
     # TODO: check how to change the header on the fly
     good_header = check_editing_DB_header(editing_DB_path)
     if not good_header:
@@ -155,8 +157,7 @@ def process_editing_DB(editing_DB_path, output_dir, fasta_path, gtf_path):
 
     editing_DB_bed = transform_to_bed(editing_DB_df)
 
-    editing_A_I, editing_other = split_editing_by_A_reference(editing_DB_bed, fasta_path,
-                                                              editing_DB_path)
+    editing_A_I, editing_other = split_editing_by_A_reference(editing_DB_bed, fasta_path, editing_DB_path)
 
     editing_A_I = sort_and_reorder(editing_A_I)
     editing_other = sort_and_reorder(editing_other)
@@ -227,19 +228,22 @@ def process_snp(snp_DB_path, snp_out_dir, editing_A_I_path, processed_gtf_path):
     os.remove(temp_snp_with_chr)
 
 
-def run_step0(args):
-    gft_out_path = "/home/labs/bioservices/shared/rarevar/data/DataBases/genecode_gtf"
-    editing_out_dir = "/home/labs/bioservices/shared/rarevar/data/DataBases/editing"
-    snp_out_dir = "/home/labs/bioservices/shared/rarevar/data/DataBases/snp_vcf"
+def run_step0(out_dir, gtf_path, editing_DB_path, fasta_path, snp_DB_path):
+    out_dir = os.path.join(out_dir, 'data_files_proccessed')
+    os.makedirs(out_dir, exist_ok=True)
+    gtf_out_path = os.path.join(out_dir, "genecode_gtf")
+    editing_out_dir = os.path.join(out_dir, "editing")
+    snp_out_dir = os.path.join(out_dir, "snp_vcf")
 
-    processed_gtf_path = process_gtf(args.gtf_path, gft_out_path)
-    editing_A_I_path, _ = process_editing_DB(args.editing_DB_path, editing_out_dir, args.fasta_path, processed_gtf_path)
-    process_snp(args.snp_DB_path, snp_out_dir, editing_A_I_path, processed_gtf_path)
+    processed_gtf_path = process_gtf(gtf_path, gtf_out_path)
+    editing_A_I_path, _ = process_editing_DB(editing_DB_path, editing_out_dir, fasta_path, processed_gtf_path)
+    process_snp(snp_DB_path, snp_out_dir, editing_A_I_path, processed_gtf_path)
 
 
 def parse_arguments(arguments=None):
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('out_dir')
     parser.add_argument('fasta_path')
     parser.add_argument('editing_DB_path')
     parser.add_argument('snp_DB_path')
@@ -252,6 +256,6 @@ if __name__ == '__main__':
     startTime = datetime.now()
     args = parse_arguments()
 
-    run_step0(args)
+    run_step0(args.out_dir, args.gtf_path, args.editing_DB_path, args.fasta_path, args.snp_DB_path)
     print(datetime.now() - startTime)
     print("\nfinished to process DB files")

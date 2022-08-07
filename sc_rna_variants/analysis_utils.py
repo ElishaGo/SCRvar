@@ -33,20 +33,18 @@ def load_df(df_path):
 
 
 def load_tables(path, mutated=True):
-    """Load and preprocess the data of unmutated cells from raw_stats_unmutated.tsv.
-    TODO: Change renames in source funtions
-    """
+    """Load and preprocess the data of unmutated cells from raw_stats_unmutated.tsv."""
     logger.info("Loading and preprocessing data frame")
     df = load_df(path)
-    df.rename(
-        columns={'chromosome': '#chrom', 'start': 'chromStart', 'end': 'chromEnd', 'same multi': 'same multi reads',
-                 'transition multi': 'transition multi reads', 'reverse multi': 'reverse multi reads',
-                 'transvertion multi': 'transvertion multi reads', 'same single': 'same single reads',
-                 'transition single': 'transition single reads', 'reverse single': 'reverse single reads',
-                 'transvertion single': 'transvertion single reads',
-                 'direction': 'strand', 'unique cells': 'count of unmutated cell barcodes',
-                 'multiples': 'unmutated multi reads', 'singles': 'unmutated single reads'
-                 }, inplace=True)
+    # df.rename(
+    #     columns={'chromosome': '#chrom', 'start': 'chromStart', 'end': 'chromEnd', 'same multi': 'same multi reads',
+    #              'transition multi': 'transition multi reads', 'reverse multi': 'reverse multi reads',
+    #              'transvertion multi': 'transvertion multi reads', 'same single': 'same single reads',
+    #              'transition single': 'transition single reads', 'reverse single': 'reverse single reads',
+    #              'transvertion single': 'transvertion single reads',
+    #              'direction': 'strand', 'unique cells': 'count of unmutated cell barcodes',
+    #              'multiples': 'unmutated multi reads', 'singles': 'unmutated single reads'
+    #              }, inplace=True)
 
     df['position'] = add_full_position_notation(df)
 
