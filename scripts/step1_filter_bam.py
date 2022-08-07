@@ -1,14 +1,32 @@
 import argparse
 import logging
-
-import sys, os  # for development environments
-from pathlib import Path
+import sys
+import os
 import subprocess
-
+from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # for development environments
 
 import sc_rna_variants.utils
 import sc_rna_variants.bio_functions
+
+
+def run_step1(input_bam, filtered_barcodes_list, min_mapq, cigar_clipping_allowed, max_gene_length, max_no_basecall,
+              tag_for_umi, tag_for_cell_barcode, output_folder, threads):
+    # create the filtered bam from which the variants will be counted
+    filtered_bam_path = sc_rna_variants.bio_functions.create_filtered_bam(input_bam, filtered_barcodes_list,
+                                                                          min_mapq, cigar_clipping_allowed,
+                                                                          max_gene_length, max_no_basecall,
+                                                                          tag_for_umi, tag_for_cell_barcode,
+                                                                          output_folder, threads)
+
+    # add chr to chromosome names in bam files
+    subprocess.run([
+        f"samtools view -H {filtered_bam_path} | sed -e '/SN:chr/!s/SN:\([0-9XY]*\)/SN:chr&/' -e '/SN:chrM/!s/SN:MT/SN:chrM&/' | samtools reheader - {filtered_bam_path} > {filtered_bam_path}_temp"],
+        shell=True)
+    os.remove(filtered_bam_path)
+    os.rename(f"{filtered_bam_path}_temp", filtered_bam_path)
+    subprocess.run(['samtools', 'index', filtered_bam_path])
+    return filtered_bam_path
 
 
 def parse_arguments(arguments=None):
@@ -17,16 +35,9 @@ def parse_arguments(arguments=None):
     """
     parser = argparse.ArgumentParser(
         formatter_class=sc_rna_variants.utils.ArgparserFormater,
-        description="""A script to locate cases of RNA modifications in single cell RNAseq data
-
-By default the umi and barcode cells are comptible to bam files from cellranger. 
-For other formats you need to change the parameters of cell barcodes and UMI tags.
-'  
-
-The script filters out the reads with deletions/insersions/soft and hard clipped.
+        description=""" The script filters out the reads with deletions/insersions/soft and hard clipped.
 Reads aligned to genomic segments that don't appear in the genome FASTA are discarded.""",
-        epilog='''Outputs a filtered BAM file, and a BED formated file
-where each row represents the modifications a certain cell has in a certain position'''
+        epilog='''Outputs a filtered BAM file'''
     )
 
     # positional arguments
@@ -61,7 +72,6 @@ where each row represents the modifications a certain cell has in a certain posi
     parser.add_argument('--threads',
                         help='number of available threads',
                         type=int, default=1)
-    # To Do change the path to be the same as output folder
     parser.add_argument('--log-file', default=os.path.join(sys.argv[2], '1.filter_bam.log'),
                         help='a log file for tracking the program\'s progress')
 
@@ -79,16 +89,8 @@ if __name__ == '__main__':
         ['%s: %s' % (key, value) for key, value in vars(args).items() if key != 'filtered_barcodes_list'])
                  )
 
-    # create the filtered bam from which the variants will be counted
-    filtered_bam_path = sc_rna_variants.bio_functions.create_filtered_bam(args.input_bam, args.filtered_barcodes_list,
-                                                      args.min_mapq, args.cigar_clipping_allowed,
-                                                      args.max_gene_length, args.max_no_basecall,
-                                                      args.tag_for_umi, args.tag_for_cell_barcode,
-                                                      args.output_folder, args.threads)
-
-    # add chr to chromosome names in bam files
-    subprocess.run([f"samtools view -H {filtered_bam_path} | sed -e '/SN:chr/!s/SN:\([0-9XY]*\)/SN:chr&/' -e '/SN:chrM/!s/SN:MT/SN:chrM&/' | samtools reheader - {filtered_bam_path} > {filtered_bam_path}_temp"],
-                   shell=True)
-    os.remove(filtered_bam_path)
-    os.rename(f"{filtered_bam_path}_temp", filtered_bam_path)
-    subprocess.run(['samtools', 'index', filtered_bam_path])
+    run_step1(args.input_bam, args.filtered_barcodes_list,
+              args.min_mapq, args.cigar_clipping_allowed,
+              args.max_gene_length, args.max_no_basecall,
+              args.tag_for_umi, args.tag_for_cell_barcode,
+              args.output_folder, args.threads)

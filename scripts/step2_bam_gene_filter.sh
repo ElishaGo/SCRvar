@@ -1,6 +1,6 @@
 #!/bin/bash
-# A script to run step 2 in the pipeline:
-# Run a bam file with htseq-count in order to filter out reads that are not on genes.
+# Retrieve reads only on genes by usage of HTseq-count
+# create venn diagrams with overlaps between the data and SNP and editing sites databases if supplied
 
 export FILTERED_BAM_PATH=$1  # bam to filter
 export OUTPUT_DIR=$2  # folder for outputs
@@ -18,7 +18,7 @@ LOGFILE=${OUTPUT_DIR}/step2.log
 (
     # run HTseq to annotate non-gene reads
     BAM_DIR=$(dirname $FILTERED_BAM_PATH)
-    bamtools split -in ${FILTERED_BAM_PATH} -reference  # split bam so we can run HTseq in parallel
+    bamtools split -in ${FILTERED_BAM_PATH} -reference  # split bam for parallelism
     OUT_NAMES=$(for f in $BAM_DIR/*REF*.bam; do echo -n "-o ${f}_temp_htseq_out.bam "; done)
     htseq-count -f bam -i gene_name -t gene -m union -s yes -n ${N} -p bam ${OUT_NAMES} -c ${OUTPUT_DIR}/2.${SNAME}_gene_counts_htseq.tsv $BAM_DIR/*REF*.bam ${ANNOTATION_GTF}
 

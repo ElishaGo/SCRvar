@@ -20,7 +20,6 @@ logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
 
 def create_mismatches_gtf_intersections(df_path, path_to_gtf, out_fpath):
     """creates a temporary table with each intersection in A including information from B"""
-    # TODO: check if 'sorted' gives the same output
     os.system(f"bedtools intersect -s -wo -sorted -a {df_path} -b {path_to_gtf} > {out_fpath}")
 
 
