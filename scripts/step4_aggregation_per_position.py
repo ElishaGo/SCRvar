@@ -57,15 +57,15 @@ def add_gene_names(df, genecode_gtf_file):
     return df.merge(gene_names, on='position', how='inner')
 
 
-def add_gene_name_from_gtf(df, output_dir, gtf_path):
+def add_gene_name_from_gtf(df, output_dir, annotation_gtf):
     # add gene names
     df_path = os.path.join(output_dir, 'temp_6.df.bed')
     df.to_csv(df_path, index=False, sep='\t')
-    intersections_gtf_path = os.path.join(output_dir, "temp_6.genecode_intersect.bed")
-    create_mismatches_gtf_intersections(df_path=df_path, path_to_gtf=gtf_path, out_fpath=intersections_gtf_path)
-    df = add_gene_names(df, intersections_gtf_path)
+    intersections_annotation_gtf = os.path.join(output_dir, "temp_6.genecode_intersect.bed")
+    create_mismatches_gtf_intersections(df_path=df_path, path_to_gtf=annotation_gtf, out_fpath=intersections_annotation_gtf)
+    df = add_gene_names(df, intersections_annotation_gtf)
     os.remove(df_path)
-    os.remove(intersections_gtf_path)
+    os.remove(intersections_annotation_gtf)
     return df
 
 
@@ -259,7 +259,7 @@ def add_intersections_with_SNP_and_edit_DB(output_dir, snp_db_path, editing_db_p
     df.to_csv(agg_df_path, index=False, sep='\t')
 
 
-def run_step4(input_dir, output_dir, gtf_path, snp_db_path, editing_db_path):
+def run_step4(input_dir, output_dir, annotation_gtf, snp_db_path, editing_db_path):
     # load the mutated and unmutated data frames
     df_mutated = load_tables(os.path.join(input_dir, "3.mismatch_dictionary.bed"), mutated=True)
     df_unmutated = load_tables(os.path.join(input_dir, "3.no_mismatch_dictionary.bed"), mutated=False)
@@ -277,7 +277,7 @@ def run_step4(input_dir, output_dir, gtf_path, snp_db_path, editing_db_path):
     df_merged_agg = reorder_and_sort_agg_df(df_merged_agg)
 
     # add gene names
-    df_merged_agg = add_gene_name_from_gtf(df_merged_agg, output_dir, gtf_path)
+    df_merged_agg = add_gene_name_from_gtf(df_merged_agg, output_dir, annotation_gtf)
 
     # save the aggregated file
     save_df(df_merged_agg, output_dir, "4.aggregated_per_position.bed")
@@ -295,7 +295,7 @@ def parse_arguments(arguments=None):
     parser.add_argument('output_dir', help='folder for step4 outputs', type=assert_is_directory)
     parser.add_argument('editing_db_path', type=assert_is_file, help='path to known editing sites file')
     parser.add_argument('snp_db_path', type=assert_is_file, help='path to known SNP sites file')
-    parser.add_argument('gtf_path', type=assert_is_file, help='path to transcriptome gtf file')
+    parser.add_argument('annotation_gtf', type=assert_is_file, help='path to transcriptome gtf file')
 
     # optional arguments
     parser.add_argument('--min_cb_per_pos', default=5, type=int,
@@ -331,7 +331,7 @@ if __name__ == '__main__':
         ['%s: %s' % (key, value) for key, value in vars(args).items()]))
 
     # run statistics analysis
-    run_step4(args.input_dir, args.output_dir, args.gtf_path, args.snp_db_path, args.editing_db_path)
+    run_step4(args.input_dir, args.output_dir, args.annotation_gtf, args.snp_db_path, args.editing_db_path)
 
     print(datetime.now() - startTime)
     logger.info('Step 4 finished')

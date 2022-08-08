@@ -10,7 +10,7 @@ SNP_GTF_INTERSECT=$5  # path to intersection of SNP and gtf files
 EDITING_GTF_BAM_INTERSECT=$6  # path to intersection of editing DB, gtf and bam files
 SNP_GTF_BAM_INTERSECT=$7  # path to intersection of SNP, gtf and bam files
 export SNAME=$8  # sample name
-export N=$9  # number of threads
+export THREADS=$9  # number of threads
 
 export OUTPUT_FILE=${OUTPUT_DIR}/2.${SNAME}.gene_filter
 LOGFILE=${OUTPUT_DIR}/step2.log
@@ -20,16 +20,16 @@ LOGFILE=${OUTPUT_DIR}/step2.log
     BAM_DIR=$(dirname $FILTERED_BAM_PATH)
     bamtools split -in ${FILTERED_BAM_PATH} -reference  # split bam for parallelism
     OUT_NAMES=$(for f in $BAM_DIR/*REF*.bam; do echo -n "-o ${f}_temp_htseq_out.bam "; done)
-    htseq-count -f bam -i gene_name -t gene -m union -s yes -n ${N} -p bam ${OUT_NAMES} -c ${OUTPUT_DIR}/2.${SNAME}_gene_counts_htseq.tsv $BAM_DIR/*REF*.bam ${ANNOTATION_GTF}
+    htseq-count -f bam -i gene_name -t gene -m union -s yes -n ${THREADS} -p bam ${OUT_NAMES} -c ${OUTPUT_DIR}/2.${SNAME}_gene_counts_htseq.tsv $BAM_DIR/*REF*.bam ${ANNOTATION_GTF}
 
     # keep only gene sites reads and save into a bam file
-    samtools merge -@ ${N} -O SAM - $BAM_DIR/*REF*temp_htseq_out.bam | grep -v "__" - | samtools sort -@ ${N} - -o ${OUTPUT_FILE}.bam
+    samtools merge -@ ${THREADS} -O SAM - $BAM_DIR/*REF*temp_htseq_out.bam | grep -v "__" - | samtools sort -@ ${THREADS} - -o ${OUTPUT_FILE}.bam
     samtools index ${OUTPUT_FILE}.bam
 
     rm ${BAM_DIR}/*REF*.bam
 
     # get statistics on filtered file
-    samtools flagstat -@ ${N} ${OUTPUT_FILE}.bam > ${OUTPUT_DIR}/2.${SNAME}_flagstat.txt
+    samtools flagstat -@ ${THREADS} ${OUTPUT_FILE}.bam > ${OUTPUT_DIR}/2.${SNAME}_flagstat.txt
 
     # RUN INTERSECTIONS WITH EDITING DB ANALYSIS
     if [ ! -z "$EDITING_GTF_INTERSECT" ]
@@ -42,7 +42,7 @@ LOGFILE=${OUTPUT_DIR}/step2.log
       bam_positions_count=$(tail -n 1 ${OUTPUT_DIR}/2.${SNAME}_genomecov.txt | awk '{print $3}')
       EDITING_GTF_INTERSECT_count=$(grep -v "#" ${EDITING_GTF_INTERSECT} | cut -f 1,2,3 | sort |  uniq | wc -l)
       EDITING_GTF_INTERSECT_output_bam_intersect=$(grep -v "#" ${EDITING_GTF_BAM_INTERSECT} | cut -f 1,2,3 | sort |  uniq | wc -l)
-      python -c "import sys;sys.path.append('/home/labs/bioservices/shared/rarevar/scrarevar');import sc_rna_variants.statistic_plots as sp; sp.plot_venn2_diagram({'10':${EDITING_GTF_INTERSECT_count}-${EDITING_GTF_INTERSECT_output_bam_intersect},'01':${bam_positions_count}-${EDITING_GTF_INTERSECT_output_bam_intersect},'11':${EDITING_GTF_INTERSECT_output_bam_intersect}}, ('editing DB positions','aligned positions', ''), '${OUTPUT_DIR}/2.editing_gtf.bam_gtf.venn.png', 'count of positions on gene - ${SNAME}')"
+      python -c "import sys;sys.path.append('/home/labs/bioservices/shared/rarevar/scrarevar');import sc_rna_variants.statistic_plots as sp; sp.plot_venn2_diagram({'10':${EDITING_GTF_INTERSECT_count}-${EDITING_GTF_INTERSECT_output_bam_intersect},'01':${bam_positions_count}-${EDITING_GTF_INTERSECT_output_bam_intersect},'11':${EDITING_GTF_INTERSECT_output_bam_intersect}}, ('editing DB positions on genes','aligned positions', ''), '${OUTPUT_DIR}/2.editing_gtf.bam_gtf.venn.png', 'count of positions on genes - ${SNAME}')"
     fi
 
     # RUN INTERSECTIONS WITH SNP DB ANALYSIS
@@ -54,7 +54,7 @@ LOGFILE=${OUTPUT_DIR}/step2.log
       # make venn diagram for snp and bam file
       SNP_GTF_INTERSECT_count=$(grep -v "#" ${SNP_GTF_INTERSECT} | cut -f 1,2 | sort | uniq | wc -l)
       SNP_GTF_INTERSECT_output_bam_intersect=$(grep -v "#" ${SNP_GTF_BAM_INTERSECT} | cut -f 1,2 | sort | uniq | wc -l)
-      python -c "import sys;sys.path.append('/home/labs/bioservices/shared/rarevar/scrarevar');import sc_rna_variants.statistic_plots as sp; sp.plot_venn2_diagram({'10':${SNP_GTF_INTERSECT_count}-${SNP_GTF_INTERSECT_output_bam_intersect},'01':${bam_positions_count}-${SNP_GTF_INTERSECT_output_bam_intersect},'11':${SNP_GTF_INTERSECT_output_bam_intersect}}, ('SNP DB positions','aligned positions', ''), '${OUTPUT_DIR}/2.snp_gtf.bam_gtf.venn.png', 'count of positions on gene - ${SNAME}')"
+      python -c "import sys;sys.path.append('/home/labs/bioservices/shared/rarevar/scrarevar');import sc_rna_variants.statistic_plots as sp; sp.plot_venn2_diagram({'10':${SNP_GTF_INTERSECT_count}-${SNP_GTF_INTERSECT_output_bam_intersect},'01':${bam_positions_count}-${SNP_GTF_INTERSECT_output_bam_intersect},'11':${SNP_GTF_INTERSECT_output_bam_intersect}}, ('SNP DB positions on genes','aligned positions', ''), '${OUTPUT_DIR}/2.snp_gtf.bam_gtf.venn.png', 'count of positions on genes - ${SNAME}')"
     fi
 
     echo end_of_log_file 1>&2

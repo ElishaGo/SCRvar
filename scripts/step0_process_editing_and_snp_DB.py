@@ -146,7 +146,7 @@ def add_chr_to_vcf(snp_DB_path, f_with_chr):
         subprocess.run(['awk', '{if($0 !~ /^#/) print "chr"$0; else print $0}', snp_DB_path], stdout=outfile)
 
 
-def process_editing_DB(editing_DB_path, output_dir, fasta_path, gtf_path):
+def process_editing_DB(editing_DB_path, output_dir, fasta_path, annotation_gtf):
     # TODO: what input should we expect?
     # TODO: check how to change the header on the fly
     good_header = check_editing_DB_header(editing_DB_path)
@@ -170,19 +170,19 @@ def process_editing_DB(editing_DB_path, output_dir, fasta_path, gtf_path):
     sc_rna_variants.analysis_utils.save_df(editing_other, output_dir, "0.editing_other.bed")
 
     # intersect with gencode.gtf file
-    bedtools_intersect_u_flag(a_path=editing_A_I_path, b_path=gtf_path,
+    bedtools_intersect_u_flag(a_path=editing_A_I_path, b_path=annotation_gtf,
                               output_path=os.path.join(output_dir, '0.editing_A_I.genecode_intersect.bed'))
 
     return editing_A_I_path, editing_other_path
 
 
-def snp_DB_intersections(snp_DB_path, out_dir, editing_DB_path, gtf_path):
+def snp_DB_intersections(snp_DB_path, out_dir, editing_DB_path, annotation_gtf):
     """
     make intersection of the SNP DB with the entries in the editing files with reference base 'A', and make another
     intersection with the gencode (transcriptome) file
     :param snp_DB_path:
     :param editing_DB_path:
-    :param gtf_path:
+    :param annotation_gtf:
     :return:
     """
     # intersect with editing_A_I file
@@ -193,18 +193,18 @@ def snp_DB_intersections(snp_DB_path, out_dir, editing_DB_path, gtf_path):
 
     # instersect with gtf file
     snp_gtf_output = os.path.join(out_dir, '0.snp.gencode_intersect.vcf')
-    bedtools_intersect_u_flag(a_path=snp_DB_path, b_path=gtf_path, output_path=snp_gtf_output)
+    bedtools_intersect_u_flag(a_path=snp_DB_path, b_path=annotation_gtf, output_path=snp_gtf_output)
 
     # instersect with editing A_I and gtf file
     snp_A_gtf_output = os.path.join(out_dir, '0.snp.A_I.gencode_intersect.vcf')
-    bedtools_intersect_u_flag(a_path=snp_A_output, b_path=gtf_path, output_path=snp_A_gtf_output)
+    bedtools_intersect_u_flag(a_path=snp_A_output, b_path=annotation_gtf, output_path=snp_A_gtf_output)
 
     return snp_A_output, snp_gtf_output, snp_A_gtf_output
 
 
-def process_gtf(orig_gtf_path, out_dir):
-    out_path = os.path.join(out_dir, "0." + os.path.basename(orig_gtf_path))
-    bedtools_sort(orig_gtf_path, out_path)
+def process_gtf(orig_annotation_gtf, out_dir):
+    out_path = os.path.join(out_dir, "0." + os.path.basename(orig_annotation_gtf))
+    bedtools_sort(orig_annotation_gtf, out_path)
     return out_path
 
 
@@ -215,12 +215,12 @@ def sort_and_replace(to_sort):
     os.rename(f_sorted, f_sorted.replace('temp_', ''))
 
 
-def process_snp(snp_DB_path, snp_out_dir, editing_A_I_path, processed_gtf_path):
+def process_snp(snp_DB_path, snp_out_dir, editing_A_I_path, processed_annotation_gtf):
     temp_snp_with_chr = snp_DB_path.replace(os.path.basename(snp_DB_path), "temp_" + os.path.basename(snp_DB_path))
     add_chr_to_vcf(snp_DB_path, temp_snp_with_chr)
     snp_A_output, snp_gtf_output, snp_A_gtf_output = snp_DB_intersections(temp_snp_with_chr, snp_out_dir,
                                                                           editing_A_I_path,
-                                                                          processed_gtf_path)
+                                                                          processed_annotation_gtf)
     sort_and_replace(snp_A_output)
     sort_and_replace(snp_gtf_output)
     sort_and_replace(snp_A_gtf_output)
@@ -228,16 +228,19 @@ def process_snp(snp_DB_path, snp_out_dir, editing_A_I_path, processed_gtf_path):
     os.remove(temp_snp_with_chr)
 
 
-def run_step0(out_dir, gtf_path, editing_DB_path, fasta_path, snp_DB_path):
+def run_step0(out_dir, annotation_gtf, editing_DB_path, fasta_path, snp_DB_path):
     out_dir = os.path.join(out_dir, 'data_files_proccessed')
-    os.makedirs(out_dir, exist_ok=True)
     gtf_out_path = os.path.join(out_dir, "genecode_gtf")
     editing_out_dir = os.path.join(out_dir, "editing")
     snp_out_dir = os.path.join(out_dir, "snp_vcf")
+    os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(gtf_out_path, exist_ok=True)
+    os.makedirs(editing_out_dir, exist_ok=True)
+    os.makedirs(snp_out_dir, exist_ok=True)
 
-    processed_gtf_path = process_gtf(gtf_path, gtf_out_path)
-    editing_A_I_path, _ = process_editing_DB(editing_DB_path, editing_out_dir, fasta_path, processed_gtf_path)
-    process_snp(snp_DB_path, snp_out_dir, editing_A_I_path, processed_gtf_path)
+    processed_annotation_gtf = process_gtf(annotation_gtf, gtf_out_path)
+    editing_A_I_path, _ = process_editing_DB(editing_DB_path, editing_out_dir, fasta_path, processed_annotation_gtf)
+    process_snp(snp_DB_path, snp_out_dir, editing_A_I_path, processed_annotation_gtf)
 
 
 def parse_arguments(arguments=None):
@@ -247,7 +250,7 @@ def parse_arguments(arguments=None):
     parser.add_argument('fasta_path')
     parser.add_argument('editing_DB_path')
     parser.add_argument('snp_DB_path')
-    parser.add_argument('gtf_path')
+    parser.add_argument('annotation_gtf')
 
     return parser.parse_args(arguments)
 
@@ -256,6 +259,6 @@ if __name__ == '__main__':
     startTime = datetime.now()
     args = parse_arguments()
 
-    run_step0(args.out_dir, args.gtf_path, args.editing_DB_path, args.fasta_path, args.snp_DB_path)
+    run_step0(args.out_dir, args.annotation_gtf, args.editing_DB_path, args.fasta_path, args.snp_DB_path)
     print(datetime.now() - startTime)
     print("\nfinished to process DB files")

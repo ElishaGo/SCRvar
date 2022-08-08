@@ -109,15 +109,15 @@ def drop_editing_and_snp_overlap(df):
     return df.drop(idx_to_drop)
 
 
-# def step6_1_add_gene_name_from_gtf(df, output_dir, gtf_path):
+# def step6_1_add_gene_name_from_gtf(df, output_dir, annotation_gtf):
 #     # add gene names
 #     df_path = os.path.join(output_dir, 'temp_6.df.bed')
 #     df.to_csv(df_path, index=False, sep='\t')
-#     intersections_gtf_path = os.path.join(output_dir, "temp_6.genecode_intersect.bed")
-#     create_mismatches_gtf_intersections(df_path=df_path, path_to_gtf=gtf_path, out_fpath=intersections_gtf_path)
-#     df = add_gene_names(df, intersections_gtf_path)
+#     intersections_annotation_gtf = os.path.join(output_dir, "temp_6.genecode_intersect.bed")
+#     create_mismatches_gtf_intersections(df_path=df_path, path_to_gtf=annotation_gtf, out_fpath=intersections_annotation_gtf)
+#     df = add_gene_names(df, intersections_annotation_gtf)
 #     os.remove(df_path)
-#     os.remove(intersections_gtf_path)
+#     os.remove(intersections_annotation_gtf)
 #
 #     df.to_csv(os.path.join(output_dir, "6.1.aggregated_with_gene_name.bed"), index=False, sep='\t')
 #     return df
@@ -229,14 +229,14 @@ def get_pivot_tables(df):
     # create a dictionary between chromosomes and genes
     chr_genes_pairs = pd.Series(df['#chrom'].values, index=df.gene_name).to_dict()
 
-    pt_names = ['clusters_VS_genes_umis', 'clusters_VS_genes_unmutated_umis',
-                'cells_VS_genes_umis', 'cells_VS_genes_unmutated_umis'
+    pt_names = ['clusters_VS_genes_umis', 'cells_VS_genes_umis',
+                'clusters_VS_genes_unmutated_umis', 'cells_VS_genes_unmutated_umis'
                 # 'cells_VS_position_mutated_umis',
                 # 'cells_VS_position_unmutated_umis',
                 ]
 
-    pts = [clusters_VS_genes_umis_pt, clusters_VS_genes_unmutated_umis_pt,
-           cells_VS_genes_umis_pt, cells_VS_genes_unmutated_umis_pt,
+    pts = [clusters_VS_genes_umis_pt, cells_VS_genes_umis_pt,
+           clusters_VS_genes_unmutated_umis_pt, cells_VS_genes_unmutated_umis_pt,
            # cells_VS_position_mutated_umis_pt,
            # cells_VS_position_unmutated_umis_pt,
            chr_genes_pairs]
@@ -336,7 +336,7 @@ def merge_REDItools_data(df, df_reditools):
 
 
 def run_step6(input_dir, output_dir, read_per_barcode_raw_bam, min_cb_per_pos, min_mutation_umis, min_total_umis,
-              min_mutation_rate, reditools_data, gtf_path, mismatch_dict_bed, barcode_clusters, gcoverage_min,
+              min_mutation_rate, reditools_data, annotation_gtf, mismatch_dict_bed, barcode_clusters, gcoverage_min,
               gfrequency_min, sname):
     stats_agg_path = os.path.join(input_dir, "4.aggregated_per_position.bed")
     df, df_filtered = get_df_and_filtered_df(stats_agg_path, min_cb_per_pos, min_mutation_umis, min_total_umis, min_mutation_rate)
@@ -344,7 +344,7 @@ def run_step6(input_dir, output_dir, read_per_barcode_raw_bam, min_cb_per_pos, m
     print("shape of mutation table after filtering:", df_filtered.shape)
 
     # step 6.1 - add gene names, and fing interactions
-    # df_filtered = step6_1_add_gene_name_from_gtf(df_filtered, output_dir, gtf_path)  # df_filtered
+    # df_filtered = step6_1_add_gene_name_from_gtf(df_filtered, output_dir, annotation_gtf)  # df_filtered
 
     # TODO ask what to include if no editing and snp DB are given
     # analysis of editing sites
@@ -388,7 +388,7 @@ def parse_arguments(arguments=None):
     parser.add_argument('output_dir', type=assert_is_directory, help='folder for outputs')
     parser.add_argument('mismatch_dict_bed', type=assert_is_file, help='path to 3.mismatch_dictionary.bed')
     parser.add_argument('read_per_barcode_raw_bam', type=assert_is_file, help='count of reads per CB in raw bam file')
-    parser.add_argument('gtf_path', type=assert_is_file, help='path to gtf file')
+    parser.add_argument('annotation_gtf', type=assert_is_file, help='path to gtf file')
 
     # optional arguments
     parser.add_argument('--barcode_clusters', type=assert_is_file, help='barcodes and clusters analysed by Seurat')
@@ -424,7 +424,7 @@ if __name__ == '__main__':
 
     # run step
     run_step6(args.input_dir, args.output_dir, args.read_per_barcode_raw_bam, args.min_cb_per_pos,
-              args.min_mutation_umis, args.min_total_umis, args.min_mutation_rate, args.reditools_data, args.gtf_path,
+              args.min_mutation_umis, args.min_total_umis, args.min_mutation_rate, args.reditools_data, args.annotation_gtf,
               args.mismatch_dict_bed, args.barcode_clusters, args.atacseq_gcoverage_min, args.atacseq_gfrequency_min,
               args.sname)
 
