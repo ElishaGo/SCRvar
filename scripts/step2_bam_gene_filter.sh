@@ -24,8 +24,6 @@ LOGFILE=${OUTPUT_DIR}/step2.log
 
     # keep only gene sites reads and save into a bam file
     samtools merge -@ ${N} -O SAM - $BAM_DIR/*REF*temp_htseq_out.bam | grep -v "__" - | samtools sort -@ ${N} - -o ${OUTPUT_FILE}.bam
-#    samtools merge -@ ${N} -O SAM ${OUTPUT_FILE}.sam $BAM_DIR/*REF*temp_htseq_out.sam
-#    grep -v "__" ${OUTPUT_FILE}.sam | samtools sort -@ ${N} - -o ${OUTPUT_FILE}.bam
     samtools index ${OUTPUT_FILE}.bam
 
     rm ${BAM_DIR}/*REF*.bam
@@ -37,26 +35,26 @@ LOGFILE=${OUTPUT_DIR}/step2.log
     if [ ! -z "$EDITING_GTF_INTERSECT" ]
     then
       # make intersection between editing A_I sites-transcriptomes-filtered bam file
-      bedtools intersect -u -header -a ${EDITING_GTF_INTERSECT} -b ${OUTPUT_FILE}.bam > ${EDITING_GTF_BAM_INTERSECT}
+      bedtools intersect -u -header -sorted -a ${EDITING_GTF_INTERSECT} -b ${OUTPUT_FILE}.bam > ${EDITING_GTF_BAM_INTERSECT}
 
       # make venn diagram for editing and bam file
       bedtools genomecov -max 1 -split -ibam ${OUTPUT_FILE}.bam > ${OUTPUT_DIR}/2.${SNAME}_genomecov.txt
       bam_positions_count=$(tail -n 1 ${OUTPUT_DIR}/2.${SNAME}_genomecov.txt | awk '{print $3}')
       EDITING_GTF_INTERSECT_count=$(grep -v "#" ${EDITING_GTF_INTERSECT} | cut -f 1,2,3 | sort |  uniq | wc -l)
       EDITING_GTF_INTERSECT_output_bam_intersect=$(grep -v "#" ${EDITING_GTF_BAM_INTERSECT} | cut -f 1,2,3 | sort |  uniq | wc -l)
-      python -c "import sys;sys.path.append('/home/labs/bioservices/shared/rarevar/scrarevar');import sc_rna_variants.statistic_plots as sp; sp.plot_venn2_diagram({'10':${EDITING_GTF_INTERSECT_count-EDITING_GTF_INTERSECT_output_bam_intersect},'01':${bam_positions_count-EDITING_GTF_INTERSECT_output_bam_intersect},'11':${EDITING_GTF_INTERSECT_output_bam_intersect}}, ('editing DB positions','aligned positions', ''), '${OUTPUT_DIR}/2.editing_gtf.bam_gtf.venn.png', 'count of positions on gene - ${SNAME}')"
+      python -c "import sys;sys.path.append('/home/labs/bioservices/shared/rarevar/scrarevar');import sc_rna_variants.statistic_plots as sp; sp.plot_venn2_diagram({'10':${EDITING_GTF_INTERSECT_count}-${EDITING_GTF_INTERSECT_output_bam_intersect},'01':${bam_positions_count}-${EDITING_GTF_INTERSECT_output_bam_intersect},'11':${EDITING_GTF_INTERSECT_output_bam_intersect}}, ('editing DB positions','aligned positions', ''), '${OUTPUT_DIR}/2.editing_gtf.bam_gtf.venn.png', 'count of positions on gene - ${SNAME}')"
     fi
 
     # RUN INTERSECTIONS WITH SNP DB ANALYSIS
     if [ ! -z "$SNP_GTF_INTERSECT" ]
     then
       # make intersection between SNP-transcriptomes-filtered bam file
-      bedtools intersect -u -header -a ${SNP_GTF_INTERSECT} -b ${OUTPUT_FILE}.bam > ${SNP_GTF_BAM_INTERSECT}
+      bedtools intersect -u -header -sorted -a ${SNP_GTF_INTERSECT} -b ${OUTPUT_FILE}.bam > ${SNP_GTF_BAM_INTERSECT}
 
       # make venn diagram for snp and bam file
       SNP_GTF_INTERSECT_count=$(grep -v "#" ${SNP_GTF_INTERSECT} | cut -f 1,2 | sort | uniq | wc -l)
       SNP_GTF_INTERSECT_output_bam_intersect=$(grep -v "#" ${SNP_GTF_BAM_INTERSECT} | cut -f 1,2 | sort | uniq | wc -l)
-      python -c "import sys;sys.path.append('/home/labs/bioservices/shared/rarevar/scrarevar');import sc_rna_variants.statistic_plots as sp; sp.plot_venn2_diagram({'10':${SNP_GTF_INTERSECT_count-SNP_GTF_INTERSECT_output_bam_intersect},'01':${bam_positions_count-SNP_GTF_INTERSECT_output_bam_intersect},'11':${SNP_GTF_INTERSECT_output_bam_intersect}}, ('SNP DB positions','aligned positions', ''), '${OUTPUT_DIR}/2.snp_gtf.bam_gtf.venn.png', 'count of positions on gene - ${SNAME}')"
+      python -c "import sys;sys.path.append('/home/labs/bioservices/shared/rarevar/scrarevar');import sc_rna_variants.statistic_plots as sp; sp.plot_venn2_diagram({'10':${SNP_GTF_INTERSECT_count}-${SNP_GTF_INTERSECT_output_bam_intersect},'01':${bam_positions_count}-${SNP_GTF_INTERSECT_output_bam_intersect},'11':${SNP_GTF_INTERSECT_output_bam_intersect}}, ('SNP DB positions','aligned positions', ''), '${OUTPUT_DIR}/2.snp_gtf.bam_gtf.venn.png', 'count of positions on gene - ${SNAME}')"
     fi
 
     echo end_of_log_file 1>&2
