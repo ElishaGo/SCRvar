@@ -26,12 +26,16 @@ def makedir(dir_path):
 
 def run_steps_5_6(args):
     # run step 5
-    run_step5(args.input_dir, args.output_dir, args.min_cb_per_pos, args.min_mutation_umis, args.min_total_umis,
+    out_dir5 = os.path.join(args.output_dir, 'step5_filtering_and_DB_intersections_effects')
+    os.makedirs(out_dir5, exist_ok=True)
+    run_step5(args.input_dir, out_dir5, args.min_cb_per_pos, args.min_mutation_umis, args.min_total_umis,
               args.min_mutation_rate, args.snp_db_path, args.editing_db_path, args.sname)
 
     # run step 6
-    run_step6(args.input_dir, args.output_dir, args.read_per_barcode_raw_bam, args.min_cb_per_pos,
-              args.min_mutation_umis, args.min_total_umis, args.min_mutation_rate, args.reditools_data, args.gtf_path,
+    out_dir6 = os.path.join(args.output_dir, 'step6_gene_level')
+    os.makedirs(out_dir6, exist_ok=True)
+    run_step6(args.input_dir, out_dir6, args.read_per_barcode_raw_bam, args.min_cb_per_pos,
+              args.min_mutation_umis, args.min_total_umis, args.min_mutation_rate, args.reditools_data, args.annotation_gtf,
               args.mismatch_dict_bed, args.barcode_clusters, args.gcoverage_min, args.gfrequency_min,
               args.sname)
 
@@ -45,7 +49,7 @@ def parse_arguments(arguments=None):
     parser.add_argument('output_dir', type=makedir, help='folder for outputs')
     parser.add_argument('snp_db_path', type=assert_is_file, help='path to known SNP sites file')
     parser.add_argument('editing_db_path', type=assert_is_file, help='path to known editing sites file')
-    parser.add_argument('gtf_path', type=assert_is_file, help='path to gtf file')
+    parser.add_argument('annotation_gtf', type=assert_is_file, help='path to gtf file')
     parser.add_argument('mismatch_dict_bed', type=assert_is_file,
                         help='path to 3.mismatch_dictionary.bed')
     parser.add_argument('read_per_barcode_raw_bam', type=assert_is_file,

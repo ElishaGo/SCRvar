@@ -10,9 +10,6 @@ import pysam
 
 import sc_rna_variants.utils as utils
 
-# import utils
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -637,5 +634,9 @@ def variants_finder(filtered_bam, genome_fasta, tag_for_umi, tag_for_cell_barcod
                 os.remove(fpath + '2')
 
     logger.debug("finished merging and cleanup of tsv files")
+
+    # sort the tables
+    utils.sort_and_save_table(output_tsv)
+    utils.sort_and_save_table(output_unmutated_tsv)
 
     return

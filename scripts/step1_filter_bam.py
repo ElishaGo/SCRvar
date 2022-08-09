@@ -1,32 +1,15 @@
 import argparse
 import logging
-import sys
 import os
-import subprocess
+
+import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).parent.parent.absolute()) + os.path.sep)  # for development environments
 
 import sc_rna_variants.utils
 import sc_rna_variants.bio_functions
-
-
-def run_step1(input_bam, filtered_barcodes_list, min_mapq, cigar_clipping_allowed, max_gene_length, max_no_basecall,
-              tag_for_umi, tag_for_cell_barcode, output_folder, threads):
-    # create the filtered bam from which the variants will be counted
-    filtered_bam_path = sc_rna_variants.bio_functions.create_filtered_bam(input_bam, filtered_barcodes_list,
-                                                                          min_mapq, cigar_clipping_allowed,
-                                                                          max_gene_length, max_no_basecall,
-                                                                          tag_for_umi, tag_for_cell_barcode,
-                                                                          output_folder, threads)
-
-    # add chr to chromosome names in bam files
-    subprocess.run([
-        f"samtools view -H {filtered_bam_path} | sed -e '/SN:chr/!s/SN:\([0-9XY]*\)/SN:chr&/' -e '/SN:chrM/!s/SN:MT/SN:chrM&/' | samtools reheader - {filtered_bam_path} > {filtered_bam_path}_temp"],
-        shell=True)
-    os.remove(filtered_bam_path)
-    os.rename(f"{filtered_bam_path}_temp", filtered_bam_path)
-    subprocess.run(['samtools', 'index', filtered_bam_path])
-    return filtered_bam_path
+import sc_rna_variants.steps_runner
 
 
 def parse_arguments(arguments=None):
@@ -89,8 +72,8 @@ if __name__ == '__main__':
         ['%s: %s' % (key, value) for key, value in vars(args).items() if key != 'filtered_barcodes_list'])
                  )
 
-    run_step1(args.input_bam, args.filtered_barcodes_list,
-              args.min_mapq, args.cigar_clipping_allowed,
-              args.max_gene_length, args.max_no_basecall,
-              args.tag_for_umi, args.tag_for_cell_barcode,
-              args.output_folder, args.threads)
+    sc_rna_variants.steps_runner.run_step1(args.input_bam, args.filtered_barcodes_list,
+                                           args.min_mapq, args.cigar_clipping_allowed,
+                                           args.max_gene_length, args.max_no_basecall,
+                                           args.tag_for_umi, args.tag_for_cell_barcode,
+                                           args.output_folder, args.threads)

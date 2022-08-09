@@ -31,38 +31,6 @@ def run_venn(df, df_filtered, column_name, db_total_count, labels, input_dir, sn
     plot_mutated_CB_hist(df, column_name, input_dir, labels[0], sname)
 
 
-def plot_heatmap_mutation_A_base(df_merged, df_merged_filtered, output_dir, sname):
-    bases = ['a', 'c', 'g', 't']
-    umi_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
-                'same single reads', 'transition single reads', 'reverse single reads', 'transvertion single reads']
-
-    # create matrix with counts of mutations observed
-    count_matrices = make_counts_matrix(df_merged, df_merged_filtered, bases, umi_cols)
-
-    # plot only A base mutations
-    plt.clf()
-    all_a_mutations_mat = np.zeros((4, 5))
-    for i, count_matrix_set in enumerate(count_matrices):
-        count_matrix = count_matrix_set[0]
-        a_mut_data = count_matrix.sum(axis=0)
-        all_a_mutations_mat[i, :] = a_mut_data
-
-    vmin, vmax = np.floor(np.log10(all_a_mutations_mat.min())), np.floor(np.log10(all_a_mutations_mat.max()))
-    s = sns.heatmap(np.log10(all_a_mutations_mat), linewidth=0.5, annot=np.array(all_a_mutations_mat),
-                    cbar_kws={'label': 'log 10'}, cmap='brg', vmin=vmin, vmax=vmax,
-                    xticklabels=['same_all', 'same_mut', 'transition', 'reverse', 'transversion'],
-                    yticklabels=['a_single_reads', 'a_multi_reads', 'a_single_reads_filtered',
-                                 'a_multi_reads_filtered'])
-    s.set_yticklabels(s.get_yticklabels(), rotation=360)
-    s.set_xticklabels(s.get_xticklabels(), rotation=30, ha='right')
-    plt.title("Counts of mutations 'A' reference base - {}".format(sname))
-    plt.ylabel("data type")
-    plt.xlabel("mutation")
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "5.heatmap_A_mutations.png"), bbox_inches='tight')
-
-
 def make_venn_diagrams(df_agg_intrsct, df_filtered, output_dir, snp_db_path, editing_db_path, sname):
     """function to get information on intersections of tables with databases"""
     snp_total_count = os.popen("grep -v '#' {} | wc -l".format(snp_db_path)).read()  # count non header lines
@@ -72,10 +40,10 @@ def make_venn_diagrams(df_agg_intrsct, df_filtered, output_dir, snp_db_path, edi
     snp_total_count, editing_total_count = int(snp_total_count), int(editing_total_count)
 
     # make Venn diagrams for snp, editing rep and editing non_rep intersections
-    run_venn(df_agg_intrsct, df_filtered, 'is_snp', snp_total_count, ['SNP DB positions', 'aligned positions', 'aligned positions filtered'],
+    run_venn(df_agg_intrsct, df_filtered, 'is_snp', snp_total_count, ['covered SNP DB positions', 'mismatch positions', 'filtered mismatch positions'],
              output_dir, sname)
     run_venn(df_agg_intrsct, df_filtered, 'is_editing', editing_total_count,
-             ['editing DB positions', 'aligned positions', 'aligned positions filtered'], output_dir, sname)
+             ['covered editing DB positions', 'mismatch positions', 'filtered mismatch positions'], output_dir, sname)
 
 
 def combine_data_from_agg_to_open_table(df_merged_open, df_merged_agg, df_merged_agg_filtered):
@@ -112,7 +80,7 @@ def get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_
     plot_umi_per_reference_base(df_merged_open, df_merged_filtered, output_folder, sname, with_unmut=True,
                                 figname="5.umi_per_reference_base_with_unmutated")
     plot_heatmap_mutation_per_base(df_merged_open, df_merged_filtered, output_folder, sname)  # use nonmut data
-    plot_heatmap_mutation_A_base(df_merged_agg, df_merged_filtered, output_folder, sname)
+    plot_heatmap_mutation_a_base(df_merged_agg, df_merged_filtered, output_folder, sname)
 
     # plot data grouped by position
     plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, output_folder, sname)

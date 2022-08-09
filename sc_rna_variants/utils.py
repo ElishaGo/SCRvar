@@ -7,6 +7,7 @@ import string
 import subprocess
 import sys
 
+import pandas as pd
 import pysam
 
 file_dir = os.path.dirname(__file__)
@@ -119,6 +120,12 @@ def make_random_names_list(list_length, names_length=12, extension=".txt"):
         rand_name = ''.join(random.choices(string.ascii_letters, k=names_length))
         names.append("%d_%s%s" % (pid, rand_name, extension))
     return names
+
+
+def sort_and_save_table(f_path):
+    df = pd.read_csv(f_path, sep='\t')
+    df.sort_values(by=['#chrom', 'chromStart'], inplace=True)
+    df.to_csv(f_path, sep='\t', index=False)
 
 
 # revision git and execution functions
