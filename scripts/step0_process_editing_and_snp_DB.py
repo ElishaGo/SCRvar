@@ -229,7 +229,8 @@ def process_snp(snp_DB_path, snp_out_dir, editing_A_I_path, processed_annotation
 
 
 def run_step0(out_dir, annotation_gtf, editing_DB_path, fasta_path, snp_DB_path):
-    out_dir = os.path.join(out_dir, 'data_files_proccessed')
+    # make output subdirectories
+    out_dir = os.path.join(out_dir, 'data_files_processed')
     gtf_out_path = os.path.join(out_dir, "genecode_gtf")
     editing_out_dir = os.path.join(out_dir, "editing")
     snp_out_dir = os.path.join(out_dir, "snp_vcf")
@@ -238,19 +239,25 @@ def run_step0(out_dir, annotation_gtf, editing_DB_path, fasta_path, snp_DB_path)
     os.makedirs(editing_out_dir, exist_ok=True)
     os.makedirs(snp_out_dir, exist_ok=True)
 
+    # process the files
     processed_annotation_gtf = process_gtf(annotation_gtf, gtf_out_path)
-    editing_A_I_path, _ = process_editing_DB(editing_DB_path, editing_out_dir, fasta_path, processed_annotation_gtf)
-    process_snp(snp_DB_path, snp_out_dir, editing_A_I_path, processed_annotation_gtf)
+    if editing_DB_path:
+        editing_A_I_path, _ = process_editing_DB(editing_DB_path, editing_out_dir, fasta_path, processed_annotation_gtf)
+    if snp_DB_path:
+        process_snp(snp_DB_path, snp_out_dir, editing_A_I_path, processed_annotation_gtf)
 
 
 def parse_arguments(arguments=None):
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('out_dir')
-    parser.add_argument('fasta_path')
-    parser.add_argument('editing_DB_path')
-    parser.add_argument('snp_DB_path')
-    parser.add_argument('annotation_gtf')
+    # positional arguments
+    parser.add_argument('out_dir', type=sc_rna_variants.utils.assert_is_directory, help='folder for output files')
+    parser.add_argument('annotation_gtf', type=sc_rna_variants.utils.assert_is_file, help='path to annotation gtf file')
+
+    # optional arguments
+    parser.add_argument('--editing_DB_path', help='path to editing database file')
+    parser.add_argument('--fasta_path', help='needed if editing_DB_path is used. path to genome fasta file')
+    parser.add_argument('--snp_DB_path', help='path to SNP database file')
 
     return parser.parse_args(arguments)
 
