@@ -36,7 +36,7 @@ def plot_cb_occurences_hist(df_orig, df_filtered, fig_path, sname, is_snp):
         bins = np.histogram(np.hstack((cb_counts_snp, cb_counts_all)), bins=bins)[1]
         plot_histogram(axs, cb_counts_all, bins, sname)
         plot_histogram(axs, cb_counts_snp, bins, f'SNP cell bacodes - {sname}', alpha=0.5)
-        plt.legend(['all_cells', 'SNP_cells'])
+        plt.legend(['all_positions', 'SNP_positions'])
 
     else:
         fig, axs = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
@@ -194,6 +194,36 @@ def plot_heatmap_mutation_per_base(df_merged_open, df_merged_filtered, out_folde
     make_mutation_barplot(count_matrices, BASES, out_folder)
 
 
+def plot_heatmap_mutation_a_base(df_merged, df_merged_filtered, output_dir, sname):
+    bases = ['a', 'c', 'g', 't']
+    umi_cols = ['same multi reads', 'transition multi reads', 'reverse multi reads', 'transvertion multi reads',
+                'same single reads', 'transition single reads', 'reverse single reads', 'transvertion single reads']
+
+    # create matrix with counts of mutations observed
+    count_matrices = make_counts_matrix(df_merged, df_merged_filtered, bases, umi_cols)
+
+    # plot only A base mutations data
+    plt.clf()
+    all_a_mutations_mat = np.zeros((4, 5))
+    for i, count_matrix_set in enumerate(count_matrices):
+        a_mut_data = count_matrix_set[0][0, :]
+        all_a_mutations_mat[i, :] = a_mut_data
+
+    vmin, vmax = np.floor(np.log10(all_a_mutations_mat.min())), np.floor(np.log10(all_a_mutations_mat.max()))
+    s = sns.heatmap(np.log10(all_a_mutations_mat), linewidth=0.5, annot=np.array(all_a_mutations_mat),
+                    cbar_kws={'label': 'log 10'}, cmap='brg', vmin=vmin, vmax=vmax,
+                    xticklabels=['same_all', 'same_mut', 'transition', 'reverse', 'transversion'],
+                    yticklabels=['a_single_reads', 'a_multi_reads', 'a_single_reads_filtered',
+                                 'a_multi_reads_filtered'])
+    s.set_yticklabels(s.get_yticklabels(), rotation=360)
+    s.set_xticklabels(s.get_xticklabels(), rotation=30, ha='right')
+    plt.title("Counts of mutations 'A' reference base - {}".format(sname))
+    plt.ylabel("data type")
+    plt.xlabel("mutation")
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "5.heatmap_A_mutations.png"), bbox_inches='tight')
+
 
 def plot_cb_count_overall(df_merged_agg, df_merged_agg_filtered, out_folder, sname):
     """plot count of all CB overall occurences (no unique) per unique postion"""
@@ -224,8 +254,7 @@ def plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, out_folder
         bins = [2 ** n for n in list(range(0, ceil(np.log2(max(cb_counts))) + 1))]
         arr = ax.hist(cb_counts.values, bins=bins, weights=np.ones(len(cb_counts.values)) / len(cb_counts.values))
         ax.set_title(title)
-        ax.set_ylabel("count of positions%")
-        ax.set_xlabel("number of different Cell Barcodes per position")
+        ax.set_ylabel("percentage of positions")
         ax.set_xscale('log', base=2)
         ax.set_ylim([0, 1])
         vals_y = ax.get_yticks()
@@ -241,14 +270,17 @@ def plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, out_folder
     for i, df_tuple in enumerate(zip([df_merged_agg, df_merged_agg_filtered], ['Before filtering', 'After filtering'])):
         df, sub_title = df_tuple[0], df_tuple[1]
         cb_counts = df['count of mutated cell barcodes']
-        name = "5.cb_count_per_position"
+        figname = "5.mutated_cell_barcodes_covering_mismatch_positions.png"
+        plt.suptitle("mutated cell barcodes covering mismatch positions - {}".format(sname))  # "mutated cell barcodes covering mismatch positions - {}"
+        axs[i].set_xlabel("number of mutated cell barcodes covering position")  # for mutated
         if with_unmut:
             unmutated_cb_counts = df['count of unmutated cell barcodes']  # unmutated counts
             cb_counts = cb_counts.combine(unmutated_cb_counts, np.add, fill_value=0)  # sum mutated and unmutated counts
-            name = "5.cb_count_per_position_with_unmutated"
+            figname = "5.cell_barcodes_covering_mismatch_positions.png"
+            plt.suptitle("cell barcodes covering mismatch positions - {}".format(sname))  # "cell barcodes covering mismatch positions - {}"
+            axs[i].set_xlabel("number of cell barcodes covering position")  # for unmutated
         make_plot(axs[i], cb_counts, sub_title)
-    plt.suptitle("CB counts per positions - {}".format(sname))
-    plt.savefig(os.path.join(out_folder, name + ".png"), bbox_inches='tight')
+    plt.savefig(os.path.join(out_folder, figname), bbox_inches='tight')
 
 
 def non_ref_from_all_cells(df, output_dir):
@@ -451,13 +483,12 @@ def plot_venn2_diagram(subset_list, labels, output_name, title):
     # create legend and align values to the right
     # get the width of your widest label, since every label will need
     # to shift by this amount after we align to the right
-    # plt.legend(handles=h, labels=l, title="counts")
     legend = plt.legend(handles=h, labels=l, title="counts")
     plt.savefig(output_name, facecolor='white')  # needed to activate renderer for next line t.get_window_extent()
     shift = max([t.get_window_extent().width for t in legend.get_texts()])
     for t in legend.get_texts():
        t.set_ha('right')  # ha is alias for horizontalalignment
-       t.set_position((shift, 0))
+       t.set_position((shift - t.get_window_extent().width, 0))
 
     plt.title('{}'.format(title))
     plt.tight_layout()
@@ -492,16 +523,14 @@ def plot_venn3_diagram(subset_list, labels, output_name, title):
     # to shift by this amount after we align to the right
     legend = plt.legend(handles=h, labels=l, title="counts", loc='lower right')  # bbox_to_anchor=(0.95,0.7)
     plt.savefig(output_name, facecolor='white')
-    # plt.savefig(os.path.join(output_dir, '5.venn_diagram_{} - {}.png'.format(labels[0], sname)), facecolor='white')
     shift = max([t.get_window_extent().width for t in legend.get_texts()])
     for t in legend.get_texts():
         t.set_ha('right')  # ha is alias for horizontal alignment
-        t.set_position((shift, 0))
+        t.set_position((shift - t.get_window_extent().width, 0))
 
     plt.title('{}'.format(title))
     plt.tight_layout()
     plt.savefig(output_name, facecolor='white')
-    # plt.savefig(os.path.join(output_dir, '5.venn_diagram_{} - {}.png'.format(labels[0], sname)), facecolor='white')
 
 
 def plot_mutated_CB_hist(df, column_name, output_dir, DB_name, sname):
@@ -518,10 +547,8 @@ def plot_mutated_CB_hist(df, column_name, output_dir, DB_name, sname):
     plt.xscale('log', base=10)
     plt.yscale('log', base=10)
 
-    plt.title("Number of mutated cells in intersection positions between table and {} - {}".format(DB_name, sname),
-              fontsize=10)
     plt.ylabel("number of positions")
-    plt.xlabel("number of mutated cells within position")
+    plt.xlabel("number of mutated cells per {} position".format('SNP' if 'SNP' in DB_name else 'editing'))
     plt.legend(['Intersection positions - not filtered', 'Intersection positions - filtered'])
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, '5.CB_intersections_histogram_{}.png'.format(DB_name)), facecolor='white')
