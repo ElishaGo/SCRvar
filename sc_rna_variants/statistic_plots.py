@@ -448,15 +448,6 @@ def editing_events_vs_number_of_mutated_umis_per_cell(editingsites_per_cb_stats,
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "editing_events_VS_umi_scatter.png"))
 
-# plot_venn2_diagram((10000000,250000,38000), ('SNP DB positions','aligned positions', ''), 'test_venn.png', 'count of positions on gene - SAMPLE')
-# plot_venn2_diagram((1000,250000,3800), ('SNP DB positions','aligned positions', ''), 'test_venn.png', 'count of positions on gene - SAMPLE')
-
-def try_this(subset_list, labels, output_name, title):
-    try:
-        plot_venn2_diagram(subset_list, labels, output_name, title)
-    except RuntimeError:
-        plot_venn2_diagram(subset_list, labels, output_name, title)
-
 
 def plot_venn2_diagram(subset_list, labels, output_name, title):
     """venn2 recieve a list of 2 set object and calculate the intersections automtically.
@@ -488,7 +479,7 @@ def plot_venn2_diagram(subset_list, labels, output_name, title):
     shift = max([t.get_window_extent().width for t in legend.get_texts()])
     for t in legend.get_texts():
        t.set_ha('right')  # ha is alias for horizontalalignment
-       t.set_position((shift - t.get_window_extent().width, 0))
+       t.set_position((shift - t.get_window_extent().width, 0))  # (shift, 0)
 
     plt.title('{}'.format(title))
     plt.tight_layout()

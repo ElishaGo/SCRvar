@@ -1,8 +1,8 @@
+#!/usr/bin/python
 """
 This script process the DB we use in the pipeline: editing_DB from REDI portal, SNP vcf file and gtf genecode.
-This script ideally should be used once, because the pipeline will use the proccessed files for the future analysis.
+This script should be used once per file, because the output will be saved and used in the other steps.
 
-The intersection are made by bedtools intersect, which we assume knows how each file is indexed. In any case -
 zero and one base:
 fasta file don't have numbers for position, thus depend on the tool reading it.
 Bedtools commands uses 'start' with zero-base and 'end' with one-base.
@@ -28,16 +28,14 @@ class BadFileHeaderError(Exception):
     pass
 
 
-def check_editing_DB_header(editing_file_path):
-    with open(editing_file_path) as f:
-        first_line = f.readline()
-    good_header = first_line[0] == '#'
-    return good_header
+def comment_out_header(f_path):
+    """check if file header starts with '#'. otherwise, add it"""
+    os.system(f"head -c 1 {f_path} | grep -q '#' || sed -i '1s/^/#/' {f_path}")
 
 
 def load_and_process_fasta_coordinations(editing_DB_bed, fasta_path, editing_DB_path):
     """
-    find referenes from fasta and return as dataframe.
+    find references from fasta and return as dataframe.
     We get the references from the fasta file by using bedtools getfasta which outputs file in the format:
     '>chr1:87157-87158(+)\n',
     't\n', ...
@@ -72,14 +70,15 @@ def sort_and_reorder(df):
     df = df.sort_values(by=['#chrom', 'chromStart'])
 
     # reorder columns
-    columns_reorder = ['#chrom', 'chromStart', 'chromEnd', 'Ref', 'score', 'strand', 'Ed', 'db', 'type',
-                       'dbsnp', 'repeat',
-                       'Func.wgEncodeGencodeBasicV34', 'Gene.wgEncodeGencodeBasicV34',
-                       'GeneDetail.wgEncodeGencodeBasicV34', 'ExonicFunc.wgEncodeGencodeBasicV34',
-                       'AAChange.wgEncodeGencodeBasicV34', 'Func.refGene', 'Gene.refGene', 'GeneDetail.refGene',
-                       'ExonicFunc.refGene', 'AAChange.refGene', 'Func.knownGene', 'Gene.knownGene',
-                       'GeneDetail.knownGene', 'ExonicFunc.knownGene', 'AAChange.knownGene', 'phastConsElements100way']
-    return df[columns_reorder]
+    # columns_reorder = ['#chrom', 'chromStart', 'chromEnd', 'Ref', 'score', 'strand', 'Ed', 'db', 'type',
+    #                    'dbsnp', 'repeat',
+    #                    'Func.wgEncodeGencodeBasicV34', 'Gene.wgEncodeGencodeBasicV34',
+    #                    'GeneDetail.wgEncodeGencodeBasicV34', 'ExonicFunc.wgEncodeGencodeBasicV34',
+    #                    'AAChange.wgEncodeGencodeBasicV34', 'Func.refGene', 'Gene.refGene', 'GeneDetail.refGene',
+    #                    'ExonicFunc.refGene', 'AAChange.refGene', 'Func.knownGene', 'Gene.knownGene',
+    #                    'GeneDetail.knownGene', 'ExonicFunc.knownGene', 'AAChange.knownGene', 'phastConsElements100way']
+    # df = df[columns_reorder]
+    return df
 
 
 def merge_DB_and_fasta_by_coor(editing_DB, fasta_coor):
@@ -88,6 +87,7 @@ def merge_DB_and_fasta_by_coor(editing_DB, fasta_coor):
 
 
 def split_editing_by_A_reference(editing_DB_bed, fasta_path, editing_DB_path):
+    print("Find only A base references")
     fasta_coordinates_df = load_and_process_fasta_coordinations(editing_DB_bed, fasta_path, editing_DB_path)
 
     fasta_A_I = fasta_coordinates_df[fasta_coordinates_df['Ref'] == 'a']
@@ -104,8 +104,6 @@ def transform_to_bed(editing_DB_df):
     Since the file is downloaded from REDIportal, and has only one coordinate, it is one-bases. Thus we will use the
     given coordinate as the 'chromEnd' position when we convert the file to bed format, and we add manually the
     'chromStart' column
-    :param editing_DB_df:
-    :return:
     """
     # add start coordinate
     editing_DB_df['chromStart'] = editing_DB_df['chromEnd'] - 1
@@ -127,7 +125,7 @@ def transform_to_bed(editing_DB_df):
 
 def bedtools_intersect_u_flag(a_path, b_path, output_path):
     with open(output_path, "w") as outfile:
-        subprocess.run(['bedtools', 'intersect', '-u', '-header', '-a', a_path, '-b', b_path], stdout=outfile)
+        subprocess.run(['bedtools', 'intersect', '-u', '-sorted', '-header', '-a', a_path, '-b', b_path], stdout=outfile)
 
 
 def bedtools_sort(to_sort, f_sorted):
@@ -142,16 +140,15 @@ def bedtools_sort(to_sort, f_sorted):
 
 
 def add_chr_to_vcf(snp_DB_path, f_with_chr):
+    """add 'chr' to chromosome notations and sort file"""
     with open(f_with_chr, "w") as outfile:
         subprocess.run(['awk', '{if($0 !~ /^#/) print "chr"$0; else print $0}', snp_DB_path], stdout=outfile)
 
 
 def process_editing_DB(editing_DB_path, output_dir, fasta_path, annotation_gtf):
     # TODO: what input should we expect?
-    # TODO: check how to change the header on the fly
-    good_header = check_editing_DB_header(editing_DB_path)
-    if not good_header:
-        raise BadFileHeaderError(f"Need to add '#' to the beginning of the header in file {editing_DB_path}")
+    print("processing editing DB file")
+    comment_out_header(editing_DB_path)
 
     editing_DB_df = sc_rna_variants.analysis_utils.load_df(editing_DB_path)
 
@@ -203,6 +200,7 @@ def snp_DB_intersections(snp_DB_path, out_dir, editing_DB_path, annotation_gtf):
 
 
 def process_gtf(orig_annotation_gtf, out_dir):
+    print("processing genecode DB file")
     out_path = os.path.join(out_dir, "0." + os.path.basename(orig_annotation_gtf))
     bedtools_sort(orig_annotation_gtf, out_path)
     return out_path
@@ -216,6 +214,7 @@ def sort_and_replace(to_sort):
 
 
 def process_snp(snp_DB_path, snp_out_dir, editing_A_I_path, processed_annotation_gtf):
+    print("processing SNP DB file")
     temp_snp_with_chr = snp_DB_path.replace(os.path.basename(snp_DB_path), "temp_" + os.path.basename(snp_DB_path))
     add_chr_to_vcf(snp_DB_path, temp_snp_with_chr)
     snp_A_output, snp_gtf_output, snp_A_gtf_output = snp_DB_intersections(temp_snp_with_chr, snp_out_dir,

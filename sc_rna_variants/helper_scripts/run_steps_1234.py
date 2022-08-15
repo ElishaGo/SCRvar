@@ -1,6 +1,6 @@
+#!/usr/bin/python
 """
-This script creates a text file in bsub format to run the pipeline on LSF system (like WEXAC),
-and execute it as a bsub command
+Script to run steps 1-4 in sequence.
 """
 import os
 import sys
@@ -17,40 +17,32 @@ import sc_rna_variants.utils
 import sc_rna_variants.bio_functions
 import sc_rna_variants.steps_runner
 from sc_rna_variants import config_logging
-
-
-def makedir(dir_path):
-    os.makedirs(dir_path, exist_ok=True)
-    return dir_path
+from pkg_resources import resource_filename
 
 
 def run_steps_1234(args):
     code_dir = str(Path(__file__).parent.parent.parent.absolute()) + os.path.sep
-    logger.info("count number of reads per barcode\n")
+
+    # count number of reads per barcode
+    logger.info("counting number of reads per barcode\n")
     count_reads_exec = f"{code_dir}/sc_rna_variants/count_reads_per_barcode_in_bam.sh {args.input_bam} {args.sample_output_dir} {args.threads} {args.sname}"
     logger.info("running command: " + count_reads_exec)
     # os.system(count_reads_exec)
 
     # step1 - filter bam file
-    step1_output_dir = os.path.join(args.output_folder, 'step1_filtered_bam_files')
+    step1_output_dir = os.path.join(args.sample_output_dir, 'step1_filtered_bam_files')
     logger.info("# STEP 1 - filter bam file by filter list\n")
     os.makedirs(step1_output_dir, exist_ok=True)
-    step1_exec = f"python {code_dir}/scripts/step1_filter_bam.py {args.input_bam} {step1_output_dir} --filtered-barcodes-list {args.filtered_barcodes_list} --threads {args.threads}"
-    # logger.info("running command: " + step1_exec)
-    # os.system(step1_exec)
-    sc_rna_variants.steps_runner.run_step1(args.input_bam, args.filtered_barcodes_list,
-              args.min_mapq, args.cigar_clipping_allowed,
-              args.max_gene_length, args.max_no_basecall,
-              args.tag_for_umi, args.tag_for_cell_barcode,
-              step1_output_dir, args.threads)
-    
-    # get path to filtered bam file
-    filtered_bam_path = str(
-        os.path.join(args.sample_output_dir, step1_output_dir,
-                     "1." + os.path.basename(args.input_bam).replace(".bam", '') + "_filtered.bam"))
+    step1_string = f"python {code_dir}/scripts/step1_filter_bam.py {args.input_bam} {step1_output_dir} --filtered-barcodes-list {args.filtered_barcodes_list} --threads {args.threads}"
+    logger.info("running step 1 command: " + step1_string)
+    filtered_bam_path = sc_rna_variants.steps_runner.run_step1(args.input_bam, args.filtered_barcodes_list,
+                                                               args.min_mapq, args.cigar_clipping_allowed,
+                                                               args.max_gene_length, args.max_no_basecall,
+                                                               args.tag_for_umi, args.tag_for_cell_barcode,
+                                                               step1_output_dir, args.threads)
 
     # step 2 - keep only reads from genes with htseq
-    step2_output_dir = os.path.join(args.output_folder, 'step2_bam_gene_filter')
+    step2_output_dir = os.path.join(args.sample_output_dir, 'step2_bam_gene_filter')
     editing_gtf_bam_intersect = None
     snp_gtf_bam_intersect = None
     if args.editing_db_path:
@@ -58,38 +50,40 @@ def run_steps_1234(args):
     if args.snp_db_path:
         snp_gtf_bam_intersect = os.path.join(step2_output_dir, f'2.snp.genecode.{args.sname}_intersect.vcf')
     logger.info("STEP 2 - bam genes filter\n")
-    step2_exec = f"sh {code_dir}/scripts/step2_bam_gene_filter.sh {filtered_bam_path} {step2_output_dir} {args.annotation_gtf} {args.editing_db_path} {args.snp_db_path} {editing_gtf_bam_intersect} {snp_gtf_bam_intersect} {args.sname} {args.threads}"
     os.makedirs(step2_output_dir, exist_ok=True)
-    logger.info("running command: " + step2_exec)
-    subprocess.run([step2_exec])
+    step2_file = resource_filename('sc_rna_variants', 'step2_bam_gene_filter.sh')
+    sc_rna_variants.steps_runner.run_step2(step2_file, filtered_bam_path, step2_output_dir, args.annotation_gtf, args.editing_db_path, args.snp_db_path, editing_gtf_bam_intersect, snp_gtf_bam_intersect, args.sname, args.threads)
 
     # step 3 - create mismatch dictionary
-    step3_output_dir = os.path.join(args.output_folder, 'step3_mismatch_dictionary')
+    step3_output_dir = os.path.join(args.sample_output_dir, 'step3_mismatch_dictionary')
     logger.info("STEP 3 - create mismatch dictionary\n")
     os.makedirs(step3_output_dir, exist_ok=True)
-    step3_exec = f"python {code_dir}/scripts/step3_mismatch_dictionary.py {step2_output_dir}/2.{args.sname}.gene_filter.bam {args.genome_fasta} {step3_output_dir} --threads {args.threads}"
-    logger.info("running command: " + step3_exec)
-    # subprocess.run([step3_exec])
-    sc_rna_variants.steps_runner.run_step3(args.input_bam, args.genome_fasta, args.tag_for_umi, args.tag_for_cell_barcode, step3_output_dir, args.threads)
+    step3_string = f"python {code_dir}/scripts/step3_mismatch_dictionary.py {step2_output_dir}/2.{args.sname}.gene_filter.bam {args.genome_fasta} {step3_output_dir} --threads {args.threads}"
+    logger.info("running step3 command: " + step3_string)
+    sc_rna_variants.steps_runner.run_step3(f"{step2_output_dir}/2.{args.sname}.gene_filter.bam", args.genome_fasta,
+                                           args.tag_for_umi, args.tag_for_cell_barcode, step3_output_dir, args.threads)
 
     # step 4 - Aggregation per position + statistics
-    step4_output_dir = os.path.join(args.output_folder, 'step4_aggregation_per_position_and_statistics')
+    step4_output_dir = os.path.join(args.sample_output_dir, 'step4_aggregation_per_position_and_statistics')
     logger.info('STEP 4 - aggregation per position + statistics\n')
     os.makedirs(step4_output_dir, exist_ok=True)
-    step4_exec = f"python {code_dir}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} {editing_gtf_bam_intersect} {snp_gtf_bam_intersect} {args.annotation_gtf} --sname {args.sname}"
-    logger.info("running command: " + step4_exec)
-    # subprocess.run([step4_exec])
-    sc_rna_variants.steps_runner.run_step4(args.input_dir, step4_output_dir, args.annotation_gtf, args.snp_db_path, args.editing_db_path)
+    step4_string = f"python {code_dir}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} {args.annotation_gtf} {editing_gtf_bam_intersect} {snp_gtf_bam_intersect} --sname {args.sname}"
+    logger.info("running step 4 command: " + step4_string)
+    sc_rna_variants.steps_runner.run_step4(step3_output_dir, step4_output_dir, args.annotation_gtf, snp_gtf_bam_intersect,
+                                           editing_gtf_bam_intersect)
+
 
 #########################################################################################################
 def parse_arguments(arguments=None):
     parser = argparse.ArgumentParser(description="""A script to set parameter to a bsub file and send to bsub""", )
 
     # positional arguments
-    parser.add_argument('sample_output_dir', type=sc_rna_variants.utils.assert_is_directory, help='directory to programs outputs')
+    parser.add_argument('sample_output_dir', type=sc_rna_variants.utils.assert_is_directory,
+                        help='directory to programs outputs')
     parser.add_argument('input_bam', type=sc_rna_variants.utils.assert_is_file, help='input bam file')
     parser.add_argument('genome_fasta', type=sc_rna_variants.utils.assert_is_file, help='genome reference')
-    parser.add_argument('annotation_gtf', type=sc_rna_variants.utils.assert_is_file, help='genecode annotation file (gtf format)')
+    parser.add_argument('annotation_gtf', type=sc_rna_variants.utils.assert_is_file,
+                        help='genecode annotation file (gtf format)')
 
     # optional arguments
     parser.add_argument('--filtered-barcodes-list',
@@ -128,14 +122,13 @@ def parse_arguments(arguments=None):
 
     parser.add_argument('--threads', type=int, default=1, help='Number of cores to use')
 
-    parser.add_argument('--sname', default='', help='sample name to add to outputs')
+    parser.add_argument('--sname', default='SAMPLE', help='sample name')
 
     return parser.parse_args(arguments)
 
 
 if __name__ == '__main__':
     startTime = datetime.now()
-    os.path.dirname(os.path.realpath(__file__))
     args = parse_arguments()
 
     # initialize logger

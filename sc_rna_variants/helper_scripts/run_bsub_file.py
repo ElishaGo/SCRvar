@@ -87,7 +87,7 @@ def write_pipelines_scripts_execution_commands(f, args):
     f.write('# STEP 4 - aggregation per position + statistics\n')
     f.write(f"mkdir {step4_output_dir}\n")
     f.write(
-        f"python {code_dir}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} {editing_gtf_bam_intersect} {snp_gtf_bam_intersect} {args.annotation_gtf} --sname {args.sname}\n\n")
+        f"python {code_dir}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} {args.annotation_gtf} {editing_gtf_bam_intersect} {snp_gtf_bam_intersect} --sname {args.sname}\n\n")
 
     # step 5 - filtering positions and SNP/editing DB intersections
     step5_output_dir = 'step5_filtering_and_DB_intersections_effects'

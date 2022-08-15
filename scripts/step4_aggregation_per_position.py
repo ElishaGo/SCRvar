@@ -55,7 +55,7 @@ if __name__ == '__main__':
         ['%s: %s' % (key, value) for key, value in vars(args).items()]))
 
     # run statistics analysis
-    sc_rna_variants.steps_runner.run_step4(args.input_dir, args.output_dir, args.annotation_gtf, args.snp_db_path, args.editing_db_path)
+    sc_rna_variants.steps_runner.run_step4(args.input_dir, args.output_dir, args.annotation_gtf, args.editing_db_path, args.snp_db_path)
 
     print(datetime.now() - startTime)
     logger.info('Step 4 finished')

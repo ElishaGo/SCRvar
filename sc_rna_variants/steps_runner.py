@@ -27,12 +27,17 @@ def run_step1(input_bam, filtered_barcodes_list, min_mapq, cigar_clipping_allowe
     return filtered_bam_path
 
 
+def run_step2(script_path, filtered_bam_path, output_dir, annotation_gtf, editing_gtf_intersect,  snp_gtf_intersect, editing_gtf_bam_intersect, snp_gtf_bam_intersect, sname, threads):
+    step2_string = f"sh {script_path} {filtered_bam_path} {output_dir} {annotation_gtf} {editing_gtf_intersect} {snp_gtf_intersect} {editing_gtf_bam_intersect} {snp_gtf_bam_intersect} {sname} {threads}"
+    os.system(step2_string)
+
+
 def run_step3(input_bam, genome_fasta, tag_for_umi, tag_for_cell_barcode, output_folder, threads):
     logger.info('starting to accumulate reads data')
     sc_rna_variants.bio_functions.variants_finder(input_bam, genome_fasta, tag_for_umi, tag_for_cell_barcode, output_folder, threads)
 
 
-def run_step4(input_dir, output_dir, annotation_gtf, snp_db_path, editing_db_path):
+def run_step4(input_dir, output_dir, annotation_gtf, editing_db_path, snp_db_path):
     # load the mutated and unmutated data frames
     df_mutated = sc_rna_variants.analysis_utils.load_tables(os.path.join(input_dir, "3.mismatch_dictionary.bed"), mutated=True)
     df_unmutated = sc_rna_variants.analysis_utils.load_tables(os.path.join(input_dir, "3.no_mismatch_dictionary.bed"), mutated=False)

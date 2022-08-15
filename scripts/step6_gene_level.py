@@ -125,6 +125,7 @@ def drop_editing_and_snp_overlap(df):
 
 def add_clusters(df_open, clusters_path):
     """helper function to add clusters notations to open table"""
+    # TODO: dont use pandas to read the file. check how the filter barcodes file is read
     cb_clusters = pd.read_csv(clusters_path, sep='\t', names=['cell barcode', 'cluster'])
     cb_clusters['cluster'] = cb_clusters.apply(lambda x: 'c' + str(x['cluster']), axis=1)
     cb_clusters['cluster cell barcode'] = cb_clusters.apply(lambda x: x['cluster'] + '_' + x['cell barcode'], axis=1)

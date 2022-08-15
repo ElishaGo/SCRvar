@@ -58,4 +58,4 @@ LOGFILE=${OUTPUT_DIR}/step2.log
 
     echo end_of_log_file 1>&2
 
-) >& $LOGFILE
+) #> $LOGFILE 2>&1 &

@@ -100,7 +100,7 @@ def run_snp_edit_DB_intersections(df_agg_intersect, df_agg_intrsct_filtered, df_
                             fig_path=os.path.join(output_folder, "5.cb_distribution_snp.png"), sname=sname, is_snp=True)
 
 def get_open_table(dir_path):
-    dir3_outputs = os.path.join(os.path.dirname(dir_path), 'step3_mismatch_dictionary')
+    dir3_outputs = os.path.join(str(Path(dir_path).parent), 'step3_mismatch_dictionary')
     df_mut_open = load_tables(os.path.join(dir3_outputs, '3.mismatch_dictionary.bed'), mutated=True)
     df_unmutated = load_tables(os.path.join(dir3_outputs, '3.no_mismatch_dictionary.bed'),mutated=False)
     df_merged_open = merge_dfs(df_mut_open, df_unmutated)
@@ -169,8 +169,8 @@ if __name__ == '__main__':
     sc_rna_variants.config_logging(args.log_file)
     logger = logging.getLogger("positions_filtering_and_plots")
     logger.info('positions_filtering_and_plots started')
-    # logger.debug('Running with parameters:\n%s' % '\n'.join(
-    #     ['%s: %s' % (key, value) for key, value in vars(args).items()]))
+    logger.debug('Running with parameters:\n%s' % '\n'.join(
+        ['%s: %s' % (key, value) for key, value in vars(args).items()]))
 
     # run filtering and create plots
     run_step5(args.input_dir, args.output_dir, args.min_cb_per_pos, args.min_mutation_umis, args.min_total_umis,
