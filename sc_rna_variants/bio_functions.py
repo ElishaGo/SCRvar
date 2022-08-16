@@ -190,7 +190,7 @@ def divide_chromosome_by_reads(bam_input, max_reads=100000):
     while len(initial_chunks) > 0:
         chunk = initial_chunks.pop()
         read_count = bam_input.count(*chunk)
-        if read_count < max_reads or (chunk[2] - chunk[1]) < 500:
+        if read_count < max_reads or (chunk[2] - chunk[1]) < 200:
             # if we have a good amount of reads, or if we are looking at a small enough segment (super-expressed gene)
             good_size_chunks.add((*chunk, read_count))
         else:
@@ -554,11 +554,12 @@ def variants_finder(filtered_bam, genome_fasta, tag_for_umi, tag_for_cell_barcod
     bamfile = open_bam(filtered_bam, threads)
     logger.debug("Starting to divide the genome to equaly covered segments, this might take a while")
     # Chunk tuple structure: (chromosoms name, start position, end position, read_count)
-    chunks_set = divide_chromosome_by_reads(bamfile, max_reads=200000)
+    chunks_set = divide_chromosome_by_reads(bamfile)
     bamfile.close()
 
     # assert only chromosomes that appear in the FASTA file are taken
-    chunks_set = {chunk for chunk in chunks_set if names_translator.translate_chromosome_name(chunk[0])}
+    chunks_set = [chunk for chunk in chunks_set if (
+            names_translator.translate_chromosome_name(chunk[0]) and chunk[3] > 0)]
 
     logger.debug("Genome was devided into %d segments" % len(chunks_set))
 
@@ -595,7 +596,14 @@ def variants_finder(filtered_bam, genome_fasta, tag_for_umi, tag_for_cell_barcod
         asyncs.append(result)
 
     for i in range(len(asyncs)):
-        asyncs[i].get()
+        try:
+            asyncs[i].get(timeout=900)  # 15 min wait for thread
+        except multiprocessing.TimeoutError as e:
+            msg = "\nTimeoutError in thread processing bam. try to decrease amount of threads. failed on chunk %s" % chunks_set[i]
+            logger.critical(msg)
+            raise multiprocessing.TimeoutError(msg)
+
+
         if (i) % 10 == 0:
             logger.debug("completed %d chunks out of %d" % (i + 1, len(asyncs)))
     pool.close()

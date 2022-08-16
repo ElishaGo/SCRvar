@@ -28,7 +28,7 @@ def run_step1(input_bam, filtered_barcodes_list, min_mapq, cigar_clipping_allowe
 
 
 def run_step2(script_path, filtered_bam_path, output_dir, annotation_gtf, editing_gtf_intersect,  snp_gtf_intersect, editing_gtf_bam_intersect, snp_gtf_bam_intersect, sname, threads):
-    step2_string = f"sh {script_path} {filtered_bam_path} {output_dir} {annotation_gtf} {editing_gtf_intersect} {snp_gtf_intersect} {editing_gtf_bam_intersect} {snp_gtf_bam_intersect} {sname} {threads}"
+    step2_string = f"bash {script_path} {filtered_bam_path} {output_dir} {annotation_gtf} {editing_gtf_intersect} {snp_gtf_intersect} {editing_gtf_bam_intersect} {snp_gtf_bam_intersect} {sname} {threads}"
     os.system(step2_string)
 
 
