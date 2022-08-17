@@ -114,7 +114,7 @@ def open_bam(input_bam, available_threads=1):
     returns pysam.libcalignmentfile.AlignmentFile
     """
     try:
-        bamfile = pysam.AlignmentFile(input_bam, "rb", threads=available_threads)
+        bamfile = pysam.AlignmentFile(input_bam, "rb")
 
         if bamfile.header['HD']['SO'] != "coordinate":
             msg = "BAM is not sorted by coordinate (missing SO:coordinate from header)"
@@ -183,7 +183,7 @@ def divide_chromosome_by_reads(bam_input, max_reads=100000):
             (chromosoms name, start position, end position, read_count)
     """
     assert max_reads > 5000
-    initial_chunks = divide_chromosome_chunks(bam_input, 200000000)
+    initial_chunks = divide_chromosome_chunks(bam_input)
 
     good_size_chunks = set()
     counter = 0
@@ -579,14 +579,14 @@ def variants_finder(filtered_bam, genome_fasta, tag_for_umi, tag_for_cell_barcod
     for chunk in chunks_set:
         filtered_chunk_tsv_path = pathlib.Path(output_folder) / names.pop()
         temporary_tsvs_paths.append(str(filtered_chunk_tsv_path))
-        ######## DEBUGGING
+        ####### DEBUGGING
         # process_chromosome_chunk(
         #         filtered_bam, chunk,
         #         names_translator.translate_chromosome_name(chunk[0]),
         #         genome_fasta, tag_for_umi,
         #         tag_for_cell_barcode, filtered_chunk_tsv_path
         #         )
-        #######
+        ######
         result = pool.apply_async(func=process_chromosome_chunk, args=(
             filtered_bam, chunk,
             names_translator.translate_chromosome_name(chunk[0]),
@@ -599,7 +599,7 @@ def variants_finder(filtered_bam, genome_fasta, tag_for_umi, tag_for_cell_barcod
         try:
             asyncs[i].get(timeout=900)  # 15 min wait for thread
         except multiprocessing.TimeoutError as e:
-            msg = "\nTimeoutError in thread processing bam. try to decrease amount of threads. failed on chunk %s" % chunks_set[i]
+            msg = "\nTimeoutError in thread processing bam. try to decrease amount of threads. failed on chunk: %s" % ' '.join([str(s) for s in chunks_set[i]])
             logger.critical(msg)
             raise multiprocessing.TimeoutError(msg)
 
