@@ -24,16 +24,16 @@ def run_steps_1234(args):
     code_dir = str(Path(__file__).parent.parent.parent.absolute()) + os.path.sep
 
     # count number of reads per barcode
-    logger.info("counting number of reads per barcode\n")
-    count_reads_exec = f"{code_dir}/sc_rna_variants/count_reads_per_barcode_in_bam.sh {args.input_bam} {args.sample_output_dir} {args.threads} {args.sname}"
-    logger.info("running command: " + count_reads_exec)
-    # os.system(count_reads_exec)
+    # logger.info("counting number of reads per barcode\n")
+    # count_reads_exec = f"{code_dir}/sc_rna_variants/count_reads_per_barcode_in_bam.sh {args.input_bam} {args.sample_output_dir} {args.threads} {args.sname}"
+    # logger.info("running command: " + count_reads_exec)
+    # os.system(f"samtools view -@ {args.threads} {args.input_bam} | grep NH:i:1 | sed 's/.*CB:Z:\([ACGT]*\).*/\1/' | sort --parallel {args.threads}| uniq -c > {args.sample_output_dir}/raw_bam_reads_per_barcode_count.{args.sname}.csv")
 
     # step1 - filter bam file
     step1_output_dir = os.path.join(args.sample_output_dir, 'step1_filtered_bam_files')
     logger.info("# STEP 1 - filter bam file by filter list\n")
     os.makedirs(step1_output_dir, exist_ok=True)
-    step1_string = f"python {code_dir}/scripts/step1_filter_bam.py {args.input_bam} {step1_output_dir} --filtered-barcodes-list {args.filtered_barcodes_list} --threads {args.threads}"
+    step1_string = f"python {code_dir}/scripts/step1_filter_bam.py {args.input_bam} {step1_output_dir} --barcodes-cluster-file {args.barcodes_cluster_file} --threads {args.threads}"
     logger.info("running step 1 command: " + step1_string)
     filtered_bam_path = sc_rna_variants.steps_runner.run_step1(args.input_bam, args.filtered_barcodes_list,
                                                                args.min_mapq, args.cigar_clipping_allowed,
@@ -69,8 +69,7 @@ def run_steps_1234(args):
     os.makedirs(step4_output_dir, exist_ok=True)
     step4_string = f"python {code_dir}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} {args.annotation_gtf} {editing_gtf_bam_intersect} {snp_gtf_bam_intersect} --sname {args.sname}"
     logger.info("running step 4 command: " + step4_string)
-    sc_rna_variants.steps_runner.run_step4(step3_output_dir, step4_output_dir, args.annotation_gtf, snp_gtf_bam_intersect,
-                                           editing_gtf_bam_intersect)
+    sc_rna_variants.steps_runner.run_step4(step3_output_dir, step4_output_dir, args.annotation_gtf, editing_gtf_bam_intersect, snp_gtf_bam_intersect)
 
 
 #########################################################################################################
@@ -86,7 +85,7 @@ def parse_arguments(arguments=None):
                         help='genecode annotation file (gtf format)')
 
     # optional arguments
-    parser.add_argument('--filtered-barcodes-list',
+    parser.add_argument('--barcodes-cluster-file',
                         type=sc_rna_variants.utils.filtered_barcodes_processing,
                         # returns a set with the barcodes names
                         help='''Text/tsv file with a list of cell barcodes as first column. Counts only these cells. Please note GEM-well numbers are ignored''')
@@ -136,7 +135,7 @@ if __name__ == '__main__':
     logger = logging.getLogger("positions_filtering_and_plots")
     logger.info('positions_filtering_and_plots started')
     logger.debug('Running with parameters:\n%s' % '\n'.join(
-        ['%s: %s' % (key, value) for key, value in vars(args).items() if key != 'filtered_barcodes_list'])
+        ['%s: %s' % (key, value) for key, value in vars(args).items() if key != 'barcodes_cluster_file'])
                  )
 
     run_steps_1234(args)

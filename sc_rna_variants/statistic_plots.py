@@ -355,7 +355,6 @@ def make_clusters_heatmap(df, name, output_dir, chr_genes_pairs):
     # define clusters and set color map for rows
     clusters = df.index.map(lambda x: x.split('_')[0])  # use Seurat clusters - when rows are cells
     #     clusters = df_temp.index # use Seurat clusters - when rows are clusters
-    print("number of colors on X axis:", clusters.nunique())
     gist_rainbow = cm.get_cmap('tab20c', clusters.nunique())
     clsters_lut = dict(zip(clusters.unique(), gist_rainbow(np.linspace(0, 1, clusters.nunique()))))
     cluster_colors = clusters.map(clsters_lut)

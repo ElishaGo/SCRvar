@@ -51,11 +51,11 @@ def write_pipelines_scripts_execution_commands(f, args):
         f"#{code_dir}/sc_rna_variants/count_reads_per_barcode_in_bam.sh {args.input_bam} {args.sample_output_dir} {args.threads} {args.sname}\n\n")
 
     # step1 - filter bam file
-    step1_output_dir = 'step1_filtered_input_bams'
+    step1_output_dir = 'step1_filtered_bam_files'
     f.write("# STEP 1 - filter bam file by filter list\n")
     f.write(f"mkdir {step1_output_dir}\n")
     f.write(
-        f"python {code_dir}/scripts/step1_filter_bam.py {args.input_bam} {step1_output_dir} --filtered-barcodes-list {args.filtered_barcodes_list} --threads {args.threads}\n\n")
+        f"python {code_dir}/scripts/step1_filter_bam.py {args.input_bam} {step1_output_dir} --barcodes-cluster-file {args.barcodes_cluster_file} --threads {args.threads}\n\n")
 
     # get path to filtered bam file
     filtered_bam_path = str(
@@ -98,7 +98,7 @@ def write_pipelines_scripts_execution_commands(f, args):
 
     # step 6 - gene level analysis
     step6_output_dir = 'step6_gene_level'
-    if args.barcode_clusters:
+    if args.barcodes_cluster_file:
         barcode_clusters = f"--barcode_clusters {args.barcode_clusters}"
     f.write('# STEP 6 - gene level\n')
     f.write(f"mkdir {step6_output_dir}\n")
@@ -137,7 +137,7 @@ def parse_arguments(arguments=None):
                         help='gtf annotation file to find gene sites')
 
     # optional arguments
-    parser.add_argument('--filtered_barcodes_list', help='List of cell barcodes to use in format as in  the bam file')
+    parser.add_argument('--barcodes-cluster-file', help='List of cell barcodes to use in format as in  the bam file')
 
     parser.add_argument('--editing_db_path', help='Editing sites data base in bed format'
                         # , '/home/labs/bioservices/shared/rarevar/data/DataBases/editing/0.editing_A_I.genecode_intersect.bed'
@@ -146,9 +146,6 @@ def parse_arguments(arguments=None):
     parser.add_argument('--snp_db_path', help='Known SNP sites data base in vcf format'
                         # , '/home/labs/bioservices/shared/rarevar/data/DataBases/snp_vcf/0.snp.gencode_intersect.vcf'
                         )
-
-    # TODO merge this with barcode list
-    parser.add_argument('--barcode_clusters', help='table with barcodes and associated clusters analysed by Seurat')
 
     parser.add_argument('--sname', default='', help='File name. Will be used in inputs and outputs')
 
