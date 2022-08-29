@@ -475,8 +475,7 @@ def get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_
     # plot not grouped data
     sc_rna_variants.statistic_plots.plot_cb_occurences_hist(df_merged_open, df_merged_filtered, fig_path=os.path.join(output_folder, "5.cb_distribution.png"), sname=sname, is_snp=False)
     sc_rna_variants.statistic_plots.plot_umi_per_reference_base(df_merged_open, df_merged_filtered, output_folder, sname, with_unmut=False, figname="5.umi_per_reference_base")
-    sc_rna_variants.statistic_plots.plot_umi_per_reference_base(df_merged_open, df_merged_filtered, output_folder, sname, with_unmut=True,
-                                figname="5.umi_per_reference_base_with_unmutated")
+    sc_rna_variants.statistic_plots.plot_umi_per_reference_base(df_merged_open, df_merged_filtered, output_folder, sname, with_unmut=True, figname="5.umi_per_reference_base_with_unmutated")
     sc_rna_variants.statistic_plots.plot_heatmap_mutation_per_base(df_merged_open, df_merged_filtered, output_folder, sname)  # use nonmut data
     sc_rna_variants.statistic_plots.plot_heatmap_mutation_a_base(df_merged_agg, df_merged_filtered, output_folder, sname)
 

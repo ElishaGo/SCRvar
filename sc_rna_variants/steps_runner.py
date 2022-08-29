@@ -39,7 +39,7 @@ def run_step3(input_bam, genome_fasta, tag_for_umi, tag_for_cell_barcode, output
                                                   output_folder, threads)
 
 
-def run_step4(input_dir, output_dir, annotation_gtf, editing_db_path, snp_db_path):
+def run_step4(input_dir, output_dir, annotation_gtf, editing_db, snp_db):
     # load the mutated and unmutated data frames
     df_mutated = sc_rna_variants.analysis_utils.load_tables(os.path.join(input_dir, "3.mismatch_dictionary.bed"),
                                                             mutated=True)
@@ -65,14 +65,14 @@ def run_step4(input_dir, output_dir, annotation_gtf, editing_db_path, snp_db_pat
     sc_rna_variants.analysis_utils.save_df(df_merged_agg, output_dir, "4.aggregated_per_position.bed")
 
     # find intersection between df and databases
-    if editing_db_path != None:
-        sc_rna_variants.analysis_utils.add_intersections_with_SNP_and_edit_DB(output_dir, editing_db_path, snp_db_path)
+    if editing_db != None:
+        sc_rna_variants.analysis_utils.add_intersections_with_SNP_and_edit_DB(output_dir, editing_db, snp_db)
 
 
-def run_step5(output_dir, SCvar_aggregated_bed_file, min_cb_per_pos, min_mutation_umis, min_total_umis,
-              min_mutation_rate, snp_db_path, editing_db_path, sname):
+def run_step5(output_dir, SCRvar_aggregated_bed_file, min_cb_per_pos, min_mutation_umis, min_total_umis,
+              min_mutation_rate, snp_db, editing_db, sname):
     # get agg position tables
-    df_merged_agg, df_merged_agg_filtered = sc_rna_variants.analysis_utils.get_df_and_filtered_df(SCvar_aggregated_bed_file, min_cb_per_pos,
+    df_merged_agg, df_merged_agg_filtered = sc_rna_variants.analysis_utils.get_df_and_filtered_df(SCRvar_aggregated_bed_file, min_cb_per_pos,
                                                                    min_mutation_umis, min_total_umis,
                                                                    min_mutation_rate)
 
@@ -87,25 +87,25 @@ def run_step5(output_dir, SCvar_aggregated_bed_file, min_cb_per_pos, min_mutatio
                    df_merged_agg_filtered,
                    output_dir, sname)
 
-    # write statistics to text file
+    # write statistics to text filescvar
     sc_rna_variants.analysis_utils.write_statistics_numbers(df_merged_open, df_merged_open_filtered, output_dir, min_cb_per_pos, min_mutation_umis,
                              min_total_umis, min_mutation_rate)
 
     # make intersections with SNP and edit DB
-    if editing_db_path != None:
+    if editing_db != None:
         logger.info("started to make intersection with Data Bases")
         sc_rna_variants.analysis_utils.run_snp_edit_DB_intersections(df_merged_agg, df_merged_agg_filtered, df_merged_open,
-                                      df_merged_open_filtered, output_dir, snp_db_path, editing_db_path,
+                                      df_merged_open_filtered, output_dir, snp_db, editing_db,
                                       sname)
 
 
-def run_step6(SCvar_aggregated_bed_file, output_dir,
+def run_step6(SCRvar_aggregated_bed_file, output_dir,
               read_per_barcode_raw_bam,
               min_cb_per_pos,
               min_mutation_umis, min_total_umis, min_mutation_rate, reditools_data, annotation_gtf,
               mismatch_dict_bed, barcode_clusters, atacseq_gcoverage_min, atacseq_gfrequency_min,
               sname):
-    df, df_filtered = sc_rna_variants.analysis_utils.get_df_and_filtered_df(SCvar_aggregated_bed_file, min_cb_per_pos, min_mutation_umis,
+    df, df_filtered = sc_rna_variants.analysis_utils.get_df_and_filtered_df(SCRvar_aggregated_bed_file, min_cb_per_pos, min_mutation_umis,
                                              min_total_umis, min_mutation_rate)
     print("shape of mutation table:", df.shape)
     print("shape of mutation table after filtering:", df_filtered.shape)
@@ -141,7 +141,7 @@ def run_step6(SCvar_aggregated_bed_file, output_dir,
         # merge REDItools data to our data
         df_reditools = sc_rna_variants.analysis_utils.get_REDItools_data(reditools_data)
         df_filtered = sc_rna_variants.analysis_utils.merge_REDItools_data(df_filtered, df_reditools)
-        df_filtered = sc_rna_variants.analysis_utils.drop_high_prob_snp(df_filtered, atacseq_gcoverage_min, atacseq_gfrequency_min)
-        df_filtered.to_csv(os.path.join(output_dir, "6_ANALYSIS_with_REDItools_data.bed"), index=False, sep='\t')
-        print(
-            f"shape after filtering position with REDItools genomic information: {df_filtered.shape} gCoverage>={atacseq_gcoverage_min}, gFrequency>={atacseq_gfrequency_min}:")
+        # df_filtered = sc_rna_variants.analysis_utils.drop_high_prob_snp(df_filtered, atacseq_gcoverage_min, atacseq_gfrequency_min)
+        # print(
+        #     f"shape after filtering position with REDItools genomic information: {df_filtered.shape} gCoverage>={atacseq_gcoverage_min}, gFrequency>={atacseq_gfrequency_min}:")
+        df_filtered.to_csv(os.path.join(output_dir, "6.aggregated_per_position.filtered.REDItools.bed"), index=False, sep='\t')

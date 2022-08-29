@@ -21,6 +21,7 @@ from pkg_resources import resource_filename
 
 
 def run_steps_1234(args):
+    # TODO add to the log file the command you used to run steps 1234
     code_dir = str(Path(__file__).parent.parent.parent.absolute()) + os.path.sep
 
     # count number of reads per barcode
@@ -35,7 +36,7 @@ def run_steps_1234(args):
     os.makedirs(step1_output_dir, exist_ok=True)
     step1_string = f"python {code_dir}/scripts/step1_filter_bam.py {args.input_bam} {step1_output_dir} --barcodes-cluster-file {args.barcodes_cluster_file} --threads {args.threads}"
     logger.info("running step 1 command: " + step1_string)
-    filtered_bam_path = sc_rna_variants.steps_runner.run_step1(args.input_bam, args.filtered_barcodes_list,
+    filtered_bam_path = sc_rna_variants.steps_runner.run_step1(args.input_bam, args.barcodes_cluster_file,
                                                                args.min_mapq, args.cigar_clipping_allowed,
                                                                args.max_gene_length, args.max_no_basecall,
                                                                args.tag_for_umi, args.tag_for_cell_barcode,
@@ -45,14 +46,16 @@ def run_steps_1234(args):
     step2_output_dir = os.path.join(args.sample_output_dir, 'step2_bam_gene_filter')
     editing_gtf_bam_intersect = None
     snp_gtf_bam_intersect = None
-    if args.editing_db_path:
+    if args.editing_db:
         editing_gtf_bam_intersect = os.path.join(step2_output_dir, f'2.editing.genecode.{args.sname}_intersect.bed')
-    if args.snp_db_path:
+    if args.snp_db:
         snp_gtf_bam_intersect = os.path.join(step2_output_dir, f'2.snp.genecode.{args.sname}_intersect.vcf')
     logger.info("STEP 2 - bam genes filter\n")
     os.makedirs(step2_output_dir, exist_ok=True)
     step2_file = resource_filename('sc_rna_variants', 'step2_bam_gene_filter.sh')
-    sc_rna_variants.steps_runner.run_step2(step2_file, filtered_bam_path, step2_output_dir, args.annotation_gtf, args.editing_db_path, args.snp_db_path, editing_gtf_bam_intersect, snp_gtf_bam_intersect, args.sname, args.threads)
+    sc_rna_variants.steps_runner.run_step2(step2_file, filtered_bam_path, step2_output_dir, args.annotation_gtf,
+                                           args.editing_db, args.snp_db, editing_gtf_bam_intersect,
+                                           snp_gtf_bam_intersect, args.sname, args.threads)
 
     # step 3 - create mismatch dictionary
     step3_output_dir = os.path.join(args.sample_output_dir, 'step3_mismatch_dictionary')
@@ -69,7 +72,8 @@ def run_steps_1234(args):
     os.makedirs(step4_output_dir, exist_ok=True)
     step4_string = f"python {code_dir}/scripts/step4_aggregation_per_position.py {step3_output_dir} {step4_output_dir} {args.annotation_gtf} {editing_gtf_bam_intersect} {snp_gtf_bam_intersect} --sname {args.sname}"
     logger.info("running step 4 command: " + step4_string)
-    sc_rna_variants.steps_runner.run_step4(step3_output_dir, step4_output_dir, args.annotation_gtf, editing_gtf_bam_intersect, snp_gtf_bam_intersect)
+    sc_rna_variants.steps_runner.run_step4(step3_output_dir, step4_output_dir, args.annotation_gtf,
+                                           editing_gtf_bam_intersect, snp_gtf_bam_intersect)
 
 
 #########################################################################################################
@@ -77,11 +81,11 @@ def parse_arguments(arguments=None):
     parser = argparse.ArgumentParser(description="""A script to set parameter to a bsub file and send to bsub""", )
 
     # positional arguments
-    parser.add_argument('sample_output_dir', type=sc_rna_variants.utils.assert_is_directory,
+    parser.add_argument('sample-output_dir', type=sc_rna_variants.utils.assert_is_directory,
                         help='directory to programs outputs')
-    parser.add_argument('input_bam', type=sc_rna_variants.utils.assert_is_file, help='input bam file')
-    parser.add_argument('genome_fasta', type=sc_rna_variants.utils.assert_is_file, help='genome reference')
-    parser.add_argument('annotation_gtf', type=sc_rna_variants.utils.assert_is_file,
+    parser.add_argument('input-bam', type=sc_rna_variants.utils.assert_is_file, help='input bam file')
+    parser.add_argument('genome-fasta', type=sc_rna_variants.utils.assert_is_file, help='genome reference')
+    parser.add_argument('annotation-gtf', type=sc_rna_variants.utils.assert_is_file,
                         help='genecode annotation file (gtf format)')
 
     # optional arguments
@@ -89,11 +93,11 @@ def parse_arguments(arguments=None):
                         type=sc_rna_variants.utils.filtered_barcodes_processing,
                         # returns a set with the barcodes names
                         help='''Text/tsv file with a list of cell barcodes as first column. Counts only these cells. Please note GEM-well numbers are ignored''')
-    parser.add_argument('--editing_db_path', help='Editing sites data base in bed format'
+    parser.add_argument('--editing-db', help='Editing sites data base in bed format'
                         # , '/home/labs/bioservices/shared/rarevar/data/DataBases/editing/0.editing_A_I.genecode_intersect.bed'
                         )
 
-    parser.add_argument('--snp_db_path', help='Known SNP sites data base in vcf format'
+    parser.add_argument('--snp-db', help='Known SNP sites data base in vcf format'
                         # , '/home/labs/bioservices/shared/rarevar/data/DataBases/snp_vcf/0.snp.gencode_intersect.vcf'
                         )
 

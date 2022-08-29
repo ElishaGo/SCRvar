@@ -33,15 +33,15 @@ def comment_out_header(f_path):
     os.system(f"head -c 1 {f_path} | grep -q '#' || sed -i '1s/^/#/' {f_path}")
 
 
-def load_and_process_fasta_coordinations(editing_DB_bed, fasta_path, editing_DB_path):
+def load_and_process_fasta_coordinations(editing_DB_bed, fasta_path, editing_db):
     """
     find references from fasta and return as dataframe.
     We get the references from the fasta file by using bedtools getfasta which outputs file in the format:
     '>chr1:87157-87158(+)\n',
     't\n', ...
     """
-    temp_ref_path = editing_DB_path[:editing_DB_path.rfind(os.sep)] + '/temp_ref_from_fasta_by_bed_file.txt'
-    temp_editing_bed_path = editing_DB_path[:editing_DB_path.rfind(os.sep)] + '/editing_DB.bed'
+    temp_ref_path = editing_db[:editing_db.rfind(os.sep)] + '/temp_ref_from_fasta_by_bed_file.txt'
+    temp_editing_bed_path = editing_db[:editing_db.rfind(os.sep)] + '/editing_DB.bed'
     if not os.path.isfile(temp_ref_path):
         print("running bedtools getfasta")
         editing_DB_bed.to_csv(temp_editing_bed_path, index=False, sep='\t')
@@ -86,9 +86,9 @@ def merge_DB_and_fasta_by_coor(editing_DB, fasta_coor):
         'index')
 
 
-def split_editing_by_A_reference(editing_DB_bed, fasta_path, editing_DB_path):
+def split_editing_by_A_reference(editing_DB_bed, fasta_path, editing_db):
     print("Find only A base references")
-    fasta_coordinates_df = load_and_process_fasta_coordinations(editing_DB_bed, fasta_path, editing_DB_path)
+    fasta_coordinates_df = load_and_process_fasta_coordinations(editing_DB_bed, fasta_path, editing_db)
 
     fasta_A_I = fasta_coordinates_df[fasta_coordinates_df['Ref'] == 'a']
     fasta_other = fasta_coordinates_df[fasta_coordinates_df['Ref'] != 'a']
@@ -139,22 +139,22 @@ def bedtools_sort(to_sort, f_sorted):
     os.remove(temp)
 
 
-def add_chr_to_vcf(snp_DB_path, f_with_chr):
+def add_chr_to_vcf(snp_db, f_with_chr):
     """add 'chr' to chromosome notations and sort file"""
     with open(f_with_chr, "w") as outfile:
-        subprocess.run(['awk', '{if($0 !~ /^#/) print "chr"$0; else print $0}', snp_DB_path], stdout=outfile)
+        subprocess.run(['awk', '{if($0 !~ /^#/) print "chr"$0; else print $0}', snp_db], stdout=outfile)
 
 
-def process_editing_DB(editing_DB_path, output_dir, fasta_path, annotation_gtf):
+def process_editing_DB(editing_db, output_dir, fasta_path, annotation_gtf):
     # TODO: what input should we expect?
     print("processing editing DB file")
-    comment_out_header(editing_DB_path)
+    comment_out_header(editing_db)
 
-    editing_DB_df = sc_rna_variants.analysis_utils.load_df(editing_DB_path)
+    editing_DB_df = sc_rna_variants.analysis_utils.load_df(editing_db)
 
     editing_DB_bed = transform_to_bed(editing_DB_df)
 
-    editing_A_I, editing_other = split_editing_by_A_reference(editing_DB_bed, fasta_path, editing_DB_path)
+    editing_A_I, editing_other = split_editing_by_A_reference(editing_DB_bed, fasta_path, editing_db)
 
     editing_A_I = sort_and_reorder(editing_A_I)
     editing_other = sort_and_reorder(editing_other)
@@ -173,24 +173,24 @@ def process_editing_DB(editing_DB_path, output_dir, fasta_path, annotation_gtf):
     return editing_A_I_path, editing_other_path
 
 
-def snp_DB_intersections(snp_DB_path, out_dir, editing_DB_path, annotation_gtf):
+def snp_DB_intersections(snp_db, out_dir, editing_db, annotation_gtf):
     """
     make intersection of the SNP DB with the entries in the editing files with reference base 'A', and make another
     intersection with the gencode (transcriptome) file
-    :param snp_DB_path:
-    :param editing_DB_path:
+    :param snp_db:
+    :param editing_db:
     :param annotation_gtf:
     :return:
     """
     # intersect with editing_A_I file
     snp_A_output = os.path.join(out_dir, '0.snp.A_I.vcf')
-    bedtools_intersect_u_flag(a_path=snp_DB_path,
-                              b_path=os.path.join(editing_DB_path[:editing_DB_path.rfind(os.sep)], '0.editing_A_I.bed'),
+    bedtools_intersect_u_flag(a_path=snp_db,
+                              b_path=os.path.join(editing_db[:editing_db.rfind(os.sep)], '0.editing_A_I.bed'),
                               output_path=snp_A_output)
 
     # instersect with gtf file
     snp_gtf_output = os.path.join(out_dir, '0.snp.gencode_intersect.vcf')
-    bedtools_intersect_u_flag(a_path=snp_DB_path, b_path=annotation_gtf, output_path=snp_gtf_output)
+    bedtools_intersect_u_flag(a_path=snp_db, b_path=annotation_gtf, output_path=snp_gtf_output)
 
     # instersect with editing A_I and gtf file
     snp_A_gtf_output = os.path.join(out_dir, '0.snp.A_I.gencode_intersect.vcf')
@@ -213,10 +213,10 @@ def sort_and_replace(to_sort):
     os.rename(f_sorted, f_sorted.replace('temp_', ''))
 
 
-def process_snp(snp_DB_path, snp_out_dir, editing_A_I_path, processed_annotation_gtf):
+def process_snp(snp_db, snp_out_dir, editing_A_I_path, processed_annotation_gtf):
     print("processing SNP DB file")
-    temp_snp_with_chr = snp_DB_path.replace(os.path.basename(snp_DB_path), "temp_" + os.path.basename(snp_DB_path))
-    add_chr_to_vcf(snp_DB_path, temp_snp_with_chr)
+    temp_snp_with_chr = snp_db.replace(os.path.basename(snp_db), "temp_" + os.path.basename(snp_db))
+    add_chr_to_vcf(snp_db, temp_snp_with_chr)
     snp_A_output, snp_gtf_output, snp_A_gtf_output = snp_DB_intersections(temp_snp_with_chr, snp_out_dir,
                                                                           editing_A_I_path,
                                                                           processed_annotation_gtf)
@@ -227,7 +227,7 @@ def process_snp(snp_DB_path, snp_out_dir, editing_A_I_path, processed_annotation
     os.remove(temp_snp_with_chr)
 
 
-def run_step0(out_dir, annotation_gtf, editing_DB_path, fasta_path, snp_DB_path):
+def run_step0(out_dir, annotation_gtf, editing_db, fasta_path, snp_db):
     # make output subdirectories
     out_dir = os.path.join(out_dir, 'data_files_processed')
     gtf_out_path = os.path.join(out_dir, "genecode_gtf")
@@ -240,23 +240,23 @@ def run_step0(out_dir, annotation_gtf, editing_DB_path, fasta_path, snp_DB_path)
 
     # process the files
     processed_annotation_gtf = process_gtf(annotation_gtf, gtf_out_path)
-    if editing_DB_path:
-        editing_A_I_path, _ = process_editing_DB(editing_DB_path, editing_out_dir, fasta_path, processed_annotation_gtf)
-    if snp_DB_path:
-        process_snp(snp_DB_path, snp_out_dir, editing_A_I_path, processed_annotation_gtf)
+    if editing_db:
+        editing_A_I_path, _ = process_editing_DB(editing_db, editing_out_dir, fasta_path, processed_annotation_gtf)
+    if snp_db:
+        process_snp(snp_db, snp_out_dir, editing_A_I_path, processed_annotation_gtf)
 
 
 def parse_arguments(arguments=None):
     parser = argparse.ArgumentParser()
 
     # positional arguments
-    parser.add_argument('out_dir', type=sc_rna_variants.utils.assert_is_directory, help='folder for output files')
-    parser.add_argument('annotation_gtf', type=sc_rna_variants.utils.assert_is_file, help='path to annotation gtf file')
+    parser.add_argument('out-dir', type=sc_rna_variants.utils.assert_is_directory, help='folder for output files')
+    parser.add_argument('annotation-gtf', type=sc_rna_variants.utils.assert_is_file, help='path to annotation gtf file')
 
     # optional arguments
-    parser.add_argument('--editing_DB_path', help='path to editing database file')
-    parser.add_argument('--fasta_path', help='needed if editing_DB_path is used. path to genome fasta file')
-    parser.add_argument('--snp_DB_path', help='path to SNP database file')
+    parser.add_argument('--editing-db', help='path to editing database file')
+    parser.add_argument('--fasta-path', help='needed if editing_db is used. path to genome fasta file')
+    parser.add_argument('--snp-db', help='path to SNP database file')
 
     return parser.parse_args(arguments)
 
@@ -265,6 +265,6 @@ if __name__ == '__main__':
     startTime = datetime.now()
     args = parse_arguments()
 
-    run_step0(args.out_dir, args.annotation_gtf, args.editing_DB_path, args.fasta_path, args.snp_DB_path)
+    run_step0(args.out_dir, args.annotation_gtf, args.editing_db, args.fasta_path, args.snp_db)
     print(datetime.now() - startTime)
     print("\nfinished to process DB files")
