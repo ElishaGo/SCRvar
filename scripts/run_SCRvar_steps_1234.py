@@ -34,9 +34,9 @@ def run_steps_1234(args):
     step1_output_dir = os.path.join(args.sample_output_dir, 'step1_filtered_bam_files')
     logger.info("# STEP 1 - filter bam file by filter list\n")
     os.makedirs(step1_output_dir, exist_ok=True)
-    step1_string = f"python {code_dir}/scripts/step1_filter_bam.py {args.input_bam} {step1_output_dir} --barcodes-cluster-file {args.barcodes_cluster_file} --threads {args.threads}"
+    step1_string = f"python {code_dir}/scripts/step1_filter_bam.py {args.input_bam} {step1_output_dir} --barcodes-cluster-file {args.barcodes_clusters} --threads {args.threads}"
     logger.info("running step 1 command: " + step1_string)
-    filtered_bam_path = sc_rna_variants.steps_runner.run_step1(args.input_bam, args.barcodes_cluster_file,
+    filtered_bam_path = sc_rna_variants.steps_runner.run_step1(args.input_bam, args.barcodes_clusters,
                                                                args.min_mapq, args.cigar_clipping_allowed,
                                                                args.max_gene_length, args.max_no_basecall,
                                                                args.tag_for_umi, args.tag_for_cell_barcode,
@@ -78,10 +78,10 @@ def run_steps_1234(args):
 
 #########################################################################################################
 def parse_arguments(arguments=None):
-    parser = argparse.ArgumentParser(description="""A script to set parameter to a bsub file and send to bsub""", )
+    parser = argparse.ArgumentParser(description="""A script to set parameter to a bsub file and send to bsub""")
 
     # positional arguments
-    parser.add_argument('sample-output_dir', type=sc_rna_variants.utils.assert_is_directory,
+    parser.add_argument('sample-output-dir', type=sc_rna_variants.utils.assert_is_directory,
                         help='directory to programs outputs')
     parser.add_argument('input-bam', type=sc_rna_variants.utils.assert_is_file, help='input bam file')
     parser.add_argument('genome-fasta', type=sc_rna_variants.utils.assert_is_file, help='genome reference')
@@ -89,7 +89,7 @@ def parse_arguments(arguments=None):
                         help='genecode annotation file (gtf format)')
 
     # optional arguments
-    parser.add_argument('--barcodes-cluster-file',
+    parser.add_argument('--barcodes-clusters',
                         type=sc_rna_variants.utils.filtered_barcodes_processing,
                         # returns a set with the barcodes names
                         help='''Text/tsv file with a list of cell barcodes as first column. Counts only these cells. Please note GEM-well numbers are ignored''')
@@ -139,7 +139,7 @@ if __name__ == '__main__':
     logger = logging.getLogger("positions_filtering_and_plots")
     logger.info('positions_filtering_and_plots started')
     logger.debug('Running with parameters:\n%s' % '\n'.join(
-        ['%s: %s' % (key, value) for key, value in vars(args).items() if key != 'barcodes_cluster_file'])
+        ['%s: %s' % (key, value) for key, value in vars(args).items() if key != 'barcodes_clusters'])
                  )
 
     run_steps_1234(args)

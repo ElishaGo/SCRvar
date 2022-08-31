@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="SCRvar",
-    version="2.0.2",
+    version="2.0.6",
     author="Yotam Constantini, Elisha Goldstein, Refael Kohen & Dena Leshkowitz",
     author_email="elishagoldstein0308@gmail.com",
     description="A script to detect RNA variations in single cell RNA-seq data.",

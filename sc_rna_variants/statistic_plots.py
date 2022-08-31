@@ -480,7 +480,7 @@ def plot_venn2_diagram(subset_list, labels, output_name, title):
        t.set_ha('right')  # ha is alias for horizontalalignment
        t.set_position((shift - t.get_window_extent().width, 0))  # (shift, 0)
 
-    plt.title('{}'.format(title))
+    plt.title('{}'.format(title), fontweight="bold")
     plt.tight_layout()
     plt.savefig(output_name, facecolor='white')
 
@@ -518,7 +518,7 @@ def plot_venn3_diagram(subset_list, labels, output_name, title):
         t.set_ha('right')  # ha is alias for horizontal alignment
         t.set_position((shift - t.get_window_extent().width, 0))
 
-    plt.title('{}'.format(title))
+    plt.title('{}'.format(title), fontweight="bold")
     plt.tight_layout()
     plt.savefig(output_name, facecolor='white')
 

@@ -96,7 +96,7 @@ SCRvar has its own basic analysis outputs.
 
 SCRvar can also run with some customized parameters to filter out some positions, thus ending up with different analysis outputs.
  ~~~
-run_filtering_and_analysis_step5.py SCRvar_sample_output/ SCRvar_sample_output/step4_aggregation_per_position_and_statistics/4.aggregated_per_position.bed --editing_db_path SCRvar_sample_output/step2_bam_gene_filter/2.editing.genecode.*_intersect.bed --snp_db_path SCRvar_sample_output/step2_bam_gene_filter/2.snp.genecode.*_intersect.bed --sname YOUR_SAMPLE_NAME OTHER_OPTIONAL_PARAMS
+run_filtering_and_analysis_step5.py SCRvar_sample_output/ SCRvar_sample_output/step4_aggregation_per_position_and_statistics/4.aggregated_per_position.bed --editing_db_path SCRvar_sample_output/step2_bam_gene_filter/2.editing.genecode.*_intersect.bed --snp_db_path SCRvar_sample_output/step2_bam_gene_filter/2.snp.genecode.*_intersect.vcf --sname YOUR_SAMPLE_NAME OTHER_OPTIONAL_PARAMS
  
 run_gene_level_analysis_step6.py SCRvar_sample_output/ SCRvar_sample_output/step4_aggregation_per_position_and_statistics/4.aggregated_per_position.bed SCRvar_sample_output/step3_mismatch_dictionary/3.mismatch_dictionary.bed external_files_processed/ANNOTATION_GTF --barcodes-cluster-file CELL_BARCODES_AND_CLUSTERS_FILE OTHER_OPTIONAL_PARAMS
  ~~~

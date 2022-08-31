@@ -62,9 +62,9 @@ def get_grouped(df):
     return df.groupby('position')
 
 
-def save_df(df, output_folder, name):
+def save_df(df, output_folder, fname):
     """save pandas df to output folder"""
-    df.to_csv(os.path.join(output_folder, name), index=False, sep='\t')
+    df.to_csv(os.path.join(output_folder, fname), index=False, sep='\t')
 
 
 def merge_dfs(df_mutated, df_unmutated):
@@ -485,7 +485,7 @@ def get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_
     sc_rna_variants.statistic_plots.plot_cb_count_per_position(df_merged_agg, df_merged_agg_filtered, output_folder, sname, with_unmut=False)
 
 
-def run_snp_edit_DB_intersections(df_agg_intersect, df_agg_intrsct_filtered, df_merged_open, df_merged_open_filtered, output_folder, snp_db_path, editing_db_path, sname):
+def make_DB_intersections_plots(df_agg_intersect, df_agg_intrsct_filtered, df_merged_open, df_merged_open_filtered, output_folder, snp_db_path, editing_db_path, sname):
     output_folder = os.path.join(output_folder, '5.DB_intersect_effect')
     os.makedirs(output_folder, exist_ok=True)
 
@@ -588,8 +588,8 @@ def load_and_process_mismatch_table(df_edit, mismatches_path, barcodes_clusters_
     df_mismatches['is_edit'] = 0
     df_mismatches.loc[df_mismatches['position'].isin(df_edit['position']), 'is_edit'] = 1
 
-    if barcodes_clusters_path:
-        df_mismatches = add_clusters(df_mismatches, barcodes_clusters_path)
+    # if barcodes_clusters_path:
+    #     df_mismatches = add_clusters(df_mismatches, barcodes_clusters_path)
 
     return df_mismatches
 
@@ -719,9 +719,11 @@ def plot_clustering_heatmaps(pivot_tables, pt_names, sname, output_dir):
 
     for pt, name in zip(pivot_tables, pt_names):
         print("shape of {} is: {}".format(name, pt.shape))
-        sc_rna_variants.statistic_plots.make_clusters_heatmap(pt, name=name + str(sname),
-                                                              output_dir=output_dir,
-                                                              chr_genes_pairs=chr_genes_pairs)
+        # only make plot if data exists
+        if (pt.shape[0] > 0) and (pt.shape[1] > 0):
+            sc_rna_variants.statistic_plots.make_clusters_heatmap(pt, name=name + str(sname),
+                                                                  output_dir=output_dir,
+                                                                  chr_genes_pairs=chr_genes_pairs)
 
 
 def interactions_anlysis(df_open, output_dir, sname):

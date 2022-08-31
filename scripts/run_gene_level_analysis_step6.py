@@ -32,18 +32,18 @@ def run_step6(SCRvar_aggregated_bed_file, output_dir, read_per_barcode_raw_bam, 
 
 #########################################################################################################
 def parse_arguments(arguments=None):
-    parser = argparse.ArgumentParser(formatter_class=sc_rna_variants.utils.ArgparserFormater, description="", )
+    parser = argparse.ArgumentParser()
 
     # positional arguments
     parser.add_argument('output-dir', type=sc_rna_variants.utils.assert_is_directory, help='folder for outputs')
-    parser.add_argument('SCRvar-aggregated-bed-file', type=sc_rna_variants.utils.assert_is_file,
+    parser.add_argument('scrvar-aggregated-bed', type=sc_rna_variants.utils.assert_is_file,
                         help='SCRvar step4 output')
     parser.add_argument('mismatch-dict-bed', type=sc_rna_variants.utils.assert_is_file, help='mismatch_dictionary from SCRvar step3')
     parser.add_argument('annotation-gtf', type=sc_rna_variants.utils.assert_is_file, help='path to gtf file')
     parser.add_argument('--read-per-barcode-raw-bam', type=sc_rna_variants.utils.assert_is_file, help='count of reads per CB in raw bam file')
 
     # optional arguments
-    parser.add_argument('--barcodes-cluster-file', type=sc_rna_variants.utils.assert_is_file, help='barcodes and clusters analysed by Seurat')
+    parser.add_argument('--barcodes-clusters', type=sc_rna_variants.utils.assert_is_file, help='barcodes and clusters analysed by Seurat')
     parser.add_argument('--min-cb-per-pos', default=5, type=int,
                         help='position with fewer cell barcodes will be filtered')
     parser.add_argument('--min-mutation-umis', default=10, type=int,
@@ -74,13 +74,13 @@ if __name__ == '__main__':
     logger = logging.getLogger("positions_filtering_and_plots")
     logger.info('positions_filtering_and_plots started')
 
-    # run step
-    run_step6(args.SCRvar_aggregated_bed_file, args.output_dir,
+    print(['%s: %s' % (key, value) for key, value in vars(args).items() if key != 'barcodes_clusters'])
+    run_step6(args.scrvar_aggregated_bed, args.output_dir,
               args.read_per_barcode_raw_bam,
               args.min_cb_per_pos,
               args.min_mutation_umis, args.min_total_umis, args.min_mutation_rate, args.reditools_data,
               args.annotation_gtf,
-              args.mismatch_dict_bed, args.barcodes_cluster_file, args.atacseq_gcoverage_min, args.atacseq_gfrequency_min,
+              args.mismatch_dict_bed, args.barcodes_clusters, args.atacseq_gcoverage_min, args.atacseq_gfrequency_min,
               args.sname)
 
     print(datetime.now() - startTime)

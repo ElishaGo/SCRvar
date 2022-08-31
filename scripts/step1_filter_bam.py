@@ -30,7 +30,7 @@ Reads aligned to genomic segments that don't appear in the genome FASTA are disc
                         help='Path to the directory where the output files will be placed')
 
     # optional arguments
-    parser.add_argument('--barcodes-cluster-file',
+    parser.add_argument('--barcodes-clusters',
                         type=sc_rna_variants.utils.filtered_barcodes_processing,
                         # returns a set with the barcodes names
                         help='''Text/tsv file with a list of cell barcodes as first column. Counts only these cells. Please note GEM-well numbers are ignored''')
@@ -69,10 +69,10 @@ if __name__ == '__main__':
 
     logger.info('scRNA variants finding program started')
     logger.debug('Running with parameters:\n%s' % '\n'.join(
-        ['%s: %s' % (key, value) for key, value in vars(args).items() if key != 'barcodes_cluster_file'])
+        ['%s: %s' % (key, value) for key, value in vars(args).items() if key != 'barcodes_clusters'])
                  )
 
-    sc_rna_variants.steps_runner.run_step1(args.input_bam, args.barcodes_cluster_file,
+    sc_rna_variants.steps_runner.run_step1(args.input_bam, args.barcodes_clusters,
                                            args.min_mapq, args.cigar_clipping_allowed,
                                            args.max_gene_length, args.max_no_basecall,
                                            args.tag_for_umi, args.tag_for_cell_barcode,

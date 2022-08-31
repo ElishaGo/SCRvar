@@ -18,13 +18,20 @@ def parse_arguments(arguments=None):
     parser = argparse.ArgumentParser(sc_rna_variants.utils.ArgparserFormater)
 
     # positional arguments
-    parser.add_argument('input_dir', type=sc_rna_variants.utils.assert_is_directory, help='folder with mismatch_dictionaries (step 3)')
+    parser.add_argument('input_dir', type=sc_rna_variants.utils.assert_is_directory,
+                        help='folder with mismatch_dictionaries (step 3)')
     parser.add_argument('output_dir', help='folder for step4 outputs', type=sc_rna_variants.utils.assert_is_directory)
-    parser.add_argument('editing_db_path', type=sc_rna_variants.utils.assert_is_file, help='path to known editing sites file')
+    parser.add_argument('editing_db_path', type=sc_rna_variants.utils.assert_is_file,
+                        help='path to known editing sites file')
     parser.add_argument('snp_db_path', type=sc_rna_variants.utils.assert_is_file, help='path to known SNP sites file')
-    parser.add_argument('annotation_gtf', type=sc_rna_variants.utils.assert_is_file, help='path to transcriptome gtf file')
+    parser.add_argument('annotation_gtf', type=sc_rna_variants.utils.assert_is_file,
+                        help='path to transcriptome gtf file')
 
     # optional arguments
+    parser.add_argument('--barcodes-clusters',
+                        type=sc_rna_variants.utils.filtered_barcodes_processing,
+                        # returns a set with the barcodes names
+                        help='''Text/tsv file with a list of cell barcodes as first column. Counts only these cells. Please note GEM-well numbers are ignored''')
     parser.add_argument('--min_cb_per_pos', default=5, type=int,
                         help='position with less cell barcodes will be filtered')
     parser.add_argument('--min_mutation_umis', default=10, type=int,
@@ -55,7 +62,8 @@ if __name__ == '__main__':
         ['%s: %s' % (key, value) for key, value in vars(args).items()]))
 
     # run statistics analysis
-    sc_rna_variants.steps_runner.run_step4(args.input_dir, args.output_dir, args.annotation_gtf, args.editing_db_path, args.snp_db_path)
+    sc_rna_variants.steps_runner.run_step4(args.input_dir, args.output_dir, args.annotation_gtf, args.barcodes_clusters,
+                                           args.editing_db_path, args.snp_db_path)
 
     print(datetime.now() - startTime)
     logger.info('Step 4 finished')

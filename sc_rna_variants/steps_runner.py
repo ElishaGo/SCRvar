@@ -8,10 +8,10 @@ import sc_rna_variants.bio_functions
 logger = logging.getLogger(__name__)
 
 
-def run_step1(input_bam, barcodes_cluster_file, min_mapq, cigar_clipping_allowed, max_gene_length, max_no_basecall,
+def run_step1(input_bam, barcodes_clusters, min_mapq, cigar_clipping_allowed, max_gene_length, max_no_basecall,
               tag_for_umi, tag_for_cell_barcode, output_folder, threads):
     # create the filtered bam from which the variants will be counted
-    filtered_bam_path = sc_rna_variants.bio_functions.create_filtered_bam(input_bam, barcodes_cluster_file,
+    filtered_bam_path = sc_rna_variants.bio_functions.create_filtered_bam(input_bam, barcodes_clusters,
                                                                           min_mapq, cigar_clipping_allowed,
                                                                           max_gene_length, max_no_basecall,
                                                                           tag_for_umi, tag_for_cell_barcode,
@@ -39,7 +39,7 @@ def run_step3(input_bam, genome_fasta, tag_for_umi, tag_for_cell_barcode, output
                                                   output_folder, threads)
 
 
-def run_step4(input_dir, output_dir, annotation_gtf, editing_db, snp_db):
+def run_step4(input_dir, output_dir, annotation_gtf, barcodes_clusters, editing_db, snp_db):
     # load the mutated and unmutated data frames
     df_mutated = sc_rna_variants.analysis_utils.load_tables(os.path.join(input_dir, "3.mismatch_dictionary.bed"),
                                                             mutated=True)
@@ -61,6 +61,9 @@ def run_step4(input_dir, output_dir, annotation_gtf, editing_db, snp_db):
     # add gene names
     df_merged_agg = sc_rna_variants.analysis_utils.add_gene_name_from_gtf(df_merged_agg, output_dir, annotation_gtf)
 
+    # # add cluster notation
+    df_merged_agg = sc_rna_variants.analysis_utils.add_clusters(df_merged_agg, barcodes_clusters)
+
     # save the aggregated file
     sc_rna_variants.analysis_utils.save_df(df_merged_agg, output_dir, "4.aggregated_per_position.bed")
 
@@ -81,11 +84,13 @@ def run_step5(output_dir, SCRvar_aggregated_bed_file, min_cb_per_pos, min_mutati
     df_merged_open, df_merged_open_filtered = sc_rna_variants.analysis_utils.combine_data_from_agg_to_open_table(df_merged_open, df_merged_agg,
                                                                                   df_merged_agg_filtered)
 
+    # save aggregated filtered table
+    sc_rna_variants.analysis_utils.save_df(df_merged_agg_filtered, output_dir, "5.aggregated_per_position.filtered.bed")
+
     # make plots
     logger.info("started to make plots")
     sc_rna_variants.analysis_utils.get_stat_plots(df_merged_open, df_mut_open, df_unmutated, df_merged_agg, df_merged_open_filtered,
-                   df_merged_agg_filtered,
-                   output_dir, sname)
+                   df_merged_agg_filtered, output_dir, sname)
 
     # write statistics to text filescvar
     sc_rna_variants.analysis_utils.write_statistics_numbers(df_merged_open, df_merged_open_filtered, output_dir, min_cb_per_pos, min_mutation_umis,
@@ -94,9 +99,9 @@ def run_step5(output_dir, SCRvar_aggregated_bed_file, min_cb_per_pos, min_mutati
     # make intersections with SNP and edit DB
     if editing_db != None:
         logger.info("started to make intersection with Data Bases")
-        sc_rna_variants.analysis_utils.run_snp_edit_DB_intersections(df_merged_agg, df_merged_agg_filtered, df_merged_open,
-                                      df_merged_open_filtered, output_dir, snp_db, editing_db,
-                                      sname)
+        sc_rna_variants.analysis_utils.make_DB_intersections_plots(df_merged_agg, df_merged_agg_filtered, df_merged_open,
+                                                                   df_merged_open_filtered, output_dir, snp_db, editing_db,
+                                                                   sname)
 
 
 def run_step6(SCRvar_aggregated_bed_file, output_dir,

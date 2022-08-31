@@ -21,7 +21,6 @@ import sc_rna_variants.steps_runner
 
 def run_step_5(output_dir, SCRvar_aggregated_bed_file, min_cb_per_pos, min_mutation_umis, min_total_umis,
               min_mutation_rate, snp_db, editing_db, sname):
-    # run step 5
     out_dir5 = os.path.join(output_dir, 'step5_filtering_and_DB_intersections_effects')
     os.makedirs(out_dir5, exist_ok=True)
     sc_rna_variants.steps_runner.run_step5(out_dir5, SCRvar_aggregated_bed_file, min_cb_per_pos, min_mutation_umis, min_total_umis,
@@ -34,7 +33,7 @@ def parse_arguments(arguments=None):
 
     # positional arguments
     parser.add_argument('output-dir', type=sc_rna_variants.utils.assert_is_directory, help='folder for outputs')
-    parser.add_argument('SCRvar-aggregated_bed_file', type=sc_rna_variants.utils.assert_is_file, help='last output of SCRvar main program')
+    parser.add_argument('scrvar-aggregated-bed', type=sc_rna_variants.utils.assert_is_file, help='SCRvar step4 output')
 
     # optional arguments
     parser.add_argument('--editing-db', help='path to known editing sites file')
@@ -68,8 +67,7 @@ if __name__ == '__main__':
     logger.debug('Running with parameters:\n%s' % '\n'.join(
         ['%s: %s' % (key, value) for key, value in vars(args).items()]))
 
-    # run filtering and create plots
-    run_step_5(args.output_dir, args.SCRvar_aggregated_bed_file, args.min_cb_per_pos, args.min_mutation_umis, args.min_total_umis,
+    run_step_5(args.output_dir, args.scrvar_aggregated_bed, args.min_cb_per_pos, args.min_mutation_umis, args.min_total_umis,
               args.min_mutation_rate, args.snp_db, args.editing_db, args.sname)
 
     print(datetime.now() - startTime)
