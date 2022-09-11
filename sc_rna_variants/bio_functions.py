@@ -10,13 +10,11 @@ import pysam
 
 import sc_rna_variants.utils as utils
 
-# import utils
-
-
 logger = logging.getLogger(__name__)
 
 
 class ReadsFilter(object):
+    # TODO: filter read with no CB tag as part of general read process where no filter list is suplied
     """ a class to help with reads filtering, 
     
     once the filter is initiated, running .process(pysamAlignmentRead) will
@@ -55,6 +53,7 @@ class ReadsFilter(object):
             return None
 
         # problematic cigar charachters
+        # filter indels
         clipped_positions = sum([cigar_length for cigar_type, cigar_length in read.cigartuples if cigar_type in [4, 5]])
         if clipped_positions > self.cigar_clip_limit or \
                 read.cigarstring.count('D') > 0 or read.cigarstring.count('I') > 0:
@@ -115,7 +114,7 @@ def open_bam(input_bam, available_threads=1):
     returns pysam.libcalignmentfile.AlignmentFile
     """
     try:
-        bamfile = pysam.AlignmentFile(input_bam, "rb", threads=available_threads)
+        bamfile = pysam.AlignmentFile(input_bam, "rb")
 
         if bamfile.header['HD']['SO'] != "coordinate":
             msg = "BAM is not sorted by coordinate (missing SO:coordinate from header)"
@@ -184,14 +183,14 @@ def divide_chromosome_by_reads(bam_input, max_reads=100000):
             (chromosoms name, start position, end position, read_count)
     """
     assert max_reads > 5000
-    initial_chunks = divide_chromosome_chunks(bam_input, 200000000)
+    initial_chunks = divide_chromosome_chunks(bam_input)
 
     good_size_chunks = set()
     counter = 0
     while len(initial_chunks) > 0:
         chunk = initial_chunks.pop()
         read_count = bam_input.count(*chunk)
-        if read_count < max_reads or (chunk[2] - chunk[1]) < 500:
+        if read_count < max_reads or (chunk[2] - chunk[1]) < 200:
             # if we have a good amount of reads, or if we are looking at a small enough segment (super-expressed gene)
             good_size_chunks.add((*chunk, read_count))
         else:
@@ -311,11 +310,11 @@ def create_filtered_bam(input_bam, filtered_barcodes_list, min_mapq, cigar_clipp
     logger.debug("finished creating filtered bam files for different segments of the genome, starting to merge them")
 
     # create the combined, filtered bam file
-    filtered_bam_path = str(pathlib.Path(output_folder) / (os.path.basename(input_bam) + "_filtered.bam"))
+    filtered_bam_path = os.path.join(pathlib.Path(output_folder), "1." + (os.path.basename(input_bam).replace(".bam", '') + "_filtered.bam"))
     pysam.merge("-f", "-h", str(temp_header_file), filtered_bam_path, *temporary_bams_paths, '--threads', str(threads))
 
     # create index for the filtered file
-    subprocess.run(["samtools", "index", filtered_bam_path], check=True)
+    subprocess.run(["samtools", "index", "-@", str(threads), filtered_bam_path], check=True)
 
     logger.info("finished merging filtered bams into the final, united, filtered bam file. starting cleanup")
 
@@ -503,7 +502,8 @@ def process_chromosome_chunk(
 
             total_singles_counts, total_multiples_counts, params = calculate_position_parameters(ref_base,
                                                                                                  cells_dict[cell][(
-                                                                                                 direction, position)])
+                                                                                                     direction,
+                                                                                                     position)])
 
             if params:  # has mutation
                 if direction == '-':  # flip for negative strand
@@ -514,7 +514,7 @@ def process_chromosome_chunk(
                 has_mutation.add((direction, position))
                 # ouput bed file as positions start (1-based), end (1-based)
                 temp_results.append('\t'.join([
-                    fasta_chromosome_name, str(position + 1), str(position + 2), cell,  #CHANGED HERE 15/12/2021
+                    fasta_chromosome_name, str(position + 1), str(position + 2), cell,  # CHANGED HERE 15/12/2021
                     params[-1], direction, ref_base, *params[:-1]
                 ]) + '\n')
             else:  # no mutations
@@ -530,7 +530,8 @@ def process_chromosome_chunk(
         fh.writelines(
             ['\t'.join(
                 # chromosome, start (1-based), end (1-based), unique cells, direction, multiples, singles
-                [fasta_chromosome_name, str(key[1] + 1), str(key[1] + 2), str(value[2]), key[0], str(value[0]),  #CHANGED HERE 15/12/2021
+                [fasta_chromosome_name, str(key[1] + 1), str(key[1] + 2), str(value[2]), key[0], str(value[0]),
+                 # CHANGED HERE 15/12/2021
                  str(value[1])]
             ) + '\n' for key, value in total_umis_for_unmutated_positions.items() if key in has_mutation]
         )
@@ -553,11 +554,12 @@ def variants_finder(filtered_bam, genome_fasta, tag_for_umi, tag_for_cell_barcod
     bamfile = open_bam(filtered_bam, threads)
     logger.debug("Starting to divide the genome to equaly covered segments, this might take a while")
     # Chunk tuple structure: (chromosoms name, start position, end position, read_count)
-    chunks_set = divide_chromosome_by_reads(bamfile, max_reads=200000)
+    chunks_set = divide_chromosome_by_reads(bamfile)
     bamfile.close()
 
     # assert only chromosomes that appear in the FASTA file are taken
-    chunks_set = {chunk for chunk in chunks_set if names_translator.translate_chromosome_name(chunk[0])}
+    chunks_set = [chunk for chunk in chunks_set if (
+            names_translator.translate_chromosome_name(chunk[0]) and chunk[3] > 0)]
 
     logger.debug("Genome was devided into %d segments" % len(chunks_set))
 
@@ -577,14 +579,14 @@ def variants_finder(filtered_bam, genome_fasta, tag_for_umi, tag_for_cell_barcod
     for chunk in chunks_set:
         filtered_chunk_tsv_path = pathlib.Path(output_folder) / names.pop()
         temporary_tsvs_paths.append(str(filtered_chunk_tsv_path))
-        ######## DEBUGGING
+        ####### DEBUGGING
         # process_chromosome_chunk(
         #         filtered_bam, chunk,
         #         names_translator.translate_chromosome_name(chunk[0]),
-        #         arguments.genome_fasta, arguments.tag_for_umi,
-        #         arguments.tag_for_cell_barcode, filtered_chunk_tsv_path
+        #         genome_fasta, tag_for_umi,
+        #         tag_for_cell_barcode, filtered_chunk_tsv_path
         #         )
-        #######
+        ######
         result = pool.apply_async(func=process_chromosome_chunk, args=(
             filtered_bam, chunk,
             names_translator.translate_chromosome_name(chunk[0]),
@@ -594,7 +596,14 @@ def variants_finder(filtered_bam, genome_fasta, tag_for_umi, tag_for_cell_barcod
         asyncs.append(result)
 
     for i in range(len(asyncs)):
-        asyncs[i].get()
+        try:
+            asyncs[i].get(timeout=900)  # 15 min wait for thread
+        except multiprocessing.TimeoutError as e:
+            msg = "\nTimeoutError in thread processing bam. try to decrease amount of threads. failed on chunk: %s" % ' '.join([str(s) for s in chunks_set[i]])
+            logger.critical(msg)
+            raise multiprocessing.TimeoutError(msg)
+
+
         if (i) % 10 == 0:
             logger.debug("completed %d chunks out of %d" % (i + 1, len(asyncs)))
     pool.close()
@@ -603,18 +612,19 @@ def variants_finder(filtered_bam, genome_fasta, tag_for_umi, tag_for_cell_barcod
     logger.debug("finished creating temporary tsv files for different segments of the genome, starting to merge them")
 
     # create the combined, filtered bam file
-    output_tsv = pathlib.Path(output_folder) / 'raw_stats.tsv'
-    output_unmutated_tsv = pathlib.Path(output_folder) / 'raw_unmutated_stats.tsv'
+    output_tsv = pathlib.Path(output_folder) / '3.mismatch_dictionary.bed'
+    output_unmutated_tsv = pathlib.Path(output_folder) / '3.no_mismatch_dictionary.bed'
 
     header_line = '\t'.join([
-        "chromosome", "start", "end", "cell barcode",
+        "#chrom", "chromStart", "chromEnd", "cell barcode",
         "percent of non ref", "strand", "reference base",
-        "same multi", "transition multi", "reverse multi", "transvertion multi",
-        "same single", "transition single", "reverse single", "transvertion single",
+        "same multi reads", "transition multi reads", "reverse multi reads", "transvertion multi reads",
+        "same single reads", "transition single reads", "reverse single reads", "transvertion single reads",
         "mixed reads"]) + '\n'
 
     header_line_unmutated = '\t'.join([
-        "chromosome", "start", "end", "unique cells", "direction", "multiples", "singles"
+        "#chrom", "chromStart", "chromEnd", "count of unmutated cell barcodes", "strand", "unmutated multi reads",
+        "unmutated single reads"
     ]) + '\n'
 
     with open(output_tsv, 'w') as outfile, open(output_unmutated_tsv, 'w') as outfile_unmutated:
@@ -632,5 +642,9 @@ def variants_finder(filtered_bam, genome_fasta, tag_for_umi, tag_for_cell_barcod
                 os.remove(fpath + '2')
 
     logger.debug("finished merging and cleanup of tsv files")
+
+    # sort the tables
+    utils.sort_and_save_table(output_tsv)
+    utils.sort_and_save_table(output_unmutated_tsv)
 
     return
